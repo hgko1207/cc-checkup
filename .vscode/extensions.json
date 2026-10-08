@@ -1,0 +1,5 @@
+{
+  // 저장소를 연 팀원에게 권장 확장 설치 안내를 띄운다.
+  // 확장만 설치하면 터미널의 claude 명령은 생기지 않는다. CLI는 따로 설치한다.
+  "recommendations": ["anthropic.claude-code"]
+}

@@ -10,6 +10,8 @@
 
 ## 다음 작업 (구현 예정)
 
+## 완료
+
 ### [x] v0.2 권한 설정 진단 — checkSettings 구현
 
 - 목표: `npm run test`에서 settings 관련 테스트 전부 통과, `npm run typecheck`·`npm run lint` 통과
@@ -52,6 +54,4 @@
 - bypass 판정: `permissions.disableBypassPermissionsMode === "disable"`
 
 **settings.json이 존재하지만 JSON 파싱 실패 시:** `settings/missing`을 fail로 반환하되 message에 "파싱 실패"를 명시
-
-## 완료
 

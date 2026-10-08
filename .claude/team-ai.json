@@ -1,0 +1,9 @@
+{
+  "protectedPaths": [],
+  "allowPaths": [],
+  "protectedBranches": [],
+  "blockedCommands": [],
+  "formatCommand": ["npx", "--no-install", "prettier", "--write", "{file}"],
+  "formatExtensions": [".ts", ".js", ".json"],
+  "reinjectSections": []
+}

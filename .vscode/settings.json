@@ -1,0 +1,9 @@
+{
+  // Claude Code 팀 공통 워크스페이스 설정 (VS Code 확장)
+  // 권한 우회(Bypass permissions) 모드를 모드 선택기에서 없앤다. 완화하지 않는다.
+  "claudeCode.allowDangerouslySkipPermissions": false,
+  // Claude가 파일을 읽고 쓰기 전에 에디터의 저장 안 된 변경을 저장한다.
+  "claudeCode.autosave": true,
+  // 파일 검색에서 .gitignore 대상(node_modules, build 등)을 뺀다.
+  "claudeCode.respectGitIgnore": true
+}
