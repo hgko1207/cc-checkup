@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
 import { checkClaudeMd } from "./checks/claude-md.js";
+import { checkSettings } from "./checks/settings.js";
 import { formatReport } from "./report.js";
 import type { Check } from "./types.js";
 
-const CHECKS: Check[] = [checkClaudeMd];
+const CHECKS: Check[] = [checkClaudeMd, checkSettings];
 
 async function main(argv: string[]): Promise<number> {
   if (argv.includes("--help") || argv.includes("-h")) {
