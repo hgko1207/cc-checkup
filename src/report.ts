@@ -1,13 +1,126 @@
-import type { Finding } from "./types.js";
+import { readFile, writeFile } from "node:fs/promises";
+import { basename } from "node:path";
+import type { Diagnosis } from "./diagnose.js";
+import type { FixPlan } from "./fix.js";
+import type { Finding, Severity } from "./types.js";
+
+// 리포트 마지막 줄 링크: 항상 클릭을 세는 착지 주소 (eng review R2).
+// 호스팅 위치는 설계 Open Question이라 npm 공개 전(T12)에 이 주소를 확정한다.
+export const LANDING_URL =
+  "https://hgko1207.github.io/ai-setup-service/from-checkup?utm_source=cc-checkup";
+export const KIT_GUIDE = `team-ai-kit이 있으면 Claude Code에서 /team-ai:setup, 없으면 안내: ${LANDING_URL}`;
+export const REPORT_MARKER = "<!-- cc-checkup report -->";
 
 const MARK = { ok: "✓", warn: "!", fail: "✗" } as const;
+const GROUPS: { severity: Severity; title: string }[] = [
+  { severity: "fail", title: "위험" },
+  { severity: "warn", title: "주의" },
+  { severity: "ok", title: "괜찮음" },
+];
 
-// 결과를 사람이 읽는 텍스트로 만든다
-export function formatReport(findings: Finding[]): string {
-  return findings
-    .map((f) => {
-      const line = `${MARK[f.severity]} ${f.message}`;
-      return f.fix ? `${line}\n    → ${f.fix}` : line;
-    })
-    .join("\n");
+// 차단 규칙이 실제로 막는 범위 (공식 문서 2026-10-12 기준, eng review R13)
+const SHELL_SCOPE =
+  "차단 규칙은 Claude의 파일 도구와 cat·head·tail·sed·tee, >·< 리다이렉트에 적용되지만 grep -r처럼 파일 이름 없이 읽는 명령과 Python·Node 스크립트는 막지 못합니다(Claude Code 최신 버전 기준). 훅(team-ai-kit)이나 샌드박스가 필요합니다";
+
+export function remainingRisks({ ctx }: Diagnosis): string[] {
+  const notes = [SHELL_SCOPE];
+  let start =
+    "이 폴더에서 Claude Code를 시작해야 이 설정이 적용됩니다 (하위 폴더에서 시작하면 그 폴더의 .claude/settings.json만 읽습니다)";
+  if (ctx.scan.nestedSettings.length > 0) {
+    start += `. 하위 폴더 설정(내용은 진단하지 않음): ${ctx.scan.nestedSettings.join(", ")}`;
+  }
+  notes.push(start);
+  if (ctx.scan.unreadableDirs > 0) {
+    notes.push(`읽지 못한 폴더 ${ctx.scan.unreadableDirs}개는 .env 확인에서 빠졌습니다`);
+  }
+  return notes;
+}
+
+function judgments(findings: Finding[]): string[] {
+  return [
+    ...new Set(
+      findings.filter((f) => f.severity !== "ok" && f.judgment).map((f) => f.judgment as string),
+    ),
+  ];
+}
+
+// 터미널 출력 (고치기 질문 전까지)
+export function formatText(diag: Diagnosis): string {
+  const out = ["이 저장소의 Claude Code 팀 세팅 진단", ""];
+  for (const g of GROUPS) {
+    const items = diag.findings.filter((f) => f.severity === g.severity);
+    if (items.length === 0) continue;
+    out.push(g.title, ...items.map((f) => `  ${MARK[f.severity]} ${f.message}`));
+  }
+  const todo = judgments(diag.findings);
+  if (todo.length > 0) {
+    out.push("", "직접 판단이 필요한 것 (자동으로 고치지 않음)", ...todo.map((j) => `  - ${j}`));
+  }
+  out.push("", "남는 위험", ...remainingRisks(diag).map((r) => `  - ${r}`));
+  return out.join("\n");
+}
+
+export function formatCandidates(plan: FixPlan): string {
+  if (plan.candidates.length === 0) return "";
+  return ["", "바로 고칠 수 있는 것", ...plan.candidates.map((c) => `  ${c.no}. ${c.title}`)].join(
+    "\n",
+  );
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+// --report 파일 내용. 첫 줄 표식, 마지막 줄 착지 링크
+export function formatMarkdown(diag: Diagnosis, plan: FixPlan, now = new Date()): string {
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const out = [
+    REPORT_MARKER,
+    "# Claude Code 팀 세팅 진단 리포트",
+    "",
+    `- 대상 폴더: \`${basename(diag.ctx.repoDir)}\``,
+    `- 진단 일시: ${date}`,
+  ];
+  for (const g of GROUPS) {
+    const items = diag.findings.filter((f) => f.severity === g.severity);
+    if (items.length === 0) continue;
+    out.push("", `## ${g.title}`, "", ...items.map((f) => `- ${MARK[f.severity]} ${f.message}`));
+  }
+  if (plan.candidates.length > 0) {
+    out.push(
+      "",
+      "## 바로 고칠 수 있는 것",
+      "",
+      "터미널에서 `npx cc-checkup`을 실행하면 변경 내용을 확인한 뒤 적용할 수 있습니다.",
+      "",
+      ...plan.candidates.map((c) => `${c.no}. ${c.title}`),
+    );
+  }
+  const todo = judgments(diag.findings);
+  if (todo.length > 0) {
+    out.push("", "## 직접 판단이 필요한 것", "", ...todo.map((j) => `- ${j}`));
+  }
+  out.push("", "## 남는 위험", "", ...remainingRisks(diag).map((r) => `- ${r}`));
+  out.push("", "---", "", `팀 세팅 진단·도입 상담: ${LANDING_URL}`);
+  return out.join("\n") + "\n";
+}
+
+export class ReportExistsError extends Error {}
+
+// cc-checkup이 만든 리포트(첫 줄 표식)만 덮어쓴다 (eng review R6)
+export async function writeReport(path: string, content: string): Promise<void> {
+  let existing: string | null = null;
+  try {
+    existing = await readFile(path, "utf8");
+  } catch {
+    // 없으면 새로 만든다
+  }
+  if (
+    existing !== null &&
+    (existing.charCodeAt(0) === 0xfeff ? existing.slice(1) : existing).split(/\r?\n/)[0] !==
+      REPORT_MARKER
+  ) {
+    throw new ReportExistsError(`이미 있는 파일이라 덮어쓰지 않습니다: ${path}`);
+  }
+  await writeFile(path, content, "utf8");
 }
