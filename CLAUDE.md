@@ -1,12 +1,12 @@
 # cc-checkup
 
-저장소의 Claude Code 팀 세팅 상태를 점수로 진단하는 CLI. 영업 도구·블로그 무료 도구로 쓴다.
+저장소의 Claude Code 팀 세팅을 한국어 위험 문장으로 진단하고, 정해진 안전 수정은 확인 후 적용하는 CLI. 영업 도구·블로그 무료 도구로 쓴다. 설계: `docs/designs/risk-report-wedge.md`
 - 스택: TypeScript (Node.js ESM), vitest, eslint, prettier
 - 답변은 한국어로, 코드 식별자는 영문으로 쓴다.
 
 ## 구조
 
-- `src/` — CLI 진입점, 진단 로직, 리포트 출력
+- `src/` — CLI 흐름(cli), 진단 실행(diagnose), .env 규칙 판정(env-rules), 고치기(fix), 백업·되돌리기(backup), 질문(prompt), 출력(report)
 - `src/checks/` — 진단 항목별 체크 함수 (Check 타입)
 - `test/` — vitest 테스트
 - `docs/` — 제품 문서, 팀 가이드
@@ -50,7 +50,8 @@
 
 ## 코딩 규칙
 
-- Check 타입 함수를 export하고 cli.ts의 CHECKS 배열에 등록한다.
+- Check 타입 함수(`(ctx) => Finding[]`)를 export하고 diagnose.ts의 CHECKS 배열에 등록한다.
+- 설정 파일을 쓰는 경로는 반드시 diff → `[y/N]` → backup.ts 백업을 거친다. 터미널이 아니면 쓰지 않는다.
 - ESM import에 `.js` 확장자를 붙인다 (NodeNext 해석).
 - strict + noUncheckedIndexedAccess가 켜져 있다.
 

@@ -4,13 +4,34 @@
 
 ## 현재 상태
 
-- v0.1 완료: CLI 뼈대, CLAUDE.md 존재·길이 진단 (checkClaudeMd)
-- 다음 마일스톤: v0.2 — 권한 설정 진단 (settings 존재, .env 읽기·쓰기 차단, 위험한 자동 허용, 우회 모드)
-- 테스트 1파일 3건, typecheck·lint·test 모두 통과
+- v0.3 완료: 진단 9개, 선택형 고치기 2개(diff·확인·백업), --undo(역순), --report(UTF-8·표식)
+- 다음: T11 package.json 공개 준비, T12 착지 페이지 — 소스 공개 여부·호스팅 위치 결정 필요
+- 테스트 7파일 120건, typecheck·lint·test·build 통과
 
 ## 다음 작업 (구현 예정)
 
+> 근거: `docs/designs/risk-report-wedge.md` (office-hours 설계 + eng review 결정 R1~R15, 2026-10-12 승인). 작업 번호는 설계 문서의 Implementation Tasks와 같다.
+
 ## 완료
+
+### [x] v0.3 위험 리포트 + 선택형 고치기 (T1~T10)
+
+- 목표: 설계의 진단 9개·고치기 2개·`--undo`·`--report`가 동작하고 `npm run typecheck && npm run lint && npm run test` 통과
+- 변경할 파일 (eng review D1 배치):
+  - `src/checks/settings.ts` — 진단 2·4·5·6·7·8, settings.json 읽기(BOM 제거·서식 감지·타입 검사) (T1, T3, T6)
+  - `src/checks/claude-md.ts` — 진단 1(두 위치)·9 (T4)
+  - `src/checks/git.ts` (신규) — 진단 3, git 실행 실패=확인 불가 (T5)
+  - `src/env-rules.ts` (신규) — deny 규칙 gitignore식 판정, 실제 .env 탐색(링크 무시·20만 상한), 하위 settings 경로 (T2)
+  - `src/backup.ts` (신규) — 경로 정규화, 백업·manifest·롤백, `--undo` 역순·undoneAt (T7)
+  - `src/fix.ts` (신규) — 고치기 후보("더하기만" 기준), 서식 보존 텍스트 삽입, diff (T8)
+  - `src/prompt.ts` (신규) — TTY 판정, 번호 선택·[y/N] (T9)
+  - `src/diagnose.ts` (신규) — 진단 실행 순서와 공유 입력(settings·탐색·git) 모음. 배치안에 없던 파일: CLI 흐름과 진단을 나눠 테스트하려고 추가
+  - `src/report.ts`, `src/cli.ts`, `src/types.ts` — 묶음 출력, `--report` 표식·거부, 착지 링크, 커밋 안내 (T9, T10)
+  - `test/*.test.ts` — 설계의 테스트 계획(Edge Cases) 기준
+- 안 하는 것: T11(package.json 공개 준비)·T12(착지 페이지) — 소스 공개 여부·호스팅 위치 결정 후. 하위 settings 진단, 점수, 스킬.
+- 멈춤 조건: 설계와 다른 동작이 필요해지면 멈추고 묻는다.
+- 결과(2026-10-20): typecheck·lint 통과, 테스트 7파일 120건 통과, build 통과. 임시 사본으로 고치기→되돌리기 왕복이 바이트 단위로 원본과 같음을 확인. ai-cost-calc·blog-seo-check는 읽기 전용(비TTY)으로 진단만 실행.
+- 남은 것: T11·T12(Open Question 결정 후), 사람이 실제 터미널에서 돌려 보는 관찰(설계 The Assignment).
 
 ### [x] v0.2 권한 설정 진단 — checkSettings 구현
 
