@@ -1,144 +1,238 @@
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { checkSettings } from "../src/checks/settings.js";
+import {
+  checkSettings,
+  detectFormat,
+  matcherHitsBash,
+  readSettings,
+} from "../src/checks/settings.js";
+import { DEFAULT_TARGETS } from "../src/env-rules.js";
+import type { Finding } from "../src/types.js";
+import { ctxFor, repoWith, settingsJson } from "./helpers.js";
 
-async function repoWith(files: Record<string, string>): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "cc-checkup-"));
-  for (const [name, body] of Object.entries(files)) {
-    const filePath = join(dir, name);
-    await mkdir(join(filePath, ".."), { recursive: true });
-    await writeFile(filePath, body);
-  }
-  return dir;
+const FULL_DENY = DEFAULT_TARGETS.flatMap((t) => [`Read(**/${t})`, `Edit(**/${t})`]);
+
+async function run(files: Record<string, string>): Promise<Finding[]> {
+  return checkSettings(await ctxFor(await repoWith(files)));
 }
 
-function settingsJson(permissions: Record<string, unknown>): string {
-  return JSON.stringify({ permissions });
+function byId(findings: Finding[], id: string): Finding | undefined {
+  return findings.find((f) => f.id === id);
 }
 
-describe("checkSettings", () => {
-  it(".claude/settings.json이 없으면 fail", async () => {
-    const findings = await checkSettings(await repoWith({}));
+describe("settings.json 읽기", () => {
+  it("없으면 settings/missing fail, 고치기 후보는 진단 4·5·7에 붙는다", async () => {
+    const findings = await run({});
+    expect(byId(findings, "settings/missing")?.severity).toBe("fail");
+    expect(byId(findings, "settings/env-read-deny")?.denyRules).toHaveLength(6);
+    expect(byId(findings, "settings/bypass")?.bypassFix).toBe(true);
+  });
+
+  it("JSON 파싱 실패면 fail + 판단 필요, 다른 진단은 하지 않는다", async () => {
+    const findings = await run({ ".claude/settings.json": "not json" });
     expect(findings).toHaveLength(1);
-    expect(findings[0]?.id).toBe("settings/missing");
     expect(findings[0]?.severity).toBe("fail");
+    expect(findings[0]?.judgment).toBeDefined();
   });
 
-  it("JSON 파싱 실패하면 fail", async () => {
-    const findings = await checkSettings(await repoWith({ ".claude/settings.json": "not json" }));
-    expect(findings[0]?.id).toBe("settings/missing");
-    expect(findings[0]?.severity).toBe("fail");
+  it("최상위가 객체가 아니면 읽을 수 없음", async () => {
+    for (const body of ["[]", "null", '"x"']) {
+      const s = await readSettings(await repoWith({ ".claude/settings.json": body }));
+      expect(s.state).toBe("invalid");
+    }
   });
 
-  it("deny에 .env Read 규칙이 있으면 ok", async () => {
-    const dir = await repoWith({
-      ".claude/settings.json": settingsJson({
-        deny: ["Read(**/.env)"],
-      }),
+  it("BOM이 있어도 정상으로 읽는다 (PowerShell 5.1)", async () => {
+    const s = await readSettings(
+      await repoWith({ ".claude/settings.json": "﻿" + settingsJson({ deny: [] }) }),
+    );
+    expect(s.state).toBe("ok");
+    if (s.state === "ok") expect(s.format.bom).toBe(true);
+  });
+
+  it("permissions·deny 타입이 다르면 쓰지 않음으로 표시하고 진단은 계속한다", async () => {
+    const s = await readSettings(
+      await repoWith({ ".claude/settings.json": '{"permissions":{"deny":"Read(.env)"}}' }),
+    );
+    expect(s.state === "ok" && s.unwritable).toBe("permissions.deny가 배열이 아닙니다");
+    const findings = await run({ ".claude/settings.json": '{"permissions":[]}' });
+    expect(byId(findings, "settings/missing")?.severity).toBe("fail");
+    expect(byId(findings, "settings/env-read-deny")?.severity).toBe("fail");
+  });
+
+  it("서식 감지: 들여쓰기·줄바꿈·끝 줄바꿈", () => {
+    expect(detectFormat('{\r\n\t"a": 1\r\n}', false)).toEqual({
+      bom: false,
+      eol: "\r\n",
+      indent: "\t",
+      finalNewline: false,
     });
-    const findings = await checkSettings(dir);
-    const f = findings.find((r) => r.id === "settings/env-read-deny");
+    expect(detectFormat('{\n    "a": 1\n}\n', true)).toEqual({
+      bom: true,
+      eol: "\n",
+      indent: "    ",
+      finalNewline: true,
+    });
+  });
+});
+
+describe("진단 4·5 .env 차단", () => {
+  it("기본 6개가 모두 있으면 ok", async () => {
+    const findings = await run({ ".claude/settings.json": settingsJson({ deny: FULL_DENY }) });
+    expect(byId(findings, "settings/env-read-deny")?.severity).toBe("ok");
+    expect(byId(findings, "settings/env-edit-deny")?.severity).toBe("ok");
+  });
+
+  it("Read 규칙이 하나도 없으면 fail, Edit는 warn", async () => {
+    const findings = await run({ ".claude/settings.json": settingsJson({ deny: [] }) });
+    expect(byId(findings, "settings/env-read-deny")?.severity).toBe("fail");
+    expect(byId(findings, "settings/env-edit-deny")?.severity).toBe("warn");
+  });
+
+  it("Read(**/.env) 하나만 있으면 일부만 있음=warn, 빠진 5개만 후보", async () => {
+    const findings = await run({
+      ".claude/settings.json": settingsJson({ deny: ["Read(**/.env)"] }),
+    });
+    const f = byId(findings, "settings/env-read-deny");
+    expect(f?.severity).toBe("warn");
+    expect(f?.denyRules).toHaveLength(5);
+  });
+
+  it("./.env만 있으면 하위 폴더 실제 .env가 위험이고 그 파일 규칙이 후보", async () => {
+    const findings = await run({
+      ".claude/settings.json": settingsJson({
+        deny: [
+          ...FULL_DENY.filter((r) => !r.endsWith("(**/.env)")),
+          "Read(./.env)",
+          "Edit(./.env)",
+        ],
+      }),
+      "apps/api/.env": "",
+    });
+    const read = byId(findings, "settings/env-read-deny");
+    expect(read?.severity).toBe("fail");
+    expect(read?.message).toContain("apps/api/.env");
+    expect(read?.denyRules).toContain("Read(**/.env)");
+  });
+
+  it("Read는 덮였지만 Edit에서 빠진 실제 파일은 진단 5 warn + Edit 후보 (R4)", async () => {
+    const findings = await run({
+      ".claude/settings.json": settingsJson({ deny: [...FULL_DENY, "Read(**/.env.prod)"] }),
+      ".env.prod": "",
+    });
+    expect(byId(findings, "settings/env-read-deny")?.severity).toBe("ok");
+    const edit = byId(findings, "settings/env-edit-deny");
+    expect(edit?.severity).toBe("warn");
+    expect(edit?.denyRules).toEqual(["Edit(**/.env.prod)"]);
+  });
+
+  it("예시 파일(.env.example)은 덮이지 않아도 문제 삼지 않는다", async () => {
+    const findings = await run({
+      ".claude/settings.json": settingsJson({ deny: FULL_DENY }),
+      ".env.example": "",
+    });
+    expect(byId(findings, "settings/env-read-deny")?.severity).toBe("ok");
+  });
+});
+
+describe("진단 6 위험한 자동 허용", () => {
+  it.each(["Bash", "Bash(*)", "Bash(git push *)", "Bash(rm -rf *)", "Bash(rm -fr *)"])(
+    "%s 있으면 warn",
+    async (rule) => {
+      const findings = await run({ ".claude/settings.json": settingsJson({ allow: [rule] }) });
+      const f = byId(findings, "settings/risky-allow");
+      expect(f?.severity).toBe("warn");
+      expect(f?.message).toContain(rule);
+      expect(f?.judgment).toBeDefined();
+    },
+  );
+
+  it("안전하면 ok, 배열이 아닌 allow도 오류 없이 ok", async () => {
+    expect(
+      byId(
+        await run({ ".claude/settings.json": settingsJson({ allow: ["Bash(npm run test *)"] }) }),
+        "settings/risky-allow",
+      )?.severity,
+    ).toBe("ok");
+    expect(
+      byId(
+        await run({ ".claude/settings.json": settingsJson({ allow: "Bash" }) }),
+        "settings/risky-allow",
+      )?.severity,
+    ).toBe("ok");
+  });
+});
+
+describe("진단 7 권한 우회 모드", () => {
+  it("disable이면 ok", async () => {
+    const findings = await run({
+      ".claude/settings.json": settingsJson({ disableBypassPermissionsMode: "disable" }),
+    });
+    expect(byId(findings, "settings/bypass")?.severity).toBe("ok");
+  });
+
+  it("키가 없으면 warn + 고치기 2 후보", async () => {
+    const f = byId(await run({ ".claude/settings.json": settingsJson({}) }), "settings/bypass");
+    expect(f?.severity).toBe("warn");
+    expect(f?.bypassFix).toBe(true);
+  });
+
+  it("다른 값이면 판단 필요로 옮기고 덮어쓰지 않는다 (R11)", async () => {
+    const f = byId(
+      await run({ ".claude/settings.json": settingsJson({ disableBypassPermissionsMode: "off" }) }),
+      "settings/bypass",
+    );
+    expect(f?.severity).toBe("warn");
+    expect(f?.bypassFix).toBeUndefined();
+    expect(f?.judgment).toContain('"off"');
+  });
+});
+
+describe("진단 8 위험 명령 차단 훅 (R9)", () => {
+  it.each([
+    ["Bash", true],
+    ["Bash|PowerShell", true],
+    ["*", true],
+    ["", true],
+    [undefined, true],
+    ["Edit|Write", false],
+    ["(", false],
+  ])("matcher %s → %s", (matcher, expected) => {
+    expect(matcherHitsBash(matcher)).toBe(expected);
+  });
+
+  it("포맷용 Edit 훅만 있으면 warn", async () => {
+    const hooks = { PreToolUse: [{ matcher: "Edit|Write", hooks: [] }] };
+    const f = byId(
+      await run({ ".claude/settings.json": settingsJson({}, { hooks }) }),
+      "hooks/present",
+    );
+    expect(f?.severity).toBe("warn");
+  });
+
+  it("Bash 훅이 있으면 ok (내용은 확인하지 않음)", async () => {
+    const hooks = { PreToolUse: [{ matcher: "Bash", hooks: [] }] };
+    const f = byId(
+      await run({ ".claude/settings.json": settingsJson({}, { hooks }) }),
+      "hooks/present",
+    );
     expect(f?.severity).toBe("ok");
+    expect(f?.message).toContain("확인하지 않음");
   });
 
-  it("deny에 .env Read 규칙이 없으면 fail", async () => {
-    const dir = await repoWith({
-      ".claude/settings.json": settingsJson({ deny: [] }),
+  it("team-ai 플러그인이 켜져 있으면 ok, 꺼져 있으면 warn", async () => {
+    const on = await run({
+      ".claude/settings.json": settingsJson(
+        {},
+        { enabledPlugins: { "team-ai@team-ai-kit": true } },
+      ),
     });
-    const findings = await checkSettings(dir);
-    const f = findings.find((r) => r.id === "settings/env-read-deny");
-    expect(f?.severity).toBe("fail");
-  });
-
-  it("deny에 .env Edit 규칙이 있으면 ok", async () => {
-    const dir = await repoWith({
-      ".claude/settings.json": settingsJson({
-        deny: ["Edit(**/.env)"],
-      }),
+    const off = await run({
+      ".claude/settings.json": settingsJson(
+        {},
+        { enabledPlugins: { "team-ai@team-ai-kit": false } },
+      ),
     });
-    const findings = await checkSettings(dir);
-    const f = findings.find((r) => r.id === "settings/env-edit-deny");
-    expect(f?.severity).toBe("ok");
-  });
-
-  it("deny에 .env Edit 규칙이 없으면 warn", async () => {
-    const dir = await repoWith({
-      ".claude/settings.json": settingsJson({ deny: [] }),
-    });
-    const findings = await checkSettings(dir);
-    const f = findings.find((r) => r.id === "settings/env-edit-deny");
-    expect(f?.severity).toBe("warn");
-  });
-
-  it("allow에 Bash(*)가 있으면 warn", async () => {
-    const dir = await repoWith({
-      ".claude/settings.json": settingsJson({
-        allow: ["Bash(*)"],
-        deny: [],
-      }),
-    });
-    const findings = await checkSettings(dir);
-    const f = findings.find((r) => r.id === "settings/risky-allow");
-    expect(f?.severity).toBe("warn");
-    expect(f?.message).toContain("Bash(*)");
-  });
-
-  it("allow에 Bash(git push *)가 있으면 warn", async () => {
-    const dir = await repoWith({
-      ".claude/settings.json": settingsJson({
-        allow: ["Bash(git push *)"],
-        deny: [],
-      }),
-    });
-    const findings = await checkSettings(dir);
-    const f = findings.find((r) => r.id === "settings/risky-allow");
-    expect(f?.severity).toBe("warn");
-    expect(f?.message).toContain("git push");
-  });
-
-  it("allow에 bare Bash가 있으면 warn", async () => {
-    const dir = await repoWith({
-      ".claude/settings.json": settingsJson({
-        allow: ["Bash"],
-        deny: [],
-      }),
-    });
-    const findings = await checkSettings(dir);
-    const f = findings.find((r) => r.id === "settings/risky-allow");
-    expect(f?.severity).toBe("warn");
-  });
-
-  it("allow가 안전하면 ok", async () => {
-    const dir = await repoWith({
-      ".claude/settings.json": settingsJson({
-        allow: ["Bash(npm run test *)"],
-        deny: [],
-      }),
-    });
-    const findings = await checkSettings(dir);
-    const f = findings.find((r) => r.id === "settings/risky-allow");
-    expect(f?.severity).toBe("ok");
-  });
-
-  it("disableBypassPermissionsMode가 disable이면 ok", async () => {
-    const dir = await repoWith({
-      ".claude/settings.json": settingsJson({
-        disableBypassPermissionsMode: "disable",
-      }),
-    });
-    const findings = await checkSettings(dir);
-    const f = findings.find((r) => r.id === "settings/bypass-disabled");
-    expect(f?.severity).toBe("ok");
-  });
-
-  it("disableBypassPermissionsMode가 없으면 warn", async () => {
-    const dir = await repoWith({
-      ".claude/settings.json": settingsJson({}),
-    });
-    const findings = await checkSettings(dir);
-    const f = findings.find((r) => r.id === "settings/bypass-disabled");
-    expect(f?.severity).toBe("warn");
+    expect(byId(on, "hooks/present")?.severity).toBe("ok");
+    expect(byId(off, "hooks/present")?.severity).toBe("warn");
   });
 });
