@@ -16,29 +16,19 @@
 import { readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { DEFAULT_STANDARD } from "./standard-default.js";
 import type { EnvScan } from "./types.js";
 
 export type FileTool = "Read" | "Edit";
 
-// 고치기 1이 넣는 기본 대상 6개 (team-ai-kit 템플릿과 같은 목록)
-export const DEFAULT_TARGETS = [
-  ".env",
-  ".env.local",
-  ".env.*.local",
-  ".env.production*",
-  ".env.development*",
-  ".env.staging*",
-];
+// 기본 대상 6개 (기본 표준과 같은 값). 사내 표준이 env.targets로 바꿀 수 있다
+export const DEFAULT_TARGETS = DEFAULT_STANDARD.env.targets;
 
-// 대상 패턴이 덮였는지 볼 대표 파일 이름. 루트와 하위 폴더 모두에서 덮여야 통과
-const SAMPLES: Record<string, string[]> = {
-  ".env": [".env"],
-  ".env.local": [".env.local"],
-  ".env.*.local": [".env.production.local", ".env.test.local"],
-  ".env.production*": [".env.production", ".env.production.server"],
-  ".env.development*": [".env.development", ".env.development.server"],
-  ".env.staging*": [".env.staging", ".env.staging.server"],
-};
+// 대상 패턴이 덮였는지 볼 대표 파일 이름: `*`를 비우거나 단어로 채운 두 이름.
+// 루트와 하위 폴더 모두에서 덮여야 통과
+function samplesFor(target: string): string[] {
+  return [...new Set([target.replace(/\*/g, ""), target.replace(/\*/g, "test")])];
+}
 const SAMPLE_DIRS = ["", "apps/api/"];
 
 export const SCAN_LIMIT = 200_000;
@@ -216,10 +206,15 @@ export function isCovered(deny: string[], tool: FileTool, rel: string, ctx: Matc
   return byRelative || byAnchored;
 }
 
-// 기본 대상 6개 중 어느 깊이든 덮이지 않는 것
-export function missingTargets(deny: string[], tool: FileTool, ctx: MatchContext): string[] {
-  return DEFAULT_TARGETS.filter((target) =>
-    (SAMPLES[target] ?? []).some((name) =>
+// 대상 패턴 중 어느 깊이든 덮이지 않는 것 (targets 기본값 = 기본 표준)
+export function missingTargets(
+  deny: string[],
+  tool: FileTool,
+  ctx: MatchContext,
+  targets: string[] = DEFAULT_TARGETS,
+): string[] {
+  return targets.filter((target) =>
+    samplesFor(target).some((name) =>
       SAMPLE_DIRS.some((dir) => !isCovered(deny, tool, dir + name, ctx)),
     ),
   );

@@ -4,15 +4,23 @@
 
 ## 현재 상태
 
-- v0.3 완료: 진단 9개, 선택형 고치기 2개(diff·확인·백업), --undo(역순), --report(UTF-8·표식)
-- 다음: T11 package.json 공개 준비, T12 착지 페이지 — 소스 공개 여부·호스팅 위치 결정 필요
-- 테스트 7파일 120건, typecheck·lint·test·build 통과
+- PR1 완료: 사내 표준 정의 파일(--standard), 표준 규칙(필수 섹션·파일·플러그인), 점수, 플러그인 설정 추가·plan.md 만들기
+- 다음: PR2(T5 Claude 실행기), PR3(T6~T10 설치형 앱)
+- 테스트 10파일 159건, typecheck·lint·test·build 통과
 
 ## 다음 작업 (구현 예정)
 
-> 근거: `docs/designs/risk-report-wedge.md` (office-hours 설계 + eng review 결정 R1~R15, 2026-10-12 승인). 작업 번호는 설계 문서의 Implementation Tasks와 같다.
+> 근거: 사내 Claude 세팅 점검 설치형 프로그램 설계 (`~/.gstack/projects/cc-checkup/khkkh-main-design-20261020-230029.md`, office-hours 2026-10-20 승인 + eng review 2026-10-21 결정 R1~R8). 작업 번호는 그 문서의 Implementation Tasks와 같다. PR1=T1~T4, PR2=T5, PR3=T6~T10.
 
 ## 완료
+
+### [x] PR1 사내 표준 정의 파일 + 표준 규칙 + 점수 + 바로 만들기·설치하기 (T1~T4)
+
+- 목표: 진단 기준을 표준 정의 파일에서 읽고(기본 내장 + `--standard <파일>` 우선, 실패 시 기본), CLAUDE.md 필수 섹션·필수 파일·필수 플러그인을 진단하고, 점수(0~100)를 보여 주며, plan.md 템플릿 만들기와 플러그인 설정 추가를 고치기 후보로 낸다. 기본 표준으로는 v0.3과 같은 진단 결과(기존 테스트 120건 통과).
+- 변경할 파일: `src/standard.ts`·`src/standard-default.ts`(신규, 기본 표준을 TS로 둬 빌드에 포함), `standard/example-company.json`(TF용 예시), `src/checks/standard-rules.ts`(신규), `src/score.ts`(신규), `src/env-rules.ts`, `src/checks/claude-md.ts`, `src/checks/settings.ts`, `src/types.ts`, `src/diagnose.ts`, `src/fix.ts`, `src/report.ts`, `src/cli.ts`, `test/*`
+- 안 하는 것: Claude 실행기(PR2), 앱(PR3), 공유 경로 설정 UI(PR3 — PR1은 CLI `--standard`).
+- 멈춤 조건: 기본 표준으로 기존 테스트가 깨지면 멈추고 원인을 본다.
+- 결과(2026-10-21): typecheck·lint·build 통과, 테스트 10파일 159건 통과(기존 120건은 기본 표준으로 그대로 통과). 예시 사내 표준으로 cc-checkup·ai-cost-calc 읽기 전용 진단 확인(ai-cost-calc는 화면 있는 프로젝트로 판정돼 DESIGN.md 요구). 기본 표준은 TS(src/standard-default.ts)로 둬 빌드에 포함.
 
 ### [x] v0.3 위험 리포트 + 선택형 고치기 (T1~T10)
 

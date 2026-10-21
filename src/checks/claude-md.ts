@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { KIT_GUIDE } from "../report.js";
 import type { Check, Finding } from "../types.js";
 
+// 기본 표준의 길이 기준 (표준 파일 claudeMd.maxLines로 바꿀 수 있다)
 export const MAX_LINES = 200;
 
 // Claude Code가 프로젝트 지침으로 읽는 두 위치
@@ -28,8 +29,8 @@ export function hasVerifyCommand(text: string): boolean {
   return VERIFY_HEADING.test(text) || VERIFY_COMMANDS.some((re) => re.test(text));
 }
 
-// 진단 1(존재·길이)과 진단 9(검증 명령)
-export const checkClaudeMd: Check = async ({ repoDir }) => {
+// 있는 CLAUDE.md 파일들 (두 위치)
+export async function readClaudeMd(repoDir: string): Promise<{ name: string; text: string }[]> {
   const found: { name: string; text: string }[] = [];
   for (const name of LOCATIONS) {
     try {
@@ -38,6 +39,13 @@ export const checkClaudeMd: Check = async ({ repoDir }) => {
       // 없는 위치는 건너뛴다
     }
   }
+  return found;
+}
+
+// 진단 1(존재·길이)과 진단 9(검증 명령)
+export const checkClaudeMd: Check = async ({ repoDir, standard }) => {
+  const maxLines = standard.claudeMd.maxLines;
+  const found = await readClaudeMd(repoDir);
 
   if (found.length === 0) {
     return [
@@ -52,16 +60,18 @@ export const checkClaudeMd: Check = async ({ repoDir }) => {
 
   const findings: Finding[] = found.map(({ name, text }) => {
     const lines = lineCount(text);
-    return lines > MAX_LINES
+    return lines > maxLines
       ? {
           id: "claude-md",
           severity: "warn",
-          message: `${name}가 ${lines}줄입니다 (권장 ${MAX_LINES}줄 이하)`,
+          message: `${name}가 ${lines}줄입니다 (권장 ${maxLines}줄 이하)`,
           judgment: `${name}의 긴 설명을 docs/로 옮기고 링크만 남기세요`,
         }
       : { id: "claude-md", severity: "ok", message: `${name} ${lines}줄` };
   });
 
+  // 표준에 "verify" 섹션이 있을 때만 검증 명령을 본다 (기본 표준에는 있음)
+  if (!standard.claudeMd.requiredSections.some((s) => s.id === "verify")) return findings;
   if (hasVerifyCommand(found.map((f) => f.text).join("\n"))) {
     findings.push({
       id: "claude-md/verify",

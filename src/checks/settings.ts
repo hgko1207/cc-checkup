@@ -1,13 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import {
-  DEFAULT_TARGETS,
-  fileRule,
-  isCovered,
-  missingTargets,
-  targetRule,
-  type FileTool,
-} from "../env-rules.js";
+import { fileRule, isCovered, missingTargets, targetRule, type FileTool } from "../env-rules.js";
 import { KIT_GUIDE } from "../report.js";
 import type { Check, CheckContext, Finding, JsonFormat, SettingsRead } from "../types.js";
 
@@ -90,7 +83,8 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
   const id = read ? "settings/env-read-deny" : "settings/env-edit-deny";
   const verb = read ? "읽기" : "쓰기";
   const match = { baseDir: ctx.repoDir };
-  const missing = missingTargets(deny, tool, match);
+  const targets = ctx.standard.env.targets;
+  const missing = missingTargets(deny, tool, match, targets);
   const uncovered = ctx.scan.envFiles.filter((f) => !isCovered(deny, tool, f, match));
   const denyRules = [
     ...new Set([
@@ -100,7 +94,7 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
   ];
 
   const problems: string[] = [];
-  if (missing.length === DEFAULT_TARGETS.length) {
+  if (missing.length === targets.length) {
     problems.push(
       read
         ? "Claude가 파일 도구와 cat 같은 명령으로 .env를 읽을 수 있습니다 (읽기 차단 규칙 없음)"
@@ -108,7 +102,7 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
     );
   } else if (missing.length > 0) {
     problems.push(
-      `기본 .env ${verb} 차단 ${DEFAULT_TARGETS.length}개 중 ${missing.length}개가 빠졌습니다: ${missing.join(", ")}`,
+      `기본 .env ${verb} 차단 ${targets.length}개 중 ${missing.length}개가 빠졌습니다: ${missing.join(", ")}`,
     );
   }
   if (uncovered.length > 0) {
@@ -123,10 +117,10 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
     return {
       id,
       severity: "ok",
-      message: `.env ${verb} 차단: 기본 ${DEFAULT_TARGETS.length}개${extra} (${SCOPE_NOTE})`,
+      message: `.env ${verb} 차단: 기본 ${targets.length}개${extra} (${SCOPE_NOTE})`,
     };
   }
-  const severe = read && (missing.length === DEFAULT_TARGETS.length || uncovered.length > 0);
+  const severe = read && (missing.length === targets.length || uncovered.length > 0);
   return {
     id,
     severity: severe ? "fail" : "warn",

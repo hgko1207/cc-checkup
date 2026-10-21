@@ -89,6 +89,7 @@ cc-checkup
 node dist/cli.js [저장소 경로]                 # 진단 (+ 터미널이면 고치기 선택)
 node dist/cli.js [저장소 경로] --report r.md   # UTF-8 마크다운 리포트 (질문·설정 수정 없음)
 node dist/cli.js [저장소 경로] --undo          # 마지막 고치기 되돌리기 (여러 번이면 역순)
+node dist/cli.js [저장소 경로] --standard s.json  # 사내 표준 정의 파일로 진단 (아래 "사내 표준")
 node dist/cli.js --help
 ```
 
@@ -109,6 +110,21 @@ node dist/cli.js --help
 | `settings/risky-allow` | `Bash`, `git push`, `rm -rf` 같은 위험 명령이 묻지 않고 허용되는가 |
 | `settings/bypass` | 권한 우회 모드가 막혀 있는가 |
 | `hooks/present` | Bash 명령 전에 실행되는 훅이나 team-ai 플러그인이 있는가 |
+| `claude-md/sections` | 사내 표준이 정한 CLAUDE.md 필수 섹션이 있는가 (표준에 있을 때만) |
+| `file/<id>` | 사내 표준이 정한 필수 파일(예: plan.md, 화면 있는 프로젝트의 DESIGN.md)이 있는가 |
+| `plugins/required` | 사내 표준 플러그인이 저장소 설정(enabledPlugins)에 켜져 있는가 |
+
+진단 결과마다 **사내 표준 대비 점수(0~100)**를 함께 보여 준다. 위험 1건 -15, 주의 1건 -5(표준 파일에서 바꿀 수 있음).
+
+## 사내 표준
+
+진단 기준은 코드가 아니라 **표준 정의 파일**에서 읽는다. 아무것도 지정하지 않으면 기본 표준(위 9개 진단, 지금까지와 같은 기준)으로 진단한다.
+
+- `--standard <파일>`로 사내 표준 파일을 지정하면 그 값이 우선이고, 적지 않은 항목은 기본값을 쓴다.
+- 파일이 없거나 형식이 틀리면 경고하고 기본 표준으로 진단한다. 화면·리포트 맨 위에 어떤 표준으로 진단했는지 표시된다.
+- 예시: [standard/example-company.json](standard/example-company.json) — CLAUDE.md 필수 섹션(검증 명령·코딩 규칙·하지 말 것), plan.md 템플릿, 화면 있는 프로젝트의 DESIGN.md, 사내 플러그인(team-ai).
+- 표준 파일로 정할 수 있는 것: `.env` 차단 대상, CLAUDE.md 길이·필수 섹션(제목 별칭), 필수 파일(템플릿 또는 Claude 작업), 필수 플러그인과 마켓플레이스, 화면 판정 규칙, 점수 가중치, Claude 작업 지시문.
+- 고치기 후보에 "사내 표준 플러그인 설정 추가"(저장소 settings.json에 더하기만)와 "plan.md 만들기"(템플릿)가 더해진다.
 
 ## 개발
 
