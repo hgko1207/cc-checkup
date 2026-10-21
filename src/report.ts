@@ -5,11 +5,8 @@ import { SETTINGS_PATH, type FileChange, type FixPlan } from "./fix.js";
 import { describeStandard } from "./standard.js";
 import type { Finding, Severity } from "./types.js";
 
-// 리포트 마지막 줄 링크: 항상 클릭을 세는 착지 주소 (eng review R2).
-// 호스팅 위치는 설계 Open Question이라 npm 공개 전(T12)에 이 주소를 확정한다.
-export const LANDING_URL =
-  "https://hgko1207.github.io/ai-setup-service/from-checkup?utm_source=cc-checkup";
-export const KIT_GUIDE = `team-ai-kit이 있으면 Claude Code에서 /team-ai:setup, 없으면 안내: ${LANDING_URL}`;
+// 안내 링크는 표준 파일의 guideUrl이 있을 때만 붙인다 (예전 착지 주소는 페이지가 없어 뺐다)
+export const KIND_LABEL = { dev: "개발 저장소", docs: "문서·기획 폴더" } as const;
 export const REPORT_MARKER = "<!-- cc-checkup report -->";
 
 const MARK = { ok: "✓", warn: "!", fail: "✗" } as const;
@@ -50,6 +47,7 @@ export function formatText(diag: Diagnosis): string {
   const out = [
     "이 저장소의 Claude Code 팀 세팅 진단",
     `사내 표준: ${describeStandard(diag.standard)}`,
+    `폴더 종류: ${KIND_LABEL[diag.kind]}`,
     `사내 표준 대비 점수: ${diag.score} / 100`,
     "",
   ];
@@ -77,7 +75,7 @@ function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-// --report 파일 내용. 첫 줄 표식, 마지막 줄 착지 링크
+// --report 파일 내용. 첫 줄 표식, 표준에 guideUrl이 있으면 마지막 줄에 사내 가이드
 export function formatMarkdown(diag: Diagnosis, plan: FixPlan, now = new Date()): string {
   const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const out = [
@@ -87,6 +85,7 @@ export function formatMarkdown(diag: Diagnosis, plan: FixPlan, now = new Date())
     `- 대상 폴더: \`${basename(diag.ctx.repoDir)}\``,
     `- 진단 일시: ${date}`,
     `- 사내 표준: ${describeStandard(diag.standard)}`,
+    `- 폴더 종류: ${KIND_LABEL[diag.kind]}`,
     `- 표준 충족도: **${diag.score} / 100**`,
   ];
   for (const g of GROUPS) {
@@ -109,7 +108,8 @@ export function formatMarkdown(diag: Diagnosis, plan: FixPlan, now = new Date())
     out.push("", "## 직접 판단이 필요한 것", "", ...todo.map((j) => `- ${j}`));
   }
   out.push("", "## 남는 위험", "", ...remainingRisks(diag).map((r) => `- ${r}`));
-  out.push("", "---", "", `팀 세팅 진단·도입 상담: ${LANDING_URL}`);
+  if (diag.ctx.standard.guideUrl)
+    out.push("", "---", "", `사내 가이드: ${diag.ctx.standard.guideUrl}`);
   return out.join("\n") + "\n";
 }
 

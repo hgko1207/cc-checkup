@@ -70,8 +70,13 @@ async function sectionFindings(repoDir: string, standard: Standard): Promise<Fin
       severity: "warn",
       message: `CLAUDE.md가 사내 표준 필수 섹션을 빠뜨렸습니다: ${names}`,
       judgment: `CLAUDE.md에 ${names} 섹션을 채우세요 (점검 프로그램의 "Claude로 반영" 또는 Claude Code에서 직접)`,
-      claudeTask: "claudeMd",
+      claudeTask: standard.claudeMd.task,
       claudeVars: { missing: names },
+      example:
+        missing
+          .map((s) => s.example)
+          .filter(Boolean)
+          .join("\n\n") || undefined,
     },
   ];
 }
@@ -92,6 +97,8 @@ async function fileFinding(
     severity: file.severity,
     message: `${file.title}가 없습니다${why}`,
   };
+  const example = file.example ?? file.template;
+  if (example !== undefined) finding.example = example;
   if (file.template !== undefined) {
     finding.createFile = { path: file.path, content: file.template };
   } else if (file.claudeTask !== undefined) {

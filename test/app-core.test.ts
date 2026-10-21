@@ -118,7 +118,7 @@ describe("진단 화면 데이터", () => {
     picks.push(EXAMPLE);
     await core.pickFolder();
     await core.pickStandard();
-    const v = await core.diagnose(repo);
+    const v = await core.diagnose(repo, "dev");
     expect(v.standard).toContain("사내 Claude 표준");
     const all = v.areas.flatMap((a) => a.findings.map((f) => ({ ...f, area: a.area })));
     const byId = (id: string) => all.find((f) => f.id === id);
@@ -175,7 +175,14 @@ describe("바로 고치기·되돌리기 (미리 보기 → 적용)", () => {
     expect(preview.kind).toBe("preview");
     if (preview.kind === "preview") expect(preview.previews[0]?.isNew).toBe(true);
     const applied = await core.fix(repo, nos, true);
-    expect(applied).toMatchObject({ kind: "applied", files: [".claude/settings.json"] });
+    expect(applied).toMatchObject({
+      kind: "applied",
+      files: [
+        ".claude/settings.json",
+        ".claude/hooks/cc-guard/block-dangerous-bash.cjs",
+        ".claude/hooks/cc-guard/lib.cjs",
+      ],
+    });
     if (applied.kind === "applied") expect(applied.commitHint).toContain("git add");
     const after = await core.diagnose(repo);
     expect(after.score).toBeGreaterThan(before.score);
@@ -265,5 +272,105 @@ describe("리포트 저장", () => {
     expect(await core.saveReport(repo)).toBe(file);
     expect(await readFile(file, "utf8")).toContain("<!-- cc-checkup report -->");
     expect(await core.saveReport(repo)).toBeNull();
+  });
+});
+
+describe("폴더 종류 선택", () => {
+  it("자동 판별 → 직접 고르면 기억 → 자동으로 되돌리기", async () => {
+    const { core, deps, repo } = await setup({ "기획.md": "# 기획\n" });
+    await core.pickFolder();
+    const auto = await core.diagnose(repo);
+    expect(auto).toMatchObject({ kind: "docs", kindAuto: true });
+    expect(auto.kindReason).toContain("문서 파일");
+
+    const dev = await core.diagnose(repo, "dev");
+    expect(dev).toMatchObject({ kind: "dev", kindAuto: false });
+    // 다음 실행에도 기억한다
+    const again = new AppCore(deps);
+    await again.init();
+    expect((await again.getState()).recent[0]?.kind).toBe("dev");
+    expect((await again.diagnose(repo)).kind).toBe("dev");
+
+    expect(await again.diagnose(repo, "auto")).toMatchObject({ kind: "docs", kindAuto: true });
+    await expect(again.diagnose(repo, "web")).rejects.toThrow("폴더 종류");
+  });
+});
+
+describe("자세히·예시", () => {
+  it("문제 항목에는 설명과 예시가 붙고 통과 항목에는 예시가 없다", async () => {
+    const { core, repo } = await setup({ "CLAUDE.md": "# 앱\n" });
+    await core.pickFolder();
+    const all = (await core.diagnose(repo, "dev")).areas.flatMap((a) => a.findings);
+    const verify = all.find((f) => f.id === "claude-md/verify");
+    expect(verify?.detail?.why).toContain("검증 명령");
+    expect(verify?.example).toContain("## 검증 명령");
+    const env = all.find((f) => f.id === "settings/env-read-deny");
+    expect(env?.detail?.limit).toContain("grep -r");
+    expect(all.filter((f) => f.severity === "ok").every((f) => f.example === undefined)).toBe(true);
+    const hook = all.find((f) => f.id === "hooks/present");
+    expect(hook?.fixLabel).toBe("바로 고치기");
+  });
+});
+
+describe("새 버전 알림·Claude 다시 확인", () => {
+  async function coreWith(standard: object, extra: Partial<CoreDeps> = {}) {
+    const { deps } = await setup();
+    const file = join(await mkdtemp(join(tmpdir(), "cc-std-")), "s.json");
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(file, JSON.stringify(standard));
+    const opened: string[] = [];
+    const core = new AppCore({
+      ...deps,
+      appVersion: "0.1.0",
+      pickStandardFile: async () => file,
+      openExternal: async (u) => void opened.push(`url:${u}`),
+      showItem: (p) => void opened.push(`item:${p}`),
+      ...extra,
+    });
+    await core.init();
+    await core.pickStandard();
+    return { core, opened };
+  }
+
+  it("표준의 latestVersion이 더 새로우면 알리고, 위치를 연다(실행하지 않고 탐색기에서 보기)", async () => {
+    const share = String.raw`\\fileserver\tools\CC Checkup Setup 0.2.0.exe`;
+    const { core, opened } = await coreWith({
+      app: { latestVersion: "0.2.0", downloadUrl: share, note: "문서 폴더 모드 추가" },
+    });
+    expect((await core.getState()).update).toEqual({
+      current: "0.1.0",
+      latest: "0.2.0",
+      downloadUrl: share,
+      note: "문서 폴더 모드 추가",
+    });
+    await core.openUpdate();
+    expect(opened).toEqual([`item:${share}`]);
+  });
+
+  it("같거나 옛 버전이면 알리지 않고, 상대 경로는 열지 않는다", async () => {
+    expect(
+      (await (await coreWith({ app: { latestVersion: "0.1.0" } })).core.getState()).update,
+    ).toBeUndefined();
+    const { core } = await coreWith({ app: { latestVersion: "1.0.0", downloadUrl: "setup.exe" } });
+    await expect(core.openUpdate()).rejects.toThrow("열 수 없는 위치");
+  });
+
+  it("http 주소는 브라우저로 연다", async () => {
+    const { core, opened } = await coreWith({
+      app: { latestVersion: "0.1.1", downloadUrl: "https://intra.example.com/cc" },
+    });
+    await core.openUpdate();
+    expect(opened).toEqual(["url:https://intra.example.com/cc"]);
+  });
+
+  it("getState(true)는 Claude 설치·로그인을 다시 확인한다", async () => {
+    let n = 0;
+    const { core } = await coreWith(
+      {},
+      { checkClaude: async () => ({ ok: true, loggedIn: n++ > 0, version: "x" }) },
+    );
+    expect((await core.getState()).claude.loggedIn).toBe(false);
+    expect((await core.getState(true)).claude.loggedIn).toBe(true);
+    await expect(core.getState("yes")).rejects.toThrow(InputError);
   });
 });

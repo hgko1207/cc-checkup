@@ -7,12 +7,33 @@
 - PR1 완료(PR #2): 사내 표준 정의 파일(--standard), 표준 규칙(필수 섹션·파일·플러그인), 점수, 플러그인 설정 추가·plan.md 만들기
 - PR2 완료(PR #3): Claude로 반영 실행기(src/claude-runner.ts)
 - PR3 완료: 설치형 앱(src/app, Electron 45) + E2E + Windows 설치 파일 + 시범 EVAL 체크리스트
-- 다음: 시범 2팀 적용(docs/eval-checklist.md). 남은 결정: 라이선스, 사내 배포 경로·코드 서명, 사내 계정의 claude -p 허용·비용
-- 테스트 12파일 227건 + E2E 2건, typecheck·lint·test·build·dist:win 통과
+- v1 남은 기능 완료(2026-10-22): 문서 폴더 모드·자동 판별, 차단 훅 바로 고치기, Claude 로그인 표시, 자세히·예시, 새 버전 알림, 아이콘, 서명·CI·macOS 설정
+- 다음: 시범 2팀 적용(docs/eval-checklist.md). 남은 결정: 실제 사내 표준 파일 내용, 라이선스, 사내 배포 경로·코드 서명, 사내 계정의 claude -p 허용·비용
+- 테스트 13파일 267건 + E2E 2건, typecheck·lint·test·build·dist:win 통과
 
 ## 다음 작업 (구현 예정)
 
-> 근거: 사내 Claude 세팅 점검 설치형 프로그램 설계 (`~/.gstack/projects/cc-checkup/khkkh-main-design-20261020-230029.md`, office-hours 2026-10-20 승인 + eng review 2026-10-21 결정 R1~R8). 작업 번호는 그 문서의 Implementation Tasks와 같다. PR1=T1~T4, PR2=T5, PR3=T6~T10.
+### [x] v1 남은 기능 전부 (시범 전 완성, 2026-10-22 사용자 요청 "전부 다 개발하고 사용")
+
+- 목표: 시범 전에 아래를 모두 구현하고 typecheck·lint·test·E2E·dist:win 통과
+  1. 임시 링크 제거: 없는 안내 페이지(404) 링크를 지우고, 표준 파일의 `guideUrl`이 있을 때만 보여 준다
+  2. Claude 로그인 표시: `claude auth status`로 로그인·계정 표시, 로그인 안 됐으면 Claude 버튼 끔. 설치 경로 찾기 보강(네이티브 설치 위치, macOS 앱의 PATH 없음)
+  3. 위험 명령 차단 훅 "바로 고치기": team-ai-kit의 차단 훅(비공개 저장소라 플러그인 설치 불가)을 저장소 `.claude/hooks/`에 복사하고 settings.json에 PreToolUse 훅을 더하기만
+  4. CLAUDE.md가 없거나 검증 명령이 없을 때도 "Claude로 만들기/반영"
+  5. [자세히]: 항목마다 왜 위험한지·고치면 무엇이 바뀌는지·남는 한계
+  6. [예시 보기]: 필수 섹션·필수 파일의 예시 내용 (표준 파일에서 바꿀 수 있음)
+  7. 문서·기획 폴더 모드 + 폴더 종류 자동 판별 (사용자가 바꿀 수 있음, 최근 목록에 기억)
+  8. 새 버전 알림: 사내 표준 파일의 `app.latestVersion`·`downloadUrl`로 안내 (사내 파일 서버 배포에 맞춤)
+  9. 앱 아이콘
+  10. 배포 준비: 코드 서명 설정(인증서만 넣으면 서명), GitHub Actions로 태그마다 Windows·macOS 설치 파일, macOS 설정
+  11. DESIGN.md "Claude로 만들기"를 진짜 Claude로 확인
+- 사용자 입력이 필요해 이번에 못 하는 것: 실제 회사 기준이 담긴 표준 파일(예시·초안만), 코드 서명 인증서, 배포 경로
+- 멈춤 조건: 기존 테스트가 깨지면 원인을 본다. 문서 폴더 모드는 시범에서 실제 사용 형태를 보고 고친다(추정으로 만든 기준)
+- 결과(2026-10-22): 1~11 구현. 단위 테스트 267건 + E2E 2건, typecheck·lint·build·dist:win 통과.
+  - 실제 claude 2.1.83으로 확인: 넣은 차단 훅이 `git push --force origin main`을 "팀 안전 규칙으로 차단"(Windows, `$CLAUDE_PROJECT_DIR` 경로 동작). DESIGN.md "Claude로 만들기"는 실제 CSS 변수·컴포넌트만 적고 모르는 것은 TODO로 남김(한 곳 근거 없는 서술: #fff를 body 배경이라 적음 → EVAL 항목).
+  - 폴더 종류: CLI 기본은 dev(v0.3 결과 그대로), 앱은 자동 판별. CLAUDE.md만 있는 폴더는 문서 폴더로 판별된다.
+  - 확인 못 한 것: macOS 빌드·실행(맥이 없음, GitHub Actions release 작업으로 만들 수 있게만 함), 코드 서명(인증서 없음), Actions 실제 실행(태그·푸시 전).
+  - 사용자 입력이 필요한 것: 실제 회사 기준을 담은 표준 파일(예시만 채움), 서명 인증서, 사내 배포 경로.
 
 ## 완료
 

@@ -26,11 +26,18 @@
 
         <section class="side-box">
           <h2>폴더 종류</h2>
-          <label class="radio"><input type="radio" name="kind" checked /> 개발 저장소</label>
-          <label class="radio muted" title="시범 2팀에서 사용 형태를 확인한 뒤 추가합니다">
-            <input type="radio" name="kind" disabled /> 문서·기획 폴더
-            <span class="tag">준비 중</span>
-          </label>
+          <label class="radio"
+            ><input id="kind-dev" type="radio" name="kind" value="dev" disabled /> 개발
+            저장소</label
+          >
+          <label class="radio"
+            ><input id="kind-docs" type="radio" name="kind" value="docs" disabled /> 문서·기획
+            폴더</label
+          >
+          <p id="kind-note" class="small muted">폴더를 열면 자동으로 판별합니다</p>
+          <button id="kind-auto" class="btn small ghost" type="button" hidden>
+            자동 판별로 되돌리기
+          </button>
         </section>
 
         <section class="side-box">
@@ -51,10 +58,15 @@
         <section class="side-box">
           <h2>Claude Code</h2>
           <p id="claude-status" class="small"></p>
+          <button id="claude-recheck" class="btn small ghost" type="button">다시 확인</button>
         </section>
       </aside>
 
       <main class="main">
+        <div id="update" class="notice info" hidden>
+          <span id="update-text"></span>
+          <button id="update-open" class="btn small" type="button">설치 파일 위치 열기</button>
+        </div>
         <div id="empty" class="empty">
           <h1>점검할 폴더를 여세요</h1>
           <p>

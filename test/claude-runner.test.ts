@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { executeUndo, findUndoTarget, planUndo, type Manifest } from "../src/backup.js";
 import {
   buildArgs,
+  claudeEnv,
+  installDirs,
+  parseAuthStatus,
   compareSnapshots,
   fillPrompt,
   isClaudeRunning,
@@ -141,7 +144,8 @@ describe("stream-json 진행", () => {
   });
 });
 
-describe("claude 찾기 (Windows)", () => {
+// Windows 경로 구분자로 파일을 찾으므로 Windows에서만 돈다 (macOS·Linux는 아래 describe)
+describe.skipIf(process.platform !== "win32")("claude 찾기 (Windows)", () => {
   it("npm 설치본(claude.cmd)이면 node로 cli.js를 직접 실행", async () => {
     const dir = await repoWith({
       "claude.cmd":
@@ -161,7 +165,54 @@ describe("claude 찾기 (Windows)", () => {
   });
 
   it("없으면 설치 안내 오류", async () => {
-    await expect(resolveClaude({ PATH: await repoWith({}) }, "win32")).rejects.toThrow("설치");
+    const empty = await repoWith({});
+    await expect(
+      resolveClaude({ PATH: empty, USERPROFILE: empty, HOME: empty }, "win32"),
+    ).rejects.toThrow("설치");
+  });
+
+  it("PATH에 없어도 네이티브 설치 위치(~/.local/bin)에서 찾는다", async () => {
+    const home = await repoWith({ ".local/bin/claude.exe": "" });
+    const empty = await repoWith({});
+    expect((await resolveClaude({ PATH: empty, USERPROFILE: home }, "win32")).command).toBe(
+      join(home, ".local", "bin", "claude.exe"),
+    );
+  });
+});
+
+describe("claude 찾기 (macOS·Linux)", () => {
+  it("PATH가 비어 있는 설치형 앱에서도 홈의 설치 위치를 찾는다", async () => {
+    const c = await resolveClaude({ PATH: "", HOME: "/home/u" }, "linux").catch((e: Error) => e);
+    // 테스트 PC에는 /home/u가 없으니 오류지만, 찾은 후보 목록에 홈 위치가 있어야 한다
+    expect(c).toBeInstanceOf(Error);
+    expect(installDirs({ HOME: "/home/u" }, "darwin")).toEqual(
+      expect.arrayContaining(["/home/u/.local/bin", "/opt/homebrew/bin", "/usr/local/bin"]),
+    );
+  });
+
+  it("claude를 띄울 때 node를 찾을 수 있게 PATH 앞에 설치 폴더를 붙인다", () => {
+    const env = claudeEnv(
+      { PATH: "/usr/bin", HOME: "/home/u" },
+      { command: "/opt/homebrew/bin/claude", args: [] },
+      "darwin",
+    );
+    expect(env.PATH?.split(":")[0]).toBe("/opt/homebrew/bin");
+    expect(env.PATH).toContain("/usr/bin");
+    expect(claudeEnv({ PATH: "x" }, { command: "c", args: [] }, "win32")).toEqual({ PATH: "x" });
+  });
+});
+
+describe("로그인 확인 (claude auth status)", () => {
+  it.each([
+    [
+      '{"loggedIn":true,"authMethod":"claude.ai","email":"a@b.c","subscriptionType":"max"}',
+      { loggedIn: true, account: "a@b.c", plan: "max" },
+    ],
+    ['{"loggedIn":false}', { loggedIn: false, account: undefined, plan: undefined }],
+    ["Logged in as a@b.c", null],
+    ['{"status":"ok"}', null],
+  ])("%s", (text, expected) => {
+    expect(parseAuthStatus(text)).toEqual(expected);
   });
 });
 

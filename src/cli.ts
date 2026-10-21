@@ -23,11 +23,12 @@ import {
 } from "./report.js";
 import { loadStandard } from "./standard.js";
 
-const HELP = `사용법: cc-checkup [저장소 경로] [--standard <표준 파일>] [--report <파일>] [--undo]
+const HELP = `사용법: cc-checkup [저장소 경로] [--standard <표준 파일>] [--kind dev|docs|auto] [--report <파일>] [--undo]
 저장소의 Claude Code 팀 세팅을 진단하고, 원하면 안전한 수정을 확인 후 적용합니다.
 
   --report <파일>  진단 결과를 UTF-8 마크다운으로 저장 (질문하지 않고 설정 파일도 쓰지 않음)
   --standard <파일> 사내 표준 정의 파일(standard.json)로 진단 (없거나 잘못되면 기본 표준)
+  --kind <종류>     dev(개발 저장소, 기본) | docs(문서·기획 폴더) | auto(자동 판별)
   --undo           이 폴더에 마지막으로 적용한 고치기를 되돌림`;
 
 export interface CliDeps {
@@ -43,6 +44,7 @@ interface Args {
   undo: boolean;
   report?: string;
   standard?: string;
+  kind?: "dev" | "docs" | "auto";
   dir: string;
 }
 
@@ -63,7 +65,12 @@ function parseArgs(argv: string[]): Args | string {
       if (v === undefined || v.startsWith("-")) return "--standard 뒤에 표준 파일 경로를 적으세요";
       args.standard = v;
     } else if (a.startsWith("--standard=")) args.standard = a.slice("--standard=".length);
-    else if (a.startsWith("-")) return `알 수 없는 옵션: ${a}`;
+    else if (a === "--kind" || a.startsWith("--kind=")) {
+      const v = a === "--kind" ? argv[++i] : a.slice("--kind=".length);
+      if (v !== "dev" && v !== "docs" && v !== "auto")
+        return "--kind 뒤에는 dev, docs, auto 중 하나를 적으세요";
+      args.kind = v;
+    } else if (a.startsWith("-")) return `알 수 없는 옵션: ${a}`;
     else if (dirSet) return `경로는 하나만 적으세요: ${a}`;
     else {
       args.dir = a;
@@ -137,7 +144,7 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
   if (standard.error) {
     deps.log(`! 표준 파일을 쓰지 못해 기본 표준으로 진단합니다: ${standard.error}`);
   }
-  const diag = await diagnose(repoDir, { runGit: deps.runGit, standard });
+  const diag = await diagnose(repoDir, { runGit: deps.runGit, standard, kind: args.kind });
   const plan = planFixes(diag);
   const code = diag.findings.some((f) => f.severity === "fail") ? 1 : 0;
 

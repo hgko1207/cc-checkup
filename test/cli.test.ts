@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { run, type CliDeps } from "../src/cli.js";
 import { parseSelection } from "../src/prompt.js";
-import { LANDING_URL, REPORT_MARKER } from "../src/report.js";
+import { REPORT_MARKER } from "../src/report.js";
 import { fakeGit, repoWith, settingsJson } from "./helpers.js";
 
 const S = ".claude/settings.json";
@@ -138,7 +138,8 @@ describe("--report (R2, R6)", () => {
     await run([repo, "--report", report], d);
     const md = await readFile(report, "utf8");
     expect(md.split("\n")[0]).toBe(REPORT_MARKER);
-    expect(md.trimEnd().split("\n").at(-1)).toContain(LANDING_URL);
+    expect(md).not.toContain("http"); // 기본 표준은 guideUrl이 없어 링크를 붙이지 않는다
+    expect(md).toContain("- 폴더 종류: ");
     expect(md).toContain("## 위험");
     expect(md).not.toContain("SECRET=1"); // 내용은 읽지 않는다
     expect(await exists(join(repo, S))).toBe(false);

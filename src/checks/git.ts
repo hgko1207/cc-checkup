@@ -50,7 +50,7 @@ function protectiveRules(data: Record<string, unknown> | undefined): string[] {
 }
 
 // 진단 3: 팀 설정이 커밋돼 있는가, 보호 규칙이 개인 설정에만 있지 않은가
-export const checkGit: Check = async ({ repoDir, settings, git }) => {
+export const checkGit: Check = async ({ repoDir, settings, git, kind }) => {
   const findings: Finding[] = [];
   if (settings.state !== "missing") {
     if (git.tracked === true) {
@@ -65,6 +65,14 @@ export const checkGit: Check = async ({ repoDir, settings, git }) => {
         severity: "fail",
         message: ".claude/settings.json이 git에 커밋되지 않아 팀원에게 적용되지 않습니다",
         judgment: "git add .claude/settings.json 후 커밋하세요",
+      });
+    } else if (kind === "docs" && git.reason === "git 저장소가 아닙니다") {
+      // 문서 폴더는 git 없이 쓰는 경우가 많다. 팀 공유는 폴더 공유로 한다고 보고 넘어간다
+      findings.push({
+        id: "settings/committed",
+        severity: "ok",
+        message:
+          "git 저장소가 아닌 문서 폴더라 커밋 확인을 건너뜁니다 (폴더를 공유하면 설정도 함께 적용됩니다)",
       });
     } else {
       findings.push({

@@ -20,7 +20,9 @@ import {
 } from "../backup.js";
 import type { GitRunner } from "../checks/git.js";
 import {
+  claudeEnv,
   isClaudeRunning,
+  parseAuthStatus,
   resolveClaude,
   runClaudeTask,
   type RunResult,
@@ -29,7 +31,13 @@ import {
 import { diagnose, type Diagnosis } from "../diagnose.js";
 import { applyAll, lineDiff, planFixes, type FixCandidate, type FixPlan } from "../fix.js";
 import { commitGuide, formatMarkdown, writeReport } from "../report.js";
-import { describeStandard, loadStandard, type LoadedStandard } from "../standard.js";
+import { detailFor } from "../details.js";
+import {
+  describeStandard,
+  loadStandard,
+  type FolderKind,
+  type LoadedStandard,
+} from "../standard.js";
 import type { Finding } from "../types.js";
 import type {
   AppEvent,
@@ -58,6 +66,9 @@ export interface CoreDeps {
   runner?: Pick<RunnerOptions, "claude" | "env" | "timeoutMs" | "platform" | "scanLimit">;
   runGit?: GitRunner;
   checkClaude?: () => Promise<ClaudeStatus>;
+  appVersion?: string; // 새 버전 알림 비교용
+  openExternal?: (url: string) => Promise<void>; // http(s) 주소 열기
+  showItem?: (path: string) => void; // 파일 탐색기에서 보기
 }
 
 interface Config {
@@ -101,19 +112,25 @@ export function areaOf(id: string): Area {
 
 function fixFor(f: Finding, candidates: FixCandidate[]): FixCandidate | undefined {
   if (f.severity === "ok") return undefined;
-  // settings.json이 없으면 차단 규칙·우회 막기 고치기가 그 파일을 만든다
+  // settings.json이 없으면 차단 규칙·우회 막기·훅 고치기가 그 파일을 만든다
   if (f.id === "settings/missing" && !f.judgment)
-    return candidates.find((c) => c.denyRules.length > 0 || c.bypass);
+    return candidates.find((c) => c.denyRules.length > 0 || c.bypass || c.hook);
   return candidates.find(
     (c) =>
       (f.denyRules?.length && c.denyRules.length > 0) ||
       (f.bypassFix && c.bypass) ||
+      (f.hookFix && c.hook) ||
       (f.pluginFix && c.plugins) ||
       (f.createFile && c.createFile?.path === f.createFile.path),
   );
 }
 
-export function toView(diag: Diagnosis, plan: FixPlan, canUndo: boolean): DiagnosisView {
+export function toView(
+  diag: Diagnosis,
+  plan: FixPlan,
+  canUndo: boolean,
+  kindAuto = true,
+): DiagnosisView {
   const counts = { ok: 0, warn: 0, fail: 0 };
   const byArea = new Map<Area, FindingView[]>();
   const order = { fail: 0, warn: 1, ok: 2 };
@@ -125,6 +142,8 @@ export function toView(diag: Diagnosis, plan: FixPlan, canUndo: boolean): Diagno
       severity: f.severity,
       message: f.message,
       judgment: f.judgment,
+      detail: detailFor(f.id),
+      example: f.severity === "ok" ? undefined : f.example || undefined,
     };
     if (fix) {
       view.fixNo = fix.no;
@@ -148,6 +167,9 @@ export function toView(diag: Diagnosis, plan: FixPlan, canUndo: boolean): Diagno
     path: diag.ctx.repoDir,
     score: diag.score,
     standard: describeStandard(diag.standard),
+    kind: diag.kind,
+    kindAuto,
+    kindReason: diag.kindGuess.reason,
     counts,
     areas,
     fixes: plan.candidates.map((c) => ({ no: c.no, title: c.title })),
@@ -165,21 +187,48 @@ function claudeView(r: RunResult): ClaudeView {
   };
 }
 
+function runClaudeCli(c: { command: string; args: string[] }, args: string[]): Promise<string> {
+  return new Promise((done, fail) => {
+    execFile(
+      c.command,
+      [...c.args, ...args],
+      { timeout: 15_000, windowsHide: true, env: claudeEnv(process.env, c) },
+      (err, out) => (err ? fail(err) : done(out.trim())),
+    );
+  });
+}
+
+// 설치(버전)와 로그인(claude auth status)을 확인한다. 로그인 확인이 안 되는 버전이면 loggedIn은 비운다
 export async function defaultCheckClaude(): Promise<ClaudeStatus> {
+  let c;
+  let version: string;
   try {
-    const c = await resolveClaude();
-    const version = await new Promise<string>((done, fail) => {
-      execFile(
-        c.command,
-        [...c.args, "--version"],
-        { timeout: 15_000, windowsHide: true },
-        (err, out) => (err ? fail(err) : done(out.trim())),
-      );
-    });
-    return { ok: true, version };
+    c = await resolveClaude();
+    version = await runClaudeCli(c, ["--version"]);
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
+  try {
+    const auth = parseAuthStatus(await runClaudeCli(c, ["auth", "status"]));
+    if (auth) return { ok: true, version, ...auth };
+  } catch (e) {
+    // 로그아웃 상태면 종료 코드가 0이 아니어도 JSON을 내놓는다
+    const out = (e as { stdout?: string }).stdout;
+    const auth = out ? parseAuthStatus(out) : null;
+    if (auth) return { ok: true, version, ...auth };
+  }
+  return { ok: true, version };
+}
+
+// "1.2.3" 비교: a가 더 새로우면 양수
+export function compareVersions(a: string, b: string): number {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d !== 0) return d;
+  }
+  return 0;
 }
 
 export class AppCore {
@@ -205,7 +254,8 @@ export class AppCore {
     if (Array.isArray(recent)) {
       for (const r of recent as RecentFolder[]) {
         if (typeof r?.path !== "string" || !isAbsolute(r.path)) continue;
-        this.recent.push({ path: r.path, score: r.score, at: String(r.at) });
+        const kind = r.kind === "dev" || r.kind === "docs" ? r.kind : undefined;
+        this.recent.push({ path: r.path, score: r.score, at: String(r.at), kind });
         this.allowed.set(this.key(r.path), r.path);
       }
     }
@@ -236,26 +286,53 @@ export class AppCore {
     );
   }
 
-  private async remember(path: string, score?: number): Promise<void> {
+  private entry(path: string): RecentFolder | undefined {
     const k = this.key(path);
-    const prev = this.recent.find((r) => this.key(r.path) === k);
-    this.recent = [
-      { path, score: score ?? prev?.score, at: new Date().toISOString() },
-      ...this.recent.filter((r) => this.key(r.path) !== k),
-    ].slice(0, RECENT_MAX);
+    return this.recent.find((r) => this.key(r.path) === k);
+  }
+
+  // kind: undefined면 기존 선택 유지, null이면 자동 판별로 되돌림
+  private async remember(path: string, score?: number, kind?: FolderKind | null): Promise<void> {
+    const k = this.key(path);
+    const prev = this.entry(path);
+    const next: RecentFolder = { path, score: score ?? prev?.score, at: new Date().toISOString() };
+    const chosen = kind === undefined ? prev?.kind : (kind ?? undefined);
+    if (chosen) next.kind = chosen;
+    this.recent = [next, ...this.recent.filter((r) => this.key(r.path) !== k)].slice(0, RECENT_MAX);
     this.allowed.set(k, path);
     await this.saveRecent();
   }
 
-  async getState(): Promise<AppState> {
+  async getState(refresh?: unknown): Promise<AppState> {
+    if (refresh !== undefined && bool(refresh, "refresh"))
+      this.claudeStatus = await (this.deps.checkClaude ?? defaultCheckClaude)();
     const loaded = await this.standard();
-    return {
+    const state: AppState = {
       recent: this.recent,
       standard: describeStandard(loaded),
       standardError: loaded.error,
       claude: this.claudeStatus,
       running: isClaudeRunning(),
     };
+    const app = loaded.standard.app;
+    const current = this.deps.appVersion;
+    if (app && current && compareVersions(app.latestVersion, current) > 0)
+      state.update = {
+        current,
+        latest: app.latestVersion,
+        downloadUrl: app.downloadUrl,
+        note: app.note,
+      };
+    return state;
+  }
+
+  // 새 버전 위치 열기: http(s)는 브라우저로, 파일·공유 폴더 경로는 탐색기에서 보여 준다 (실행하지 않음)
+  async openUpdate(): Promise<void> {
+    const url = (await this.getState()).update?.downloadUrl;
+    if (!url) throw new InputError("사내 표준 파일에 새 버전 위치(app.downloadUrl)가 없습니다");
+    if (/^https?:\/\//i.test(url)) await this.deps.openExternal?.(url);
+    else if (isAbsolute(url) || url.startsWith("\\\\")) this.deps.showItem?.(url);
+    else throw new InputError(`열 수 없는 위치입니다: ${url}`);
   }
 
   async pickFolder(recent?: unknown): Promise<string | null> {
@@ -284,20 +361,27 @@ export class AppCore {
     return this.getState();
   }
 
+  // 폴더 종류는 사용자가 고른 값, 없으면 자동 판별
   private async run(path: string): Promise<{ diag: Diagnosis; plan: FixPlan }> {
     const diag = await diagnose(path, {
       runGit: this.deps.runGit,
       standard: await this.standard(),
+      kind: this.entry(path)?.kind ?? "auto",
     });
     return { diag, plan: planFixes(diag) };
   }
 
-  async diagnose(v: unknown): Promise<DiagnosisView> {
+  async diagnose(v: unknown, kindIn?: unknown): Promise<DiagnosisView> {
     const path = this.folder(v);
+    if (kindIn !== undefined) {
+      if (kindIn !== "auto" && kindIn !== "dev" && kindIn !== "docs")
+        throw new InputError("폴더 종류 값이 잘못됐습니다");
+      await this.remember(path, undefined, kindIn === "auto" ? null : kindIn);
+    }
     const { diag, plan } = await this.run(path);
     await this.remember(path, diag.score);
     const canUndo = (await findUndoTarget(path, this.deps.backup)) !== null;
-    return toView(diag, plan, canUndo);
+    return toView(diag, plan, canUndo, this.entry(path)?.kind === undefined);
   }
 
   private notRunning(): void {

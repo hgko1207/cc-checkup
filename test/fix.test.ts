@@ -17,21 +17,28 @@ async function settingsFrom(body?: string) {
 }
 
 describe("planFixes", () => {
-  it("settings.json이 없으면 고치기 1·2 후보 (새로 만든다)", async () => {
+  it("settings.json이 없으면 차단 규칙·우회 막기·차단 훅 후보 (새로 만든다)", async () => {
     const d = await diagnose(await repoWith({}), { runGit: fakeGit({ code: 1 }) });
     const plan = planFixes(d);
-    expect(plan.candidates.map((c) => c.no)).toEqual([1, 2]);
+    expect(plan.candidates.map((c) => c.no)).toEqual([1, 2, 3]);
     expect(plan.candidates[0]?.denyRules).toHaveLength(12);
+    expect(plan.candidates[2]?.hook?.files.map((f) => f.path)).toEqual([
+      ".claude/hooks/cc-guard/block-dangerous-bash.cjs",
+      ".claude/hooks/cc-guard/lib.cjs",
+    ]);
   });
 
   it("다 갖춰졌으면 후보 없음", async () => {
     const d = await diagnose(
       await repoWith({
         "CLAUDE.md": "npm run test\n",
-        ".claude/settings.json": settingsJson({
-          deny: [".env*"].flatMap((t) => [`Read(${t})`, `Edit(${t})`]),
-          disableBypassPermissionsMode: "disable",
-        }),
+        ".claude/settings.json": settingsJson(
+          {
+            deny: [".env*"].flatMap((t) => [`Read(${t})`, `Edit(${t})`]),
+            disableBypassPermissionsMode: "disable",
+          },
+          { hooks: { PreToolUse: [{ matcher: "Bash", hooks: [] }] } },
+        ),
       }),
       { runGit: fakeGit({ code: 0 }) },
     );

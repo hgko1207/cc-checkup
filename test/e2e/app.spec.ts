@@ -55,6 +55,7 @@ test("렌더러는 Node에 접근할 수 없고 정해진 함수만 보인다", 
       "fix",
       "getState",
       "onEvent",
+      "openUpdate",
       "pickFolder",
       "pickStandard",
       "saveReport",
@@ -96,6 +97,19 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   await expect(page.locator("#panel-title")).toHaveText("되돌렸습니다");
   expect(await exists(join(repo, ".claude"))).toBe(false);
   await expect.poll(async () => Number(await page.locator("#score").textContent())).toBe(before);
+
+  // 폴더 종류: CLAUDE.md만 있는 폴더는 문서 폴더로 판별, 개발 저장소로 바꾸면 검증 명령을 본다
+  await expect(page.locator("#kind-docs")).toBeChecked();
+  await expect(page.locator("#kind-note")).toContainText("자동 판별");
+  await page.locator("#kind-dev").check();
+  await expect(page.locator("#kind-note")).toHaveText("직접 고른 종류입니다");
+  await expect(page.getByText("CLAUDE.md에 검증 명령이 있습니다")).toBeVisible();
+  await page.getByRole("button", { name: "자동 판별로 되돌리기" }).click();
+  await expect(page.locator("#kind-docs")).toBeChecked();
+
+  // [자세히]를 누르면 이유가 펼쳐진다
+  await page.getByRole("button", { name: "자세히" }).first().click();
+  await expect(page.locator(".more").first()).toContainText("왜 문제인가");
 
   // 최근 폴더에 점수와 함께 남는다
   await expect(page.locator("#recent")).toContainText(`${before}점`);

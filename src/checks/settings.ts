@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileRule, isCovered, missingTargets, targetRule, type FileTool } from "../env-rules.js";
-import { KIT_GUIDE } from "../report.js";
 import type { Check, CheckContext, Finding, JsonFormat, SettingsRead } from "../types.js";
 
 const RISKY_PREFIXES = ["git restore", "git reset", "git clean", "git push", "rm -rf", "rm -fr"];
@@ -193,12 +192,24 @@ function hooksFinding(settings: SettingsRead): Finding {
         : "Bash 명령 전에 실행되는 훅이 있습니다 (내용은 확인하지 않음)",
     };
   }
-  return {
-    id: "hooks/present",
-    severity: "warn",
-    message: "위험 명령(강제 푸시, rm -rf 등)을 막는 훅이 없습니다",
-    judgment: `위험 명령 차단 훅이 필요합니다. ${KIT_GUIDE}`,
-  };
+  const message = "위험 명령(강제 푸시, rm -rf 등)을 막는 훅이 없습니다";
+  // 훅을 더할 자리가 예상과 다르면(hooks·PreToolUse 형식) 기존 값을 바꿔야 해서 판단 필요
+  const shapeOk =
+    settings.state === "missing" ||
+    (settings.state === "ok" &&
+      !settings.unwritable &&
+      (data.hooks === undefined ||
+        (isObject(data.hooks) &&
+          (data.hooks.PreToolUse === undefined || Array.isArray(data.hooks.PreToolUse)))));
+  if (!shapeOk)
+    return {
+      id: "hooks/present",
+      severity: "warn",
+      message,
+      judgment:
+        ".claude/settings.json의 hooks 형식을 직접 고친 뒤 다시 점검하세요 (자동으로 고치지 않습니다)",
+    };
+  return { id: "hooks/present", severity: "warn", message, hookFix: true };
 }
 
 // 진단 2·4·5·6·7·8

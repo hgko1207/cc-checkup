@@ -8,6 +8,7 @@ export interface StandardSection {
   id: string; // "verify"는 검증 명령(제목 또는 명령어)으로 판정
   title: string;
   aliases: string[]; // 제목 줄에 이 중 하나가 들어 있으면 있음
+  example?: string; // [예시 보기]에 보여 줄 섹션 예시
 }
 
 export interface StandardFile {
@@ -18,6 +19,7 @@ export interface StandardFile {
   when?: "hasUI"; // 화면이 있는 프로젝트에만 요구
   template?: string; // 있으면 "바로 만들기" 후보
   claudeTask?: string; // 있으면 "Claude로 반영" 대상 (PR2)
+  example?: string; // [예시 보기]에 보여 줄 내용 (없으면 template)
 }
 
 export interface ClaudeTask {
@@ -26,16 +28,32 @@ export interface ClaudeTask {
   prompt: string;
 }
 
+// 폴더 종류: 개발 저장소 / 문서·기획 폴더. 문서 폴더는 docs의 기준을 쓴다
+export type FolderKind = "dev" | "docs";
+
+export interface ClaudeMdRules {
+  requiredSections: StandardSection[];
+  task?: string; // 빠진 섹션·CLAUDE.md 없음에 쓰는 Claude 작업 (claudeTasks 키)
+}
+
 export interface Standard {
   name: string;
   version: string;
+  guideUrl?: string; // 안내 문구에 붙일 사내 가이드 주소 (없으면 링크 없음)
+  app?: { latestVersion: string; downloadUrl?: string; note?: string }; // 새 버전 알림
   env: { targets: string[] };
-  claudeMd: { maxLines: number; requiredSections: StandardSection[] };
+  claudeMd: { maxLines: number } & ClaudeMdRules;
   requiredFiles: StandardFile[];
   plugins: { marketplaces: Record<string, unknown>; required: string[] };
   uiDetection: { dependencies: string[]; files: string[] };
   score: { fail: number; warn: number };
   claudeTasks: Record<string, ClaudeTask>;
+  // 문서·기획 폴더에서 claudeMd 섹션·requiredFiles·plugins.required 대신 쓰는 값
+  docs: {
+    claudeMd: ClaudeMdRules;
+    requiredFiles: StandardFile[];
+    plugins?: { required: string[] };
+  };
 }
 
 export interface LoadedStandard {
@@ -53,6 +71,8 @@ function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((x) => typeof x === "string");
 }
 
+const optString = (v: unknown) => v === undefined || typeof v === "string";
+
 // Claude 작업 대상 경로. 허용 목록 문자열(Edit(/대상))에 그대로 들어가므로 쉼표·괄호·공백을 막는다
 export function targetError(path: string): string | null {
   if (!/^[\p{L}\p{N}._\-/]+$/u.test(path))
@@ -65,6 +85,52 @@ export function targetError(path: string): string | null {
 
 function check(cond: boolean, what: string): void {
   if (!cond) throw new Error(what);
+}
+
+function sections(v: unknown, where: string): StandardSection[] {
+  check(
+    Array.isArray(v) &&
+      v.every(
+        (s) =>
+          isObject(s) &&
+          typeof s.id === "string" &&
+          typeof s.title === "string" &&
+          isStringArray(s.aliases) &&
+          optString(s.example),
+      ),
+    `${where} 항목은 id·title·aliases가 필요합니다`,
+  );
+  return v as StandardSection[];
+}
+
+function files(v: unknown, where: string): StandardFile[] {
+  check(
+    Array.isArray(v) &&
+      v.every(
+        (f) =>
+          isObject(f) &&
+          typeof f.id === "string" &&
+          typeof f.path === "string" &&
+          typeof f.title === "string" &&
+          (f.severity === "warn" || f.severity === "fail") &&
+          (f.when === undefined || f.when === "hasUI") &&
+          optString(f.template) &&
+          optString(f.claudeTask) &&
+          optString(f.example) &&
+          !String(f.path).split(/[\\/]/).includes(".."),
+      ),
+    `${where} 항목은 id·path·title·severity(warn|fail)가 필요하고 path에 ..를 쓸 수 없습니다`,
+  );
+  return v as StandardFile[];
+}
+
+function claudeMdRules(c: Record<string, unknown>, out: ClaudeMdRules, where: string): void {
+  if (c.requiredSections !== undefined)
+    out.requiredSections = sections(c.requiredSections, `${where}.requiredSections`);
+  if (c.task !== undefined) {
+    check(typeof c.task === "string", `${where}.task는 문자열이어야 합니다`);
+    out.task = c.task as string;
+  }
 }
 
 // 공유 파일 내용을 기본 표준 위에 덮는다. 형식이 틀리면 어느 항목인지 알려 주는 오류를 던진다
@@ -80,6 +146,24 @@ export function mergeStandard(base: Standard, input: unknown): Standard {
   if (o.version !== undefined) {
     check(typeof o.version === "string", "version은 문자열이어야 합니다");
     out.version = o.version as string;
+  }
+  if (o.guideUrl !== undefined) {
+    check(
+      typeof o.guideUrl === "string" && /^https?:\/\//.test(o.guideUrl),
+      "guideUrl은 http(s) 주소여야 합니다",
+    );
+    out.guideUrl = o.guideUrl as string;
+  }
+  if (o.app !== undefined) {
+    check(
+      isObject(o.app) &&
+        typeof o.app.latestVersion === "string" &&
+        /^\d+\.\d+\.\d+$/.test(o.app.latestVersion) &&
+        optString(o.app.downloadUrl) &&
+        optString(o.app.note),
+      "app은 latestVersion(예: 0.2.0)이 필요하고 downloadUrl·note는 문자열이어야 합니다",
+    );
+    out.app = o.app as Standard["app"];
   }
   if (o.env !== undefined) {
     check(
@@ -98,40 +182,9 @@ export function mergeStandard(base: Standard, input: unknown): Standard {
       );
       out.claudeMd.maxLines = c.maxLines as number;
     }
-    if (c.requiredSections !== undefined) {
-      check(
-        Array.isArray(c.requiredSections) &&
-          c.requiredSections.every(
-            (s) =>
-              isObject(s) &&
-              typeof s.id === "string" &&
-              typeof s.title === "string" &&
-              isStringArray(s.aliases),
-          ),
-        "claudeMd.requiredSections 항목은 id·title·aliases가 필요합니다",
-      );
-      out.claudeMd.requiredSections = c.requiredSections as StandardSection[];
-    }
+    claudeMdRules(c, out.claudeMd, "claudeMd");
   }
-  if (o.requiredFiles !== undefined) {
-    check(
-      Array.isArray(o.requiredFiles) &&
-        o.requiredFiles.every(
-          (f) =>
-            isObject(f) &&
-            typeof f.id === "string" &&
-            typeof f.path === "string" &&
-            typeof f.title === "string" &&
-            (f.severity === "warn" || f.severity === "fail") &&
-            (f.when === undefined || f.when === "hasUI") &&
-            (f.template === undefined || typeof f.template === "string") &&
-            (f.claudeTask === undefined || typeof f.claudeTask === "string") &&
-            !String(f.path).split(/[\\/]/).includes(".."),
-        ),
-      "requiredFiles 항목은 id·path·title·severity(warn|fail)가 필요하고 path에 ..를 쓸 수 없습니다",
-    );
-    out.requiredFiles = o.requiredFiles as StandardFile[];
-  }
+  if (o.requiredFiles !== undefined) out.requiredFiles = files(o.requiredFiles, "requiredFiles");
   if (o.plugins !== undefined) {
     check(isObject(o.plugins), "plugins는 객체여야 합니다");
     const p = o.plugins as Record<string, unknown>;
@@ -179,7 +232,45 @@ export function mergeStandard(base: Standard, input: unknown): Standard {
       out.claudeTasks[k] = t as unknown as ClaudeTask;
     }
   }
+  if (o.docs !== undefined) {
+    check(isObject(o.docs), "docs는 객체여야 합니다");
+    const d = o.docs as Record<string, unknown>;
+    if (d.claudeMd !== undefined) {
+      check(isObject(d.claudeMd), "docs.claudeMd는 객체여야 합니다");
+      claudeMdRules(d.claudeMd as Record<string, unknown>, out.docs.claudeMd, "docs.claudeMd");
+    }
+    if (d.requiredFiles !== undefined)
+      out.docs.requiredFiles = files(d.requiredFiles, "docs.requiredFiles");
+    if (d.plugins !== undefined) {
+      check(
+        isObject(d.plugins) && isStringArray(d.plugins.required),
+        "docs.plugins.required는 문자열 배열이어야 합니다",
+      );
+      out.docs.plugins = { required: (d.plugins as { required: string[] }).required };
+    }
+  }
+  // CLAUDE.md 작업이 가리키는 Claude 작업이 있어야 한다
+  for (const [where, task] of [
+    ["claudeMd.task", out.claudeMd.task],
+    ["docs.claudeMd.task", out.docs.claudeMd.task],
+  ] as const) {
+    if (task !== undefined)
+      check(task in out.claudeTasks, `${where}의 "${task}"가 claudeTasks에 없습니다`);
+  }
   return out;
+}
+
+// 폴더 종류에 맞는 기준: 문서 폴더는 CLAUDE.md 섹션·필수 파일·필수 플러그인을 docs 값으로 바꾼다
+export function standardFor(standard: Standard, kind: FolderKind): Standard {
+  if (kind === "dev") return standard;
+  return {
+    ...standard,
+    claudeMd: { ...standard.claudeMd, ...standard.docs.claudeMd },
+    requiredFiles: standard.docs.requiredFiles,
+    plugins: standard.docs.plugins
+      ? { ...standard.plugins, required: standard.docs.plugins.required }
+      : standard.plugins,
+  };
 }
 
 // 공유 경로가 없거나 읽기·형식 오류면 기본 표준으로 돌아가고 이유를 남긴다
@@ -206,4 +297,9 @@ export function describeStandard(loaded: LoadedStandard): string {
   const { name, version } = loaded.standard;
   const from = loaded.source === "shared" ? `공유 파일: ${loaded.path}` : "기본 내장";
   return `${name} ${version} (${from})`;
+}
+
+// 안내 문구 끝에 붙일 사내 가이드 링크 (표준에 guideUrl이 있을 때만)
+export function guideSuffix(standard: Standard): string {
+  return standard.guideUrl ? ` 사내 가이드: ${standard.guideUrl}` : "";
 }
