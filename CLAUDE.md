@@ -6,7 +6,7 @@
 
 ## 구조
 
-- `src/` — CLI 흐름(cli), 진단 실행(diagnose), .env 규칙 판정(env-rules), 고치기(fix), 백업·되돌리기(backup), 질문(prompt), 출력(report), 사내 표준 정의(standard·standard-default), 점수(score)
+- `src/` — CLI 흐름(cli), 진단 실행(diagnose), .env 규칙 판정(env-rules), 고치기(fix), 백업·되돌리기(backup), 질문(prompt), 출력(report), 사내 표준 정의(standard·standard-default), 점수(score), Claude로 반영 실행기(claude-runner)
 - `standard/` — 사내 표준 정의 파일 예시 (진단 기준은 코드가 아니라 표준 파일에서 읽는다)
 - `src/checks/` — 진단 항목별 체크 함수 (Check 타입)
 - `test/` — vitest 테스트

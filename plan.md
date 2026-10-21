@@ -4,15 +4,26 @@
 
 ## 현재 상태
 
-- PR1 완료: 사내 표준 정의 파일(--standard), 표준 규칙(필수 섹션·파일·플러그인), 점수, 플러그인 설정 추가·plan.md 만들기
-- 다음: PR2(T5 Claude 실행기), PR3(T6~T10 설치형 앱)
-- 테스트 10파일 159건, typecheck·lint·test·build 통과
+- PR1 완료(PR #2): 사내 표준 정의 파일(--standard), 표준 규칙(필수 섹션·파일·플러그인), 점수, 플러그인 설정 추가·plan.md 만들기
+- PR2 완료: Claude로 반영 실행기(src/claude-runner.ts) — 엔진만, 화면은 PR3
+- 다음: PR3(T6~T10 설치형 앱)
+- 테스트 11파일 198건, typecheck·lint·test·build 통과
 
 ## 다음 작업 (구현 예정)
 
 > 근거: 사내 Claude 세팅 점검 설치형 프로그램 설계 (`~/.gstack/projects/cc-checkup/khkkh-main-design-20261020-230029.md`, office-hours 2026-10-20 승인 + eng review 2026-10-21 결정 R1~R8). 작업 번호는 그 문서의 Implementation Tasks와 같다. PR1=T1~T4, PR2=T5, PR3=T6~T10.
 
 ## 완료
+
+### [x] PR2 Claude로 반영 실행기 (T5)
+
+- 목표: 표준의 claudeTasks 작업을 claude -p로 대상 파일만 고치게 실행하고, 전후 비교·diff·유지/취소·중단·10분 제한·동시 실행 차단을 엔진으로 제공 (R2·R5·R7·R8)
+- 변경할 파일: `src/claude-runner.ts`(신규), `src/backup.ts`(createBackup·confirmBackup·restoreBackup로 나눔, applyWithBackup은 이를 사용), `src/standard.ts`(claudeTasks 대상 경로 검사), `test/claude-runner.test.ts`·`test/fixtures/fake-claude.mjs`(신규)
+- 안 하는 것: 화면·IPC(PR3), CLI 옵션(설계상 Claude로 반영은 앱 기능)
+- 결과(2026-10-21): 테스트 11파일 198건 통과(실행기 36건: 인자, 대상 경로 검사, stream-json, Windows claude.cmd 찾기, 스냅샷 비교, ready·keep→--undo, discard, 새 폴더, 변경 없음, 대상 밖 변경, 실패 종료, result 오류, 시간 초과 시 하위 프로세스 종료, 중단·동시 실행 차단, 20만 상한, 실행 실패, 잘못된 작업). 실제 claude 2.1.83로 임시 폴더에서 2회 확인($0.32):
+  - `Edit(./CLAUDE.md)`는 sub/CLAUDE.md까지 허용됨 → 전후 비교가 잡아 되돌림. `Edit(/CLAUDE.md)`로 바꿔 폴더 맨 위만 허용되는 것을 확인 (eng review 미확인 항목 해소)
+  - index.js 편집·notes.txt 생성·.env 읽기·Bash는 모두 거부됨
+- 설계와 다른 점: 대상 밖 변경은 "전부 되돌리기" 대신 반영을 막고 대상 파일만 되돌린 뒤 목록으로 알린다. 스냅샷(R7)은 크기·시각만 있어 대상 밖 파일의 원본 내용이 없고, 새 파일은 실행 중 사용자나 편집기·개발 서버가 만든 것일 수 있어 지우면 남의 작업을 잃는다.
 
 ### [x] PR1 사내 표준 정의 파일 + 표준 규칙 + 점수 + 바로 만들기·설치하기 (T1~T4)
 

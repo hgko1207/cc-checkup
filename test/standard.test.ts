@@ -51,6 +51,14 @@ describe("loadStandard (R3)", () => {
     ).toThrow();
   });
 
+  it.each([["../x.md"], ["a b.md"], ["Edit(x)"]])("Claude 작업 대상 %s는 거절한다", (p) => {
+    expect(() =>
+      mergeStandard(DEFAULT_STANDARD, {
+        claudeTasks: { x: { title: "x", targets: [p], prompt: "p" } },
+      }),
+    ).toThrow("claudeTasks.x.targets");
+  });
+
   it("기본 표준을 바꾸지 않는다 (복사본을 돌려준다)", () => {
     const merged = mergeStandard(DEFAULT_STANDARD, { name: "다른 표준" });
     expect(merged.name).toBe("다른 표준");
