@@ -26,6 +26,7 @@
   - 노출 함수가 5개가 아니라 8개(+진행 이벤트): 상태 읽기(getState), 사내 표준 파일 선택(pickStandard), 리포트 저장(saveReport)을 더했다. 모두 입력을 검증하고 폴더는 선택 창·최근 목록에서 고른 것만 받는다.
   - 바로 고치기·되돌리기는 미리 보기와 적용을 나눴고, 적용 때 다시 계산해 미리 본 것과 다르면 거절한다.
   - "Claude로 반영" 적용률(Success Criteria) 계산용으로 적용/취소를 `%APPDATA%cc-checkupclaude-decisions.jsonl`에 남긴다(파일 내용은 남기지 않음).
+- 실제 claude로 앱 화면에서 확인(2026-10-22, 임시 폴더, 예시 표준): Claude로 반영 → 적용 → 점수 40→45 → 되돌리기 바이트 동일. 1회 33~40초, $0.15. 첫 실행에서 근거 없는 규칙("TypeScript로 전환하지 않는다" 등)을 지어내 기본 지시문에 "근거 없으면 TODO로 남김"을 더했고, 다시 실행해 코드에서 찾은 규칙만 적고 나머지는 TODO로 남는 것을 확인.
 - 주의: VS Code 터미널은 ELECTRON_RUN_AS_NODE=1을 물려줘 `electron .`이 Node로 뜬다. `npm run app`(scripts/run-app.mjs)과 E2E는 이 값을 빼고 실행한다.
 
 ### [x] PR2 Claude로 반영 실행기 (T5)

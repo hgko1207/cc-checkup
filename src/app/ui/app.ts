@@ -197,6 +197,10 @@ async function fix(nos: number[]): Promise<void> {
 
 function claudeResult(r: ClaudeView, path: string): void {
   $("panel-close").hidden = false;
+  $("panel-note").textContent =
+    r.status === "ready"
+      ? "아직 원본이 백업돼 있습니다. [취소]하면 원래대로 돌립니다."
+      : "대상 파일은 원래대로 돌렸습니다.";
   const titles: Record<string, string> = {
     ready: "Claude가 고친 내용 확인",
     unchanged: "바뀐 내용 없음",

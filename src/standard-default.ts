@@ -46,6 +46,8 @@ export const DEFAULT_STANDARD: Standard = {
       prompt:
         "이 저장소의 구조와 package.json 같은 설정 파일을 읽고 CLAUDE.md를 사내 표준에 맞게 고쳐라. " +
         "빠진 필수 섹션({{missing}})을 채우되, 실제로 확인한 명령과 경로만 적는다. 이미 있는 내용은 지우지 않는다. " +
+        "규칙·금지 사항은 설정 파일(eslint·prettier·tsconfig·editorconfig 등)이나 코드에서 근거를 찾은 것만 적고, " +
+        "근거가 없으면 지어내지 말고 '- TODO: 팀이 정할 것' 한 줄로 남긴다. " +
         "CLAUDE.md 외의 파일은 수정하지 않는다.",
     },
     design: {
