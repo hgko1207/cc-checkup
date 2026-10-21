@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import type { Diagnosis } from "./diagnose.js";
 import type { FixPlan } from "./fix.js";
+import { describeStandard } from "./standard.js";
 import type { Finding, Severity } from "./types.js";
 
 // 리포트 마지막 줄 링크: 항상 클릭을 세는 착지 주소 (eng review R2).
@@ -46,7 +47,12 @@ function judgments(findings: Finding[]): string[] {
 
 // 터미널 출력 (고치기 질문 전까지)
 export function formatText(diag: Diagnosis): string {
-  const out = ["이 저장소의 Claude Code 팀 세팅 진단", ""];
+  const out = [
+    "이 저장소의 Claude Code 팀 세팅 진단",
+    `사내 표준: ${describeStandard(diag.standard)}`,
+    `사내 표준 대비 점수: ${diag.score} / 100`,
+    "",
+  ];
   for (const g of GROUPS) {
     const items = diag.findings.filter((f) => f.severity === g.severity);
     if (items.length === 0) continue;
@@ -80,6 +86,8 @@ export function formatMarkdown(diag: Diagnosis, plan: FixPlan, now = new Date())
     "",
     `- 대상 폴더: \`${basename(diag.ctx.repoDir)}\``,
     `- 진단 일시: ${date}`,
+    `- 사내 표준: ${describeStandard(diag.standard)}`,
+    `- 표준 충족도: **${diag.score} / 100**`,
   ];
   for (const g of GROUPS) {
     const items = diag.findings.filter((f) => f.severity === g.severity);

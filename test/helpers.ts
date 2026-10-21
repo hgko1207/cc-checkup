@@ -4,6 +4,8 @@ import { dirname, join } from "node:path";
 import type { GitResult, GitRunner } from "../src/checks/git.js";
 import { readSettings } from "../src/checks/settings.js";
 import { scanRepo } from "../src/env-rules.js";
+import { DEFAULT_STANDARD } from "../src/standard-default.js";
+import type { Standard } from "../src/standard.js";
 import type { CheckContext, GitTracking } from "../src/types.js";
 
 export async function repoWith(files: Record<string, string>): Promise<string> {
@@ -30,6 +32,13 @@ export function fakeGit(result: Partial<GitResult>): GitRunner {
 export async function ctxFor(
   repoDir: string,
   git: GitTracking = { tracked: true },
+  standard: Standard = DEFAULT_STANDARD,
 ): Promise<CheckContext> {
-  return { repoDir, settings: await readSettings(repoDir), scan: await scanRepo(repoDir), git };
+  return {
+    repoDir,
+    settings: await readSettings(repoDir),
+    scan: await scanRepo(repoDir),
+    git,
+    standard,
+  };
 }

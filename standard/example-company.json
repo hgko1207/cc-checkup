@@ -1,0 +1,40 @@
+{
+  "name": "사내 Claude 표준 (예시)",
+  "version": "0.1.0",
+  "claudeMd": {
+    "maxLines": 200,
+    "requiredSections": [
+      { "id": "verify", "title": "검증 명령", "aliases": ["검증", "verify", "test"] },
+      {
+        "id": "rules",
+        "title": "코딩 규칙",
+        "aliases": ["코딩 규칙", "규칙", "coding rules", "conventions"]
+      },
+      { "id": "dont", "title": "하지 말 것", "aliases": ["하지 말 것", "금지", "don't", "do not"] }
+    ]
+  },
+  "requiredFiles": [
+    {
+      "id": "plan",
+      "path": "plan.md",
+      "title": "작업 계획 파일(plan.md)",
+      "severity": "warn",
+      "template": "# plan.md\n\n> 계획은 여기 적고, 구현은 \"다음 작업\"을 위에서부터 진행한다. 끝난 항목은 `[x]`로 표시하고 \"완료\"로 옮긴다.\n\n## 현재 상태\n\n## 다음 작업 (구현 예정)\n\n## 완료\n"
+    },
+    {
+      "id": "design",
+      "path": "DESIGN.md",
+      "title": "DESIGN.md",
+      "severity": "warn",
+      "when": "hasUI",
+      "claudeTask": "design"
+    }
+  ],
+  "plugins": {
+    "marketplaces": {
+      "team-ai-kit": { "source": { "source": "github", "repo": "your-org/team-ai-kit" } }
+    },
+    "required": ["team-ai@team-ai-kit"]
+  },
+  "score": { "fail": 15, "warn": 5 }
+}

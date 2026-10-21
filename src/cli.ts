@@ -11,7 +11,7 @@ import {
 } from "./backup.js";
 import type { GitRunner } from "./checks/git.js";
 import { diagnose, type Diagnosis } from "./diagnose.js";
-import { applyFixes, lineDiff, planFixes, type FileChange } from "./fix.js";
+import { applyAll, lineDiff, planFixes, SETTINGS_PATH, type FileChange } from "./fix.js";
 import { askSelection, askTerminal, confirm, isInteractive, type Ask } from "./prompt.js";
 import {
   formatCandidates,
@@ -20,11 +20,13 @@ import {
   ReportExistsError,
   writeReport,
 } from "./report.js";
+import { loadStandard } from "./standard.js";
 
-const HELP = `사용법: cc-checkup [저장소 경로] [--report <파일>] [--undo]
+const HELP = `사용법: cc-checkup [저장소 경로] [--standard <표준 파일>] [--report <파일>] [--undo]
 저장소의 Claude Code 팀 세팅을 진단하고, 원하면 안전한 수정을 확인 후 적용합니다.
 
   --report <파일>  진단 결과를 UTF-8 마크다운으로 저장 (질문하지 않고 설정 파일도 쓰지 않음)
+  --standard <파일> 사내 표준 정의 파일(standard.json)로 진단 (없거나 잘못되면 기본 표준)
   --undo           이 폴더에 마지막으로 적용한 고치기를 되돌림`;
 
 export interface CliDeps {
@@ -39,6 +41,7 @@ interface Args {
   help: boolean;
   undo: boolean;
   report?: string;
+  standard?: string;
   dir: string;
 }
 
@@ -54,6 +57,11 @@ function parseArgs(argv: string[]): Args | string {
       if (v === undefined || v.startsWith("-")) return "--report 뒤에 파일 이름을 적으세요";
       args.report = v;
     } else if (a.startsWith("--report=")) args.report = a.slice("--report=".length);
+    else if (a === "--standard") {
+      const v = argv[++i];
+      if (v === undefined || v.startsWith("-")) return "--standard 뒤에 표준 파일 경로를 적으세요";
+      args.standard = v;
+    } else if (a.startsWith("--standard=")) args.standard = a.slice("--standard=".length);
     else if (a.startsWith("-")) return `알 수 없는 옵션: ${a}`;
     else if (dirSet) return `경로는 하나만 적으세요: ${a}`;
     else {
@@ -64,12 +72,14 @@ function parseArgs(argv: string[]): Args | string {
   return args;
 }
 
-function commitGuide(diag: Diagnosis, change: FileChange): string {
+function commitGuide(diag: Diagnosis, changes: FileChange[]): string {
   const { tracked } = diag.ctx.git;
   if (tracked === null) return "커밋해야 팀원 전원에게 적용됩니다";
-  if (change.before === null || tracked === false) {
-    return "git add .claude/settings.json 후 커밋해야 팀원 전원에게 적용됩니다";
-  }
+  // 새로 만든 파일과 git이 모르는 settings.json은 git add가 먼저 필요하다
+  const toAdd = changes
+    .filter((c) => c.before === null || (c.path === SETTINGS_PATH && tracked === false))
+    .map((c) => c.path);
+  if (toAdd.length > 0) return `git add ${toAdd.join(" ")} 후 커밋해야 팀원 전원에게 적용됩니다`;
   return "변경을 커밋해야 팀원 전원에게 적용됩니다";
 }
 
@@ -133,7 +143,11 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
   const repoDir = resolve(args.dir);
   if (args.undo) return runUndo(repoDir, deps);
 
-  const diag = await diagnose(repoDir, { runGit: deps.runGit });
+  const standard = await loadStandard(args.standard);
+  if (standard.error) {
+    deps.log(`! 표준 파일을 쓰지 못해 기본 표준으로 진단합니다: ${standard.error}`);
+  }
+  const diag = await diagnose(repoDir, { runGit: deps.runGit, standard });
   const plan = planFixes(diag);
   const code = diag.findings.some((f) => f.severity === "fail") ? 1 : 0;
 
@@ -165,11 +179,11 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
     deps.log("아무것도 바꾸지 않았습니다");
     return code;
   }
-  const change = applyFixes(
+  const changes = applyAll(
     diag.ctx.settings,
     plan.candidates.filter((c) => picked.includes(c.no)),
   );
-  deps.log(lineDiff(change.before, change.after, change.path));
+  for (const change of changes) deps.log(lineDiff(change.before, change.after, change.path));
   if (!(await confirm(deps.ask, "적용할까요?"))) {
     deps.log("아무것도 바꾸지 않았습니다");
     return code;
@@ -177,7 +191,7 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
   try {
     const { backupDir } = await applyWithBackup(
       repoDir,
-      [{ path: change.path, content: change.content }],
+      changes.map((c) => ({ path: c.path, content: c.content })),
       deps.backup,
     );
     deps.log(`적용했습니다. 원본 백업: ${backupDir}`);
@@ -186,7 +200,7 @@ export async function run(argv: string[], deps: CliDeps): Promise<number> {
     return 1;
   }
   deps.log("되돌리려면: npx cc-checkup --undo");
-  deps.log(commitGuide(diag, change));
+  deps.log(commitGuide(diag, changes));
   return 0;
 }
 

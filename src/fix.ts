@@ -8,49 +8,85 @@ import type { JsonFormat, SettingsRead } from "./types.js";
 
 export const SETTINGS_PATH = ".claude/settings.json";
 
+export interface PluginFix {
+  marketplaces: Record<string, unknown>;
+  enable: string[];
+}
+
 export interface FixCandidate {
   no: number;
   title: string;
   denyRules: string[];
   bypass: boolean;
+  plugins?: PluginFix; // "설치하기": 저장소 settings.json에 마켓플레이스·플러그인을 더하기만 (R4)
+  createFile?: { path: string; content: string }; // "바로 만들기": 없는 파일을 템플릿으로
 }
 
 export interface FixPlan {
   candidates: FixCandidate[];
-  // settings.json을 쓸 수 없어 고치기를 판단 필요로 옮긴 이유
+  // settings.json을 쓸 수 없어 설정 고치기를 판단 필요로 옮긴 이유
   blocked?: string;
+}
+
+function mergePlugins(fixes: PluginFix[]): PluginFix | undefined {
+  if (fixes.length === 0) return undefined;
+  return {
+    marketplaces: Object.assign({}, ...fixes.map((f) => f.marketplaces)) as Record<string, unknown>,
+    enable: [...new Set(fixes.flatMap((f) => f.enable))],
+  };
 }
 
 export function planFixes({ ctx, findings }: Diagnosis): FixPlan {
   const open = findings.filter((f) => f.severity !== "ok");
   const denyRules = [...new Set(open.flatMap((f) => f.denyRules ?? []))];
   const bypass = open.some((f) => f.bypassFix === true);
-  if (denyRules.length === 0 && !bypass) return { candidates: [] };
-
-  const { settings } = ctx;
-  if (settings.state === "invalid") return { candidates: [], blocked: settings.reason };
-  if (settings.state === "ok" && settings.unwritable) {
-    return { candidates: [], blocked: settings.unwritable };
-  }
+  const plugins = mergePlugins(open.flatMap((f) => (f.pluginFix ? [f.pluginFix] : [])));
+  const files = open.flatMap((f) => (f.createFile ? [f.createFile] : []));
 
   const candidates: FixCandidate[] = [];
-  if (denyRules.length > 0) {
-    candidates.push({
-      no: candidates.length + 1,
-      title: `${SETTINGS_PATH}에 .env 읽기·쓰기 차단 규칙 추가 (${denyRules.length}개)`,
-      denyRules,
-      bypass: false,
-    });
+  let blocked: string | undefined;
+  if (denyRules.length > 0 || bypass || plugins) {
+    const { settings } = ctx;
+    if (settings.state === "invalid") blocked = settings.reason;
+    else if (settings.state === "ok" && settings.unwritable) blocked = settings.unwritable;
+    else {
+      if (denyRules.length > 0) {
+        candidates.push({
+          no: candidates.length + 1,
+          title: `${SETTINGS_PATH}에 .env 읽기·쓰기 차단 규칙 추가 (${denyRules.length}개)`,
+          denyRules,
+          bypass: false,
+        });
+      }
+      if (bypass) {
+        candidates.push({
+          no: candidates.length + 1,
+          title: "권한 우회 모드 막기",
+          denyRules: [],
+          bypass: true,
+        });
+      }
+      if (plugins) {
+        candidates.push({
+          no: candidates.length + 1,
+          title: `사내 표준 플러그인 설정 추가 (${plugins.enable.join(", ")})`,
+          denyRules: [],
+          bypass: false,
+          plugins,
+        });
+      }
+    }
   }
-  if (bypass) {
+  for (const file of files) {
     candidates.push({
       no: candidates.length + 1,
-      title: "권한 우회 모드 막기",
+      title: `${file.path} 만들기 (사내 표준 템플릿)`,
       denyRules: [],
-      bypass: true,
+      bypass: false,
+      createFile: file,
     });
   }
-  return { candidates };
+  return blocked === undefined ? { candidates } : { candidates, blocked };
 }
 
 // ---- 위치를 기억하는 JSON 트리 (JSON.parse를 통과한 텍스트만 받는다) ----
@@ -197,12 +233,22 @@ export function applyFixes(settings: SettingsRead, chosen: FixCandidate[]): File
   }
   const rules = [...new Set(chosen.flatMap((c) => c.denyRules))];
   const bypass = chosen.some((c) => c.bypass);
+  const plugins = mergePlugins(chosen.flatMap((c) => (c.plugins ? [c.plugins] : [])));
 
   if (settings.state === "missing") {
-    const permissions: Record<string, unknown> = {};
-    if (rules.length > 0) permissions.deny = rules;
-    if (bypass) permissions.disableBypassPermissionsMode = "disable";
-    const after = JSON.stringify({ permissions }, null, 2) + "\n";
+    const obj: Record<string, unknown> = {};
+    if (rules.length > 0 || bypass) {
+      const permissions: Record<string, unknown> = {};
+      if (rules.length > 0) permissions.deny = rules;
+      if (bypass) permissions.disableBypassPermissionsMode = "disable";
+      obj.permissions = permissions;
+    }
+    if (plugins) {
+      if (Object.keys(plugins.marketplaces).length > 0)
+        obj.extraKnownMarketplaces = plugins.marketplaces;
+      obj.enabledPlugins = Object.fromEntries(plugins.enable.map((p) => [p, true]));
+    }
+    const after = JSON.stringify(obj, null, 2) + "\n";
     return { path: SETTINGS_PATH, before: null, after, content: after };
   }
 
@@ -240,6 +286,28 @@ export function applyFixes(settings: SettingsRead, chosen: FixCandidate[]): File
         : addMember(text, perm, "disableBypassPermissionsMode", "disable", fmt);
   }
 
+  if (plugins) {
+    // 없는 키만 더한다. 이미 있는 마켓플레이스·플러그인 값은 건드리지 않는다
+    for (const [key, value] of Object.entries(plugins.marketplaces)) {
+      const root = parseTree(text);
+      const markets = member(root, "extraKnownMarketplaces");
+      if (markets === undefined) {
+        text = addMember(text, root, "extraKnownMarketplaces", { [key]: value }, fmt);
+      } else if (member(markets, key) === undefined) {
+        text = addMember(text, markets, key, value, fmt);
+      }
+    }
+    for (const plugin of plugins.enable) {
+      const root = parseTree(text);
+      const enabled = member(root, "enabledPlugins");
+      if (enabled === undefined) {
+        text = addMember(text, root, "enabledPlugins", { [plugin]: true }, fmt);
+      } else if (member(enabled, plugin) === undefined) {
+        text = addMember(text, enabled, plugin, true, fmt);
+      }
+    }
+  }
+
   JSON.parse(text); // 끼워 넣은 결과가 올바른 JSON인지 확인
   return {
     path: SETTINGS_PATH,
@@ -247,6 +315,21 @@ export function applyFixes(settings: SettingsRead, chosen: FixCandidate[]): File
     after: text,
     content: (fmt.bom ? "\uFEFF" : "") + text,
   };
+}
+
+// 고른 후보 전체의 파일 변경: 설정 파일 한 개(필요할 때) + 새로 만들 파일들
+export function applyAll(settings: SettingsRead, chosen: FixCandidate[]): FileChange[] {
+  const changes: FileChange[] = [];
+  const settingsChosen = chosen.filter((c) => c.denyRules.length > 0 || c.bypass || c.plugins);
+  if (settingsChosen.length > 0) changes.push(applyFixes(settings, settingsChosen));
+  for (const c of chosen) {
+    if (!c.createFile) continue;
+    const content = c.createFile.content.endsWith("\n")
+      ? c.createFile.content
+      : c.createFile.content + "\n";
+    changes.push({ path: c.createFile.path, before: null, after: content, content });
+  }
+  return changes;
 }
 
 // ---- 줄 단위 diff (작은 파일 전용) ----
