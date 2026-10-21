@@ -1,21 +1,25 @@
 {
   "name": "cc-checkup",
   "version": "0.1.0",
-  "description": "저장소의 Claude Code 팀 세팅 상태를 점수로 진단하는 CLI",
+  "description": "저장소의 Claude Code 팀 세팅 상태를 사내 표준과 비교해 진단·반영하는 CLI와 설치형 앱",
   "type": "module",
   "bin": {
     "cc-checkup": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "!dist/app"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json && tsc -p src/app/ui && node scripts/copy-ui.mjs",
+    "typecheck": "tsc --noEmit && tsc -p src/app/ui --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "start": "node dist/cli.js"
+    "test:e2e": "npm run build && playwright test",
+    "start": "node dist/cli.js",
+    "app": "npm run build && node scripts/run-app.mjs",
+    "dist:win": "npm run build && electron-builder --win nsis"
   },
   "engines": {
     "node": ">=20"
@@ -24,11 +28,39 @@
   "private": true,
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.64.1",
     "@types/node": "^26.6.4",
+    "electron": "45.0.0",
+    "electron-builder": "26.15.3",
     "eslint": "^10.12.0",
     "prettier": "^3.9.9",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.1",
     "vitest": "^5.0.3"
+  },
+  "author": "hgko1207",
+  "build": {
+    "appId": "io.github.hgko1207.cc-checkup",
+    "productName": "CC Checkup",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "!dist/**/*.map",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Claude 세팅 점검"
+    },
+    "extraMetadata": {
+      "main": "dist/app/main.js"
+    }
   }
 }

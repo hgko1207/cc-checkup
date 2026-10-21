@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Claude 세팅 점검</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="side">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">✓</span>
+          <div>
+            <div class="brand-name">Claude 세팅 점검</div>
+            <div class="brand-sub">사내 표준 대비 진단·반영</div>
+          </div>
+        </div>
+
+        <button id="open" class="btn primary wide" type="button">폴더 열기…</button>
+
+        <section class="side-box">
+          <h2>폴더 종류</h2>
+          <label class="radio"><input type="radio" name="kind" checked /> 개발 저장소</label>
+          <label class="radio muted" title="시범 2팀에서 사용 형태를 확인한 뒤 추가합니다">
+            <input type="radio" name="kind" disabled /> 문서·기획 폴더
+            <span class="tag">준비 중</span>
+          </label>
+        </section>
+
+        <section class="side-box">
+          <h2>최근 폴더</h2>
+          <ul id="recent" class="recent"></ul>
+        </section>
+
+        <section class="side-box">
+          <h2>사내 표준</h2>
+          <p id="standard" class="small"></p>
+          <p id="standard-error" class="small error" hidden></p>
+          <div class="row-btns">
+            <button id="pick-standard" class="btn small" type="button">표준 파일 선택</button>
+            <button id="reset-standard" class="btn small ghost" type="button">기본으로</button>
+          </div>
+        </section>
+
+        <section class="side-box">
+          <h2>Claude Code</h2>
+          <p id="claude-status" class="small"></p>
+        </section>
+      </aside>
+
+      <main class="main">
+        <div id="empty" class="empty">
+          <h1>점검할 폴더를 여세요</h1>
+          <p>
+            폴더를 고르면 사내 표준과 비교해 보안·팀 표준·문서·플러그인 상태를 점수로 보여 줍니다.
+            고치기 전에는 항상 바뀔 내용을 먼저 보여 주고, 적용한 뒤에도 되돌릴 수 있습니다.
+          </p>
+        </div>
+
+        <div id="report" hidden>
+          <header class="summary">
+            <div>
+              <div id="path" class="path"></div>
+              <div class="score-line">
+                <span id="score" class="score"></span><span class="score-max">/ 100</span>
+                <span id="counts" class="counts"></span>
+              </div>
+              <div id="std-line" class="small muted"></div>
+            </div>
+            <div class="summary-btns">
+              <button id="fix-all" class="btn" type="button" hidden>
+                바로 고칠 수 있는 것 모두
+              </button>
+              <button id="undo" class="btn" type="button">↶ 마지막 반영 되돌리기</button>
+              <button id="save-report" class="btn" type="button">리포트 저장</button>
+              <button id="rerun" class="btn" type="button">다시 점검</button>
+            </div>
+          </header>
+          <p id="blocked" class="notice warn" hidden></p>
+          <div id="areas"></div>
+        </div>
+
+        <section id="panel" class="panel" hidden aria-live="polite">
+          <div class="panel-head">
+            <h2 id="panel-title">진행 · 변경 확인</h2>
+            <div class="row-btns">
+              <div id="panel-btns" class="row-btns"></div>
+              <button id="panel-close" class="btn small ghost" type="button" aria-label="닫기">
+                ✕
+              </button>
+            </div>
+          </div>
+          <p id="panel-message" class="panel-message"></p>
+          <p id="panel-note" class="small muted"></p>
+          <ol id="log" class="log" hidden></ol>
+          <ul id="outside" class="outside" hidden></ul>
+          <div id="diffs"></div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

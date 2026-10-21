@@ -5,15 +5,29 @@
 ## 현재 상태
 
 - PR1 완료(PR #2): 사내 표준 정의 파일(--standard), 표준 규칙(필수 섹션·파일·플러그인), 점수, 플러그인 설정 추가·plan.md 만들기
-- PR2 완료: Claude로 반영 실행기(src/claude-runner.ts) — 엔진만, 화면은 PR3
-- 다음: PR3(T6~T10 설치형 앱)
-- 테스트 11파일 198건, typecheck·lint·test·build 통과
+- PR2 완료(PR #3): Claude로 반영 실행기(src/claude-runner.ts)
+- PR3 완료: 설치형 앱(src/app, Electron 45) + E2E + Windows 설치 파일 + 시범 EVAL 체크리스트
+- 다음: 시범 2팀 적용(docs/eval-checklist.md). 남은 결정: 라이선스, 사내 배포 경로·코드 서명, 사내 계정의 claude -p 허용·비용
+- 테스트 12파일 227건 + E2E 2건, typecheck·lint·test·build·dist:win 통과
 
 ## 다음 작업 (구현 예정)
 
 > 근거: 사내 Claude 세팅 점검 설치형 프로그램 설계 (`~/.gstack/projects/cc-checkup/khkkh-main-design-20261020-230029.md`, office-hours 2026-10-20 승인 + eng review 2026-10-21 결정 R1~R8). 작업 번호는 그 문서의 Implementation Tasks와 같다. PR1=T1~T4, PR2=T5, PR3=T6~T10.
 
 ## 완료
+
+### [x] PR3 설치형 앱 (T6~T10)
+
+- 목표: 폴더 선택 → 사내 표준 대비 진단(점수·영역 4개) → 바로 고치기·Claude로 반영(미리 보기 → 적용/취소) → 되돌리기를 Windows 설치형 앱으로 (R1·R6)
+- 변경할 파일: `src/app/`(api·channels·core·main·preload.cts·ui/), `scripts/`(copy-ui, run-app), `test/app-core.test.ts`·`test/e2e/app.spec.ts`, `package.json`(빌드·electron-builder), tsconfig·vitest·playwright 설정, `docs/eval-checklist.md`. 엔진: commitGuide를 report.ts로 옮김(CLI·앱 공용), Finding.claudeVars(빠진 섹션 이름을 지시문에)
+- 안 하는 것: 문서·기획 폴더 모드(시범 후), 자동 업데이트, 코드 서명, 아이콘
+- 결과(2026-10-21): 단위 227건(앱 core 29건: 채널 목록, 보안 설정, 폴더 경로 검증, 화면 데이터, 미리 보기→적용·되돌리기, 가짜 claude 반영·적용 기록, 리포트) + Playwright E2E 2건(렌더러에 require·process 없음·노출 함수 9개·허용 안 된 폴더 거부 / 폴더 열기→진단→바로 고치기→되돌리기). `npm run dist:win`으로 `release/CC Checkup Setup 0.1.0.exe`(약 112MB, 서명 없음) 생성, 설치본 실행 파일로 진단까지 확인. `npm pack --dry-run`에 dist/app 없음.
+- 설계와 다른 점:
+  - 노출 함수가 5개가 아니라 8개(+진행 이벤트): 상태 읽기(getState), 사내 표준 파일 선택(pickStandard), 리포트 저장(saveReport)을 더했다. 모두 입력을 검증하고 폴더는 선택 창·최근 목록에서 고른 것만 받는다.
+  - 바로 고치기·되돌리기는 미리 보기와 적용을 나눴고, 적용 때 다시 계산해 미리 본 것과 다르면 거절한다.
+  - "Claude로 반영" 적용률(Success Criteria) 계산용으로 적용/취소를 `%APPDATA%cc-checkupclaude-decisions.jsonl`에 남긴다(파일 내용은 남기지 않음).
+- 실제 claude로 앱 화면에서 확인(2026-10-22, 임시 폴더, 예시 표준): Claude로 반영 → 적용 → 점수 40→45 → 되돌리기 바이트 동일. 1회 33~40초, $0.15. 첫 실행에서 근거 없는 규칙("TypeScript로 전환하지 않는다" 등)을 지어내 기본 지시문에 "근거 없으면 TODO로 남김"을 더했고, 다시 실행해 코드에서 찾은 규칙만 적고 나머지는 TODO로 남는 것을 확인.
+- 주의: VS Code 터미널은 ELECTRON_RUN_AS_NODE=1을 물려줘 `electron .`이 Node로 뜬다. `npm run app`(scripts/run-app.mjs)과 E2E는 이 값을 빼고 실행한다.
 
 ### [x] PR2 Claude로 반영 실행기 (T5)
 

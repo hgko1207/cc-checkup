@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import type { Diagnosis } from "./diagnose.js";
-import type { FixPlan } from "./fix.js";
+import { SETTINGS_PATH, type FileChange, type FixPlan } from "./fix.js";
 import { describeStandard } from "./standard.js";
 import type { Finding, Severity } from "./types.js";
 
@@ -131,4 +131,16 @@ export async function writeReport(path: string, content: string): Promise<void> 
     throw new ReportExistsError(`이미 있는 파일이라 덮어쓰지 않습니다: ${path}`);
   }
   await writeFile(path, content, "utf8");
+}
+
+// 고친 뒤 안내: 새 파일과 git이 모르는 settings.json은 git add가 먼저 필요하다 (CLI·앱 공용)
+export function commitGuide(diag: Diagnosis, changes: FileChange[]): string {
+  const { tracked } = diag.ctx.git;
+  if (tracked === null) return "커밋해야 팀원 전원에게 적용됩니다";
+  // 새로 만든 파일과 git이 모르는 settings.json은 git add가 먼저 필요하다
+  const toAdd = changes
+    .filter((c) => c.before === null || (c.path === SETTINGS_PATH && tracked === false))
+    .map((c) => c.path);
+  if (toAdd.length > 0) return `git add ${toAdd.join(" ")} 후 커밋해야 팀원 전원에게 적용됩니다`;
+  return "변경을 커밋해야 팀원 전원에게 적용됩니다";
 }
