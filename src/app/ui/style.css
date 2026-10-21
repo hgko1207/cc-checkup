@@ -45,6 +45,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -347,6 +351,47 @@ body {
   margin: 0;
   padding: 10px 14px;
   border-radius: var(--radius);
+}
+.notice.info {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.more {
+  margin-top: 8px;
+  font-size: 13px;
+  border-left: 3px solid var(--line);
+  padding: 2px 0 2px 12px;
+}
+.more p {
+  margin: 0 0 6px;
+}
+.more b {
+  font-weight: 600;
+}
+.example {
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.linkish {
+  all: unset;
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 12px;
+  margin-right: 10px;
+}
+.linkish:focus-visible {
+  outline: 2px solid var(--accent);
 }
 .notice.warn {
   background: var(--warn-bg);

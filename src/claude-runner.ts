@@ -20,7 +20,8 @@
 // 새로 생긴 파일도 실행 중 사용자나 다른 프로그램(편집기, 개발 서버)이 만든 것일 수 있다.
 import { spawn } from "node:child_process";
 import { readFile, readdir, stat } from "node:fs/promises";
-import { delimiter, join } from "node:path";
+import { homedir } from "node:os";
+import { join, posix, win32 } from "node:path";
 import { createInterface } from "node:readline";
 import {
   confirmBackup,
@@ -88,25 +89,83 @@ async function isFile(path: string): Promise<boolean> {
   );
 }
 
+// PATH에 없을 때 찾아볼 설치 기본 위치. 설치형 앱(특히 macOS)은 터미널의 PATH를 물려받지 못한다
+export function installDirs(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): string[] {
+  const j = platform === "win32" ? win32.join : posix.join;
+  const home = (platform === "win32" ? env.USERPROFILE : env.HOME) ?? homedir();
+  if (platform === "win32")
+    return [j(home, ".local", "bin"), ...(env.APPDATA ? [j(env.APPDATA, "npm")] : [])];
+  return [
+    j(home, ".local", "bin"),
+    j(home, ".claude", "local"),
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    j(home, ".npm-global", "bin"),
+  ];
+}
+
+// claude를 띄울 환경: npm 설치본은 `env node`로 시작하므로 claude와 node가 있을 만한 폴더를 PATH 앞에 붙인다
+export function claudeEnv(
+  base: NodeJS.ProcessEnv,
+  claude: ClaudeCommand,
+  platform: NodeJS.Platform = process.platform,
+): NodeJS.ProcessEnv {
+  if (platform === "win32") return base;
+  const sep = posix.delimiter;
+  const extra = [posix.dirname(claude.command), ...installDirs(base, platform)];
+  return { ...base, PATH: [...extra, base.PATH ?? ""].filter(Boolean).join(sep) };
+}
+
 // Windows의 npm 설치본(claude.cmd)은 shell 없이 실행할 수 없어, 그 안의 cli.js를 node로 직접 실행한다
 export async function resolveClaude(
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
 ): Promise<ClaudeCommand> {
-  if (platform !== "win32") return { command: "claude", args: [] };
-  const dirs = (env.PATH ?? env.Path ?? "").split(delimiter).filter(Boolean);
+  const sep = platform === "win32" ? win32.delimiter : posix.delimiter;
+  const j = platform === "win32" ? win32.join : posix.join;
+  const dirs = [
+    ...(env.PATH ?? env.Path ?? "").split(sep).filter(Boolean),
+    ...installDirs(env, platform),
+  ];
   for (const dir of dirs) {
-    const exe = join(dir, "claude.exe");
+    if (platform !== "win32") {
+      const bin = j(dir, "claude");
+      if (await isFile(bin)) return { command: bin, args: [] };
+      continue;
+    }
+    const exe = j(dir, "claude.exe");
     if (await isFile(exe)) return { command: exe, args: [] };
-    const cmd = join(dir, "claude.cmd");
+    const cmd = j(dir, "claude.cmd");
     if (await isFile(cmd)) {
       const m = /"%dp0%\\([^"]+?\.js)"/i.exec(await readFile(cmd, "utf8"));
       if (!m?.[1]) throw new Error(`${cmd}의 형식을 알 수 없습니다`);
-      const node = join(dir, "node.exe");
-      return { command: (await isFile(node)) ? node : "node", args: [join(dir, m[1])] };
+      const node = j(dir, "node.exe");
+      return { command: (await isFile(node)) ? node : "node", args: [j(dir, m[1])] };
     }
   }
   throw new Error("claude 명령을 찾지 못했습니다. Claude Code를 설치했는지 확인하세요");
+}
+
+export interface ClaudeAuth {
+  loggedIn: boolean;
+  account?: string; // 이메일 또는 조직
+  plan?: string; // 구독 종류 (max, pro, team …) 또는 인증 방식
+}
+
+// `claude auth status`(JSON)의 결과를 읽는다. 형식을 모르면 null (오래된 버전)
+export function parseAuthStatus(text: string): ClaudeAuth | null {
+  try {
+    const o = JSON.parse(text) as Record<string, unknown>;
+    if (typeof o.loggedIn !== "boolean") return null;
+    const pick = (k: string) => (typeof o[k] === "string" ? (o[k] as string) : undefined);
+    return {
+      loggedIn: o.loggedIn,
+      account: pick("email") ?? pick("orgName"),
+      plan: pick("subscriptionType") ?? pick("authMethod"),
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ---- stream-json 진행 이벤트 ----
@@ -339,7 +398,7 @@ function runProcess(
     let finished = false;
     const child = spawn(claude.command, [...claude.args, ...args], {
       cwd: repoDir,
-      env: opts.env ?? process.env,
+      env: claudeEnv(opts.env ?? process.env, claude, platform),
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
       detached: platform !== "win32",

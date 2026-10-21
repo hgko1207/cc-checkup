@@ -10,14 +10,15 @@ async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
 }
 
 const api: CcCheckupApi = {
-  getState: () => call("cc:getState"),
+  getState: (refresh) => call("cc:getState", refresh),
   pickFolder: (recent) => call("cc:pickFolder", recent),
   pickStandard: (reset) => call("cc:pickStandard", reset),
-  diagnose: (path) => call("cc:diagnose", path),
+  diagnose: (path, kind) => call("cc:diagnose", path, kind),
   fix: (path, nos, apply) => call("cc:fix", path, nos, apply),
   claude: (action) => call("cc:claude", action),
   undo: (path, apply) => call("cc:undo", path, apply),
   saveReport: (path) => call("cc:saveReport", path),
+  openUpdate: () => call("cc:openUpdate"),
   onEvent: (cb) => {
     const listener = (_e: unknown, ev: AppEvent) => cb(ev);
     ipcRenderer.on("cc:event", listener);

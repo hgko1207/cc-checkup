@@ -71,7 +71,8 @@ export const checkGit: Check = async ({ repoDir, settings, git, kind }) => {
       findings.push({
         id: "settings/committed",
         severity: "ok",
-        message: "git 저장소가 아닌 문서 폴더라 커밋 확인을 건너뜁니다 (폴더를 공유하면 설정도 함께 적용됩니다)",
+        message:
+          "git 저장소가 아닌 문서 폴더라 커밋 확인을 건너뜁니다 (폴더를 공유하면 설정도 함께 적용됩니다)",
       });
     } else {
       findings.push({

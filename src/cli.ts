@@ -70,8 +70,7 @@ function parseArgs(argv: string[]): Args | string {
       if (v !== "dev" && v !== "docs" && v !== "auto")
         return "--kind 뒤에는 dev, docs, auto 중 하나를 적으세요";
       args.kind = v;
-    }
-    else if (a.startsWith("-")) return `알 수 없는 옵션: ${a}`;
+    } else if (a.startsWith("-")) return `알 수 없는 옵션: ${a}`;
     else if (dirSet) return `경로는 하나만 적으세요: ${a}`;
     else {
       args.dir = a;

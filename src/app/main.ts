@@ -3,7 +3,8 @@
 // 보안 (eng review R1): 렌더러는 contextIsolation·sandbox 켬, nodeIntegration 끔.
 // 화면 파일은 app://ui/ 에서만 읽고 CSP는 'self'. 새 창·다른 주소 이동·권한 요청은 모두 막는다.
 // IPC는 app://ui/ 에서 온 요청만 받고, 결과는 { ok, value | error }로 감싸 돌려준다.
-import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, session, shell } from "electron";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, extname, join, normalize, sep } from "node:path";
@@ -43,6 +44,19 @@ protocol.registerSchemesAsPrivileged([
 if (!app.requestSingleInstanceLock()) app.quit();
 
 let win: BrowserWindow | null = null;
+
+// 설치본은 app.getVersion(), 개발 실행(electron dist/app/main.js)은 Electron 버전이 나와서 package.json을 읽는다
+function appVersion(): string {
+  if (app.isPackaged) return app.getVersion();
+  try {
+    const pkg = JSON.parse(readFileSync(join(here, "..", "..", "package.json"), "utf8")) as {
+      version?: string;
+    };
+    return pkg.version ?? app.getVersion();
+  } catch {
+    return app.getVersion();
+  }
+}
 
 function serveUi(): void {
   protocol.handle("app", async (req) => {
@@ -120,12 +134,15 @@ async function start(): Promise<void> {
       return r.canceled ? null : (r.filePath ?? null);
     },
     emit: (e: AppEvent) => win?.webContents.send(EVENT_CHANNEL, e),
+    appVersion: appVersion(),
+    openExternal: (url) => shell.openExternal(url),
+    showItem: (path) => shell.showItemInFolder(path),
   });
   await core.init();
 
   ipcMain.handle(
     CHANNELS.getState,
-    wrap(() => core.getState()),
+    wrap((refresh?: unknown) => core.getState(refresh)),
   );
   ipcMain.handle(
     CHANNELS.pickFolder,
@@ -137,7 +154,7 @@ async function start(): Promise<void> {
   );
   ipcMain.handle(
     CHANNELS.diagnose,
-    wrap((p: unknown) => core.diagnose(p)),
+    wrap((p: unknown, kind?: unknown) => core.diagnose(p, kind)),
   );
   ipcMain.handle(
     CHANNELS.fix,
@@ -154,6 +171,10 @@ async function start(): Promise<void> {
   ipcMain.handle(
     CHANNELS.saveReport,
     wrap((p: unknown) => core.saveReport(p)),
+  );
+  ipcMain.handle(
+    CHANNELS.openUpdate,
+    wrap(() => core.openUpdate()),
   );
 
   win = new BrowserWindow({

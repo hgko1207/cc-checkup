@@ -3,10 +3,14 @@
 
 export type Severity = "ok" | "warn" | "fail";
 export type Area = "security" | "team" | "docs" | "plugins";
+export type Kind = "dev" | "docs"; // 개발 저장소 / 문서·기획 폴더
 
 export interface ClaudeStatus {
-  ok: boolean;
+  ok: boolean; // 설치돼 있고 실행됨
   version?: string;
+  loggedIn?: boolean; // 모르면 undefined (오래된 버전)
+  account?: string;
+  plan?: string;
   error?: string;
 }
 
@@ -14,6 +18,7 @@ export interface RecentFolder {
   path: string;
   score?: number;
   at: string;
+  kind?: Kind; // 사용자가 고른 폴더 종류 (없으면 자동 판별)
 }
 
 export interface AppState {
@@ -22,6 +27,7 @@ export interface AppState {
   standardError?: string; // 공유 파일을 쓰지 못한 이유
   claude: ClaudeStatus;
   running: boolean; // Claude 작업 실행 중 또는 확인 대기 중
+  update?: { current: string; latest: string; downloadUrl?: string; note?: string }; // 새 버전 알림
 }
 
 export interface FindingView {
@@ -29,6 +35,8 @@ export interface FindingView {
   severity: Severity;
   message: string;
   judgment?: string;
+  detail?: { why: string; fix?: string; limit?: string }; // [자세히]
+  example?: string; // [예시 보기]
   fixNo?: number; // 바로 고치기 후보 번호
   fixLabel?: string; // 바로 고치기 | 바로 만들기 | 설치하기
   claudeTask?: string;
@@ -45,6 +53,9 @@ export interface DiagnosisView {
   path: string;
   score: number;
   standard: string;
+  kind: Kind;
+  kindAuto: boolean; // 자동 판별 결과를 쓰는 중
+  kindReason: string; // 자동 판별 이유
   counts: Record<Severity, number>;
   areas: AreaView[];
   fixes: { no: number; title: string }[];
@@ -111,13 +122,14 @@ export type AppEvent = { type: "progress"; progress: Progress };
 export type Wrapped<T> = { ok: true; value: T } | { ok: false; error: string };
 
 export interface CcCheckupApi {
-  getState(): Promise<AppState>;
+  getState(refresh?: boolean): Promise<AppState>; // refresh면 Claude 설치·로그인을 다시 확인
   pickFolder(recent?: string): Promise<string | null>;
   pickStandard(reset?: boolean): Promise<AppState>;
-  diagnose(path: string): Promise<DiagnosisView>;
+  diagnose(path: string, kind?: Kind | "auto"): Promise<DiagnosisView>; // kind를 주면 그 폴더에 기억
   fix(path: string, nos: number[], apply: boolean): Promise<FixView>;
   claude(action: ClaudeAction): Promise<ClaudeView>;
   undo(path: string, apply: boolean): Promise<UndoView>;
   saveReport(path: string): Promise<string | null>;
+  openUpdate(): Promise<void>; // 사내 표준 파일이 알려 준 새 설치 파일 위치 열기
   onEvent(cb: (e: AppEvent) => void): () => void;
 }

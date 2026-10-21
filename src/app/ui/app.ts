@@ -6,6 +6,7 @@ import type {
   DiagnosisView,
   FilePreview,
   FindingView,
+  Kind,
   Progress,
   UndoView,
 } from "../api.js";
@@ -51,6 +52,7 @@ function button(label: string, onClick: () => void, cls = "btn"): HTMLButtonElem
 let state: AppState | null = null;
 let current: DiagnosisView | null = null;
 let busy = false;
+const expanded = new Set<string>(); // 펼친 [자세히]·[예시 보기] (항목 id:종류)
 
 function setBusy(v: boolean): void {
   busy = v;
@@ -128,10 +130,10 @@ async function refreshState(): Promise<void> {
   render();
 }
 
-async function load(path: string): Promise<void> {
+async function load(path: string, kind?: Kind | "auto"): Promise<void> {
   setBusy(true);
   try {
-    current = await api.diagnose(path);
+    current = await api.diagnose(path, kind);
     state = await api.getState();
   } catch (e) {
     showError(e);
@@ -144,6 +146,7 @@ async function openFolder(recent?: string): Promise<void> {
   try {
     const path = await api.pickFolder(recent);
     if (path !== null) {
+      if (path !== current?.path) expanded.clear();
       closePanel();
       await load(path);
     }
@@ -379,22 +382,84 @@ function renderFinding(f: FindingView): HTMLElement {
   }
   if (f.claudeTask) {
     const b = button(f.claudeLabel ?? "Claude로 반영", () => void runClaude(f), "btn small");
-    b.disabled = running || !state?.claude.ok;
-    if (!state?.claude.ok) b.title = "Claude Code를 설치하고 로그인하면 쓸 수 있습니다";
+    const why = claudeBlocked();
+    b.disabled = running || why !== null;
+    if (why) b.title = why;
     acts.append(b);
   }
+
+  // [자세히]·[예시 보기]: 누르면 아래에 펼친다. 다시 그려도 펼친 상태를 기억한다
+  const body = h("div", {}, h("div", { class: "msg" }, f.message));
+  if (f.judgment && f.fixNo === undefined) body.append(h("div", { class: "judgment" }, f.judgment));
+  const toggles = h("div", {});
+  const more = h("div", {});
+  const toggle = (key: string, label: string, make: () => HTMLElement) => {
+    const id = `${f.id}:${key}`;
+    const t = h("button", { class: "linkish", type: "button" }, label);
+    t.setAttribute("aria-expanded", String(expanded.has(id)));
+    t.addEventListener("click", () => {
+      if (expanded.has(id)) expanded.delete(id);
+      else expanded.add(id);
+      render();
+    });
+    toggles.append(t);
+    if (expanded.has(id)) more.append(make());
+  };
+  const d = f.detail;
+  if (d && f.severity !== "ok")
+    toggle("detail", "자세히", () =>
+      h(
+        "div",
+        { class: "more" },
+        h("p", {}, h("b", {}, "왜 문제인가 "), d.why),
+        d.fix ? h("p", {}, h("b", {}, "고치면 "), d.fix) : null,
+        d.limit ? h("p", {}, h("b", {}, "남는 한계 "), d.limit) : null,
+      ),
+    );
+  const example = f.example;
+  if (example) toggle("example", "예시 보기", () => h("pre", { class: "example" }, example));
+  if (toggles.childElementCount > 0) body.append(toggles, more);
+
   return h(
     "div",
     { class: `finding ${f.severity}` },
     h("span", { class: `badge ${f.severity}`, title: f.severity }, ICON[f.severity]),
-    h(
-      "div",
-      {},
-      h("div", { class: "msg" }, f.message),
-      f.judgment && f.fixNo === undefined ? h("div", { class: "judgment" }, f.judgment) : null,
-    ),
+    body,
     acts,
   );
+}
+
+// Claude 버튼을 끄는 이유 (없으면 null)
+function claudeBlocked(): string | null {
+  const c = state?.claude;
+  if (!c?.ok) return "Claude Code를 설치하면 쓸 수 있습니다";
+  if (c.loggedIn === false) return "Claude Code에 로그인하면 쓸 수 있습니다";
+  return null;
+}
+
+function claudeStatusLine(): HTMLElement {
+  const c = state?.claude;
+  if (!c) return h("span", {}, "확인 중");
+  if (!c.ok)
+    return h(
+      "span",
+      { class: "error" },
+      `✗ ${c.error ?? "찾지 못함"} — "Claude로 반영" 버튼이 꺼집니다`,
+    );
+  const version = `설치됨 ${c.version ?? ""}`.trim();
+  if (c.loggedIn === false)
+    return h(
+      "span",
+      { class: "error" },
+      `✓ ${version} · ✗ 로그인 필요 — 터미널에서 claude를 실행해 /login 한 뒤 [다시 확인]`,
+    );
+  if (c.loggedIn)
+    return h(
+      "span",
+      { class: "ok-text" },
+      `✓ ${version} · 로그인됨${c.account ? ` (${c.account}${c.plan ? ` · ${c.plan}` : ""})` : ""}`,
+    );
+  return h("span", { class: "ok-text" }, `✓ ${version} (로그인 여부는 확인할 수 없는 버전)`);
 }
 
 function render(): void {
@@ -417,20 +482,33 @@ function render(): void {
     const se = $("standard-error");
     se.hidden = !state.standardError;
     se.textContent = state.standardError ? `기본 표준으로 진단합니다: ${state.standardError}` : "";
-    $("claude-status").replaceChildren(
-      state.claude.ok
-        ? h("span", { class: "ok-text" }, `✓ 설치됨 ${state.claude.version ?? ""}`)
-        : h(
-            "span",
-            { class: "error" },
-            `✗ ${state.claude.error ?? "찾지 못함"} — "Claude로 반영" 버튼이 꺼집니다`,
-          ),
-    );
+    $("claude-status").replaceChildren(claudeStatusLine());
+    const u = state.update;
+    $("update").hidden = !u;
+    $("update-text").textContent = u
+      ? `새 버전 ${u.latest}이 있습니다 (지금 ${u.current}).${u.note ? ` ${u.note}` : ""}`
+      : "";
+    $("update-open").hidden = !u?.downloadUrl;
   }
 
   const running = busy || (state?.running ?? false);
-  for (const id of ["open", "pick-standard", "reset-standard"])
+  for (const id of ["open", "pick-standard", "reset-standard", "claude-recheck"])
     ($(id) as HTMLButtonElement).disabled = running;
+
+  const dev = $("kind-dev") as HTMLInputElement;
+  const docs = $("kind-docs") as HTMLInputElement;
+  dev.disabled = docs.disabled = running || current === null;
+  // 다시 진단하는 동안에는 방금 고른 값을 그대로 둔다 (끝나면 결과 값으로)
+  if (!busy) {
+    dev.checked = current?.kind === "dev";
+    docs.checked = current?.kind === "docs";
+  }
+  $("kind-note").textContent = !current
+    ? "폴더를 열면 자동으로 판별합니다"
+    : current.kindAuto
+      ? `자동 판별: ${current.kindReason}`
+      : "직접 고른 종류입니다";
+  $("kind-auto").hidden = !current || current.kindAuto;
 
   $("empty").hidden = current !== null;
   $("report").hidden = current === null;
@@ -465,6 +543,23 @@ function render(): void {
 // ---- 시작 ----
 
 $("open").addEventListener("click", () => void openFolder());
+for (const id of ["kind-dev", "kind-docs"])
+  $(id).addEventListener("change", (e) => {
+    const kind = (e.target as HTMLInputElement).value as Kind;
+    if (current) void load(current.path, kind);
+  });
+$("kind-auto").addEventListener("click", () => current && void load(current.path, "auto"));
+$("claude-recheck").addEventListener("click", () => {
+  setBusy(true);
+  void api
+    .getState(true)
+    .then((s) => {
+      state = s;
+    })
+    .catch(showError)
+    .finally(() => setBusy(false));
+});
+$("update-open").addEventListener("click", () => void api.openUpdate().catch(showError));
 $("rerun").addEventListener("click", () => current && void load(current.path));
 $("undo").addEventListener("click", () => void undo());
 $("save-report").addEventListener("click", () => void saveReport());
