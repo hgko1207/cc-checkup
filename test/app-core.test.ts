@@ -333,7 +333,7 @@ describe("새 버전 알림·Claude 다시 확인", () => {
   }
 
   it("표준의 latestVersion이 더 새로우면 알리고, 위치를 연다(실행하지 않고 탐색기에서 보기)", async () => {
-    const share = "\\fileserver\tools\CC Checkup Setup 0.2.0.exe";
+    const share = String.raw`\\fileserver\tools\CC Checkup Setup 0.2.0.exe`;
     const { core, opened } = await coreWith({
       app: { latestVersion: "0.2.0", downloadUrl: share, note: "문서 폴더 모드 추가" },
     });
