@@ -1,6 +1,7 @@
 # cc-checkup
 
 저장소의 Claude Code 팀 세팅을 한국어 위험 문장으로 진단하고, 정해진 안전 수정은 확인 후 적용하는 CLI. 영업 도구·블로그 무료 도구로 쓴다. 설계: `docs/designs/risk-report-wedge.md`
+
 - 스택: TypeScript (Node.js ESM), vitest, eslint, prettier
 - 답변은 한국어로, 코드 식별자는 영문으로 쓴다.
 
@@ -9,17 +10,21 @@
 - `src/` — CLI 흐름(cli), 진단 실행(diagnose), .env 규칙 판정(env-rules), 고치기(fix), 백업·되돌리기(backup), 질문(prompt), 출력(report), 사내 표준 정의(standard·standard-default), 점수(score), Claude로 반영 실행기(claude-runner)
 - `standard/` — 사내 표준 정의 파일 예시 (진단 기준은 코드가 아니라 표준 파일에서 읽는다)
 - `src/checks/` — 진단 항목별 체크 함수 (Check 타입)
+- `src/app/` — 설치형 앱(Electron). main(창·보안·IPC), preload.cts(고정 함수만 노출), core(입력 검증·엔진 연결, 단위 테스트 대상), ui/(화면, textContent로만 렌더링)
 - `test/` — vitest 테스트
 - `docs/` — 제품 문서, 팀 가이드
 - 새 진단 항목은 `src/checks/`에 `src/checks/claude-md.ts`와 같은 패턴으로 만든다.
 
 ## 명령
 
-| 용도 | 명령 |
-|---|---|
-| 설치 | `npm install` |
-| 빌드 | `npm run build` |
-| 실행 | `node dist/cli.js` |
+| 용도      | 명령               |
+| --------- | ------------------ |
+| 설치      | `npm install`      |
+| 빌드      | `npm run build`    |
+| 실행      | `node dist/cli.js` |
+| 앱 실행   | `npm run app`      |
+| 앱 E2E    | `npm run test:e2e` |
+| 설치 파일 | `npm run dist:win` |
 
 ## 검증 명령
 
@@ -28,6 +33,7 @@
 1. 타입체크: `npm run typecheck`
 2. 린트: `npm run lint`
 3. 테스트(전체): `npm run test`
+4. 앱을 고쳤으면: `npm run test:e2e`
 
 ## 원칙
 

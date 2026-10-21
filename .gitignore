@@ -7,3 +7,8 @@ coverage/
 .claude/settings.local.json
 CLAUDE.local.md
 .claude/agent-memory-local/
+
+# 앱 빌드·E2E 결과
+release/
+test-results/
+playwright-report/

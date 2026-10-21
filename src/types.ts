@@ -19,6 +19,8 @@ export interface Finding {
   createFile?: { path: string; content: string };
   // "Claude로 반영" 대상 작업 (표준의 claudeTasks 키)
   claudeTask?: string;
+  // 작업 지시문의 {{이름}} 자리에 넣을 값 (예: missing = 빠진 섹션)
+  claudeVars?: Record<string, string>;
 }
 
 // settings.json의 줄바꿈·들여쓰기·BOM (고쳐 쓸 때 그대로 유지)

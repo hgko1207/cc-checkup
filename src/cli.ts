@@ -10,10 +10,11 @@ import {
   type BackupOptions,
 } from "./backup.js";
 import type { GitRunner } from "./checks/git.js";
-import { diagnose, type Diagnosis } from "./diagnose.js";
-import { applyAll, lineDiff, planFixes, SETTINGS_PATH, type FileChange } from "./fix.js";
+import { diagnose } from "./diagnose.js";
+import { applyAll, lineDiff, planFixes } from "./fix.js";
 import { askSelection, askTerminal, confirm, isInteractive, type Ask } from "./prompt.js";
 import {
+  commitGuide,
   formatCandidates,
   formatMarkdown,
   formatText,
@@ -70,17 +71,6 @@ function parseArgs(argv: string[]): Args | string {
     }
   }
   return args;
-}
-
-function commitGuide(diag: Diagnosis, changes: FileChange[]): string {
-  const { tracked } = diag.ctx.git;
-  if (tracked === null) return "커밋해야 팀원 전원에게 적용됩니다";
-  // 새로 만든 파일과 git이 모르는 settings.json은 git add가 먼저 필요하다
-  const toAdd = changes
-    .filter((c) => c.before === null || (c.path === SETTINGS_PATH && tracked === false))
-    .map((c) => c.path);
-  if (toAdd.length > 0) return `git add ${toAdd.join(" ")} 후 커밋해야 팀원 전원에게 적용됩니다`;
-  return "변경을 커밋해야 팀원 전원에게 적용됩니다";
 }
 
 async function runUndo(repoDir: string, deps: CliDeps): Promise<number> {

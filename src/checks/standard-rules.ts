@@ -71,6 +71,7 @@ async function sectionFindings(repoDir: string, standard: Standard): Promise<Fin
       message: `CLAUDE.md가 사내 표준 필수 섹션을 빠뜨렸습니다: ${names}`,
       judgment: `CLAUDE.md에 ${names} 섹션을 채우세요 (점검 프로그램의 "Claude로 반영" 또는 Claude Code에서 직접)`,
       claudeTask: "claudeMd",
+      claudeVars: { missing: names },
     },
   ];
 }
