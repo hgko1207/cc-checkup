@@ -4,6 +4,9 @@
 //         원본(files/) + manifest.json 기록 → 쓰기 → 실패하면 manifest대로 롤백(rolledBackAt)
 //   되돌리기: 같은 정규화 경로 + undoneAt·rolledBackAt 없음 중 최신 → 파일별 복원
 //             → 전부 성공하면 undoneAt 기록 (다음 --undo는 그 이전 백업, 역순)
+//   다른 프로그램이 쓸 때(Claude 실행기): createBackup(afterHash 비움) → 실행 →
+//         유지면 confirmBackup(afterHash 기록), 취소·실패면 restoreBackup(rolledBackAt).
+//         실행 중 앱이 죽으면 이 백업이 --undo 대상이 된다 (afterHash가 비어 '바뀜'으로 보고 확인을 받는다)
 //
 // 정규화 (eng review R3): realpath → 끝 구분자 제거(루트 제외) → Windows면 소문자.
 import { createHash } from "node:crypto";
@@ -111,13 +114,13 @@ export interface Change {
   content: string;
 }
 
-// 백업을 남기고 쓴다. 하나라도 실패하면 전부 원래대로 돌리고 오류를 던진다
-export async function applyWithBackup(
+// 원본을 백업 폴더에 남기고 manifest를 쓴다. 쓰기는 하지 않는다 (afterHash는 비워 둔다).
+// applyWithBackup과 Claude 실행기(claude-runner.ts)가 함께 쓴다
+export async function createBackup(
   repoDir: string,
-  changes: Change[],
+  paths: string[],
   opts: BackupOptions = {},
-): Promise<{ backupDir: string; manifest: Manifest }> {
-  const io = opts.io ?? realIo;
+): Promise<UndoTarget> {
   const now = opts.now ?? (() => new Date());
   const key = normalizeBase(repoDir, opts.platform);
   const backupDir = join(backupsRoot(opts), `${key.hash}-${stamp(now())}`);
@@ -125,20 +128,15 @@ export async function applyWithBackup(
 
   const files: ManifestFile[] = [];
   const createdDirs = new Set<string>();
-  for (const change of changes) {
-    const abs = join(repoDir, change.path);
-    const original = await readOrNull(abs);
+  for (const path of paths) {
+    const original = await readOrNull(join(repoDir, path));
     if (original !== null) {
-      const copy = join(backupDir, "files", change.path);
+      const copy = join(backupDir, "files", path);
       await mkdir(dirname(copy), { recursive: true });
       await writeFile(copy, original);
     }
-    files.push({
-      path: change.path,
-      existedBefore: original !== null,
-      afterHash: sha256(change.content),
-    });
-    const parts = change.path.split("/").slice(0, -1);
+    files.push({ path, existedBefore: original !== null, afterHash: "" });
+    const parts = path.split("/").slice(0, -1);
     for (let i = parts.length; i > 0; i--) {
       const rel = parts.slice(0, i).join("/");
       if (await dirExists(join(repoDir, rel))) break; // 그 위 폴더도 이미 있다
@@ -153,6 +151,63 @@ export async function applyWithBackup(
     createdDirs: [...createdDirs].sort((a, b) => b.split("/").length - a.split("/").length),
   };
   await writeManifest(backupDir, manifest);
+  return { backupDir, manifest };
+}
+
+// 다른 프로그램이 쓴 뒤 그 결과를 유지할 때: 지금 내용의 해시를 afterHash로 기록한다 (--undo가 쓴다)
+export async function confirmBackup(repoDir: string, target: UndoTarget): Promise<void> {
+  for (const f of target.manifest.files) {
+    const current = await readOrNull(join(repoDir, f.path));
+    f.afterHash = current === null ? "" : sha256(current);
+  }
+  await writeManifest(target.backupDir, target.manifest);
+}
+
+// 백업대로 되돌리고 rolledBackAt을 기록한다. 이미 원본과 같은 파일은 건드리지 않는다.
+// 되돌리지 못한 파일을 "경로: 이유"로 돌려준다
+export async function restoreBackup(
+  repoDir: string,
+  target: UndoTarget,
+  opts: BackupOptions = {},
+): Promise<string[]> {
+  const now = opts.now ?? (() => new Date());
+  const problems: string[] = [];
+  for (const f of target.manifest.files) {
+    const abs = join(repoDir, f.path);
+    try {
+      const current = await readOrNull(abs);
+      if (f.existedBefore) {
+        const original = await readFile(join(target.backupDir, "files", f.path));
+        if (current === null || !current.equals(original)) await writeFile(abs, original);
+      } else if (current !== null) {
+        await rm(abs, { force: true });
+      }
+    } catch (re) {
+      problems.push(`${f.path}: ${(re as Error).message}`);
+    }
+  }
+  await removeEmptyDirs(repoDir, target.manifest.createdDirs);
+  target.manifest.rolledBackAt = now().toISOString();
+  await writeManifest(target.backupDir, target.manifest);
+  return problems;
+}
+
+// 백업을 남기고 쓴다. 하나라도 실패하면 전부 원래대로 돌리고 오류를 던진다
+export async function applyWithBackup(
+  repoDir: string,
+  changes: Change[],
+  opts: BackupOptions = {},
+): Promise<{ backupDir: string; manifest: Manifest }> {
+  const io = opts.io ?? realIo;
+  const { backupDir, manifest } = await createBackup(
+    repoDir,
+    changes.map((c) => c.path),
+    opts,
+  );
+  changes.forEach((c, i) => {
+    (manifest.files[i] as ManifestFile).afterHash = sha256(c.content);
+  });
+  await writeManifest(backupDir, manifest);
 
   try {
     for (const change of changes) {
@@ -161,19 +216,7 @@ export async function applyWithBackup(
       await io.writeFile(abs, change.content);
     }
   } catch (e) {
-    const problems: string[] = [];
-    for (const f of files) {
-      const abs = join(repoDir, f.path);
-      try {
-        if (f.existedBefore) await writeFile(abs, await readFile(join(backupDir, "files", f.path)));
-        else await rm(abs, { force: true });
-      } catch (re) {
-        problems.push(`${f.path}: ${(re as Error).message}`);
-      }
-    }
-    await removeEmptyDirs(repoDir, manifest.createdDirs);
-    manifest.rolledBackAt = now().toISOString();
-    await writeManifest(backupDir, manifest);
+    const problems = await restoreBackup(repoDir, { backupDir, manifest }, opts);
     const reason = (e as Error).message;
     throw new Error(
       problems.length === 0

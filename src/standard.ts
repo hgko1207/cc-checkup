@@ -53,6 +53,16 @@ function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every((x) => typeof x === "string");
 }
 
+// Claude 작업 대상 경로. 허용 목록 문자열(Edit(/대상))에 그대로 들어가므로 쉼표·괄호·공백을 막는다
+export function targetError(path: string): string | null {
+  if (!/^[\p{L}\p{N}._\-/]+$/u.test(path))
+    return `${path}: 글자·숫자·._-/ 만 쓸 수 있습니다 (공백·쉼표·괄호 불가)`;
+  if (path.startsWith("/")) return `${path}: 기준 폴더 기준 상대 경로여야 합니다`;
+  if (path.split("/").some((p) => p === "" || p === "." || p === ".."))
+    return `${path}: 빈 칸, . , .. 경로 조각은 쓸 수 없습니다`;
+  return null;
+}
+
 function check(cond: boolean, what: string): void {
   if (!cond) throw new Error(what);
 }
@@ -160,6 +170,12 @@ export function mergeStandard(base: Standard, input: unknown): Standard {
           typeof t.prompt === "string",
         `claudeTasks.${k}는 title·targets·prompt가 필요합니다`,
       );
+      const targets = (t as { targets: string[] }).targets;
+      check(targets.length > 0, `claudeTasks.${k}.targets가 비어 있습니다`);
+      for (const p of targets) {
+        const err = targetError(p);
+        check(err === null, `claudeTasks.${k}.targets: ${err}`);
+      }
       out.claudeTasks[k] = t as unknown as ClaudeTask;
     }
   }
