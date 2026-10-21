@@ -40,5 +40,6 @@ export async function ctxFor(
     scan: await scanRepo(repoDir),
     git,
     standard,
+    kind: "dev",
   };
 }

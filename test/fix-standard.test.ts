@@ -118,7 +118,9 @@ describe("CLI --standard", () => {
     const text = d.out.join("\n");
     expect(text).toContain("사내 표준: 사내 Claude 표준 (예시) 0.1.0");
     expect(text).toContain("사내 표준 대비 점수:");
-    expect(text).toContain("git add .claude/settings.json plan.md");
+    expect(text).toContain(
+      "git add .claude/settings.json .claude/hooks/cc-guard/block-dangerous-bash.cjs .claude/hooks/cc-guard/lib.cjs plan.md",
+    );
     expect(
       JSON.parse(await readFile(join(repo, ".claude/settings.json"), "utf8")).enabledPlugins,
     ).toEqual({

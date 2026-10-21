@@ -3,7 +3,10 @@
 // 기존 값을 바꾸거나 지우거나 파일을 옮기지 않는 변경. 나머지는 판단 필요.
 // 쓸 때는 JSON을 다시 직렬화하지 않고 필요한 자리에 텍스트를 끼워 넣어
 // 원래 들여쓰기·줄바꿈·BOM·배치를 그대로 둔다 (R7).
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { Diagnosis } from "./diagnose.js";
+import { HOOK_ENTRY, hookFiles } from "./hook-template.js";
 import type { JsonFormat, SettingsRead } from "./types.js";
 
 export const SETTINGS_PATH = ".claude/settings.json";
@@ -20,6 +23,7 @@ export interface FixCandidate {
   bypass: boolean;
   plugins?: PluginFix; // "설치하기": 저장소 settings.json에 마켓플레이스·플러그인을 더하기만 (R4)
   createFile?: { path: string; content: string }; // "바로 만들기": 없는 파일을 템플릿으로
+  hook?: { files: { path: string; content: string }[] }; // 위험 명령 차단 훅 (settings 등록 + 없는 훅 파일)
 }
 
 export interface FixPlan {
@@ -42,10 +46,11 @@ export function planFixes({ ctx, findings }: Diagnosis): FixPlan {
   const bypass = open.some((f) => f.bypassFix === true);
   const plugins = mergePlugins(open.flatMap((f) => (f.pluginFix ? [f.pluginFix] : [])));
   const files = open.flatMap((f) => (f.createFile ? [f.createFile] : []));
+  const hook = open.some((f) => f.hookFix === true);
 
   const candidates: FixCandidate[] = [];
   let blocked: string | undefined;
-  if (denyRules.length > 0 || bypass || plugins) {
+  if (denyRules.length > 0 || bypass || plugins || hook) {
     const { settings } = ctx;
     if (settings.state === "invalid") blocked = settings.reason;
     else if (settings.state === "ok" && settings.unwritable) blocked = settings.unwritable;
@@ -64,6 +69,16 @@ export function planFixes({ ctx, findings }: Diagnosis): FixPlan {
           title: "권한 우회 모드 막기",
           denyRules: [],
           bypass: true,
+        });
+      }
+      if (hook) {
+        candidates.push({
+          no: candidates.length + 1,
+          title: "위험 명령 차단 훅 넣기 (.claude/hooks/cc-guard, team-ai-kit 훅)",
+          denyRules: [],
+          bypass: false,
+          // 이미 있는 훅 파일은 덮어쓰지 않는다
+          hook: { files: hookFiles().filter((h) => !existsSync(join(ctx.repoDir, h.path))) },
         });
       }
       if (plugins) {
@@ -176,12 +191,13 @@ function render(value: unknown, fmt: JsonFormat, baseIndent: string): string {
     .join(fmt.eol + baseIndent);
 }
 
-function addArrayItems(text: string, arr: JNode, values: string[], fmt: JsonFormat): string {
+function addArrayItems(text: string, arr: JNode, values: unknown[], fmt: JsonFormat): string {
   if (arr.type !== "array") throw new Error("배열이 아닙니다");
   const last = arr.items[arr.items.length - 1];
   if (last === undefined) {
     const outer = lineIndent(text, arr.start);
-    const body = values.map((v) => outer + fmt.indent + JSON.stringify(v)).join("," + fmt.eol);
+    const inner = outer + fmt.indent;
+    const body = values.map((v) => inner + render(v, fmt, inner)).join("," + fmt.eol);
     return splice(text, arr.start, arr.end, `[${fmt.eol}${body}${fmt.eol}${outer}]`);
   }
   if (isSingleLine(text, arr.start, arr.end)) {
@@ -192,7 +208,7 @@ function addArrayItems(text: string, arr: JNode, values: string[], fmt: JsonForm
     text,
     last.end,
     last.end,
-    values.map((v) => "," + fmt.eol + indent + JSON.stringify(v)).join(""),
+    values.map((v) => "," + fmt.eol + indent + render(v, fmt, indent)).join(""),
   );
 }
 
@@ -234,6 +250,7 @@ export function applyFixes(settings: SettingsRead, chosen: FixCandidate[]): File
   const rules = [...new Set(chosen.flatMap((c) => c.denyRules))];
   const bypass = chosen.some((c) => c.bypass);
   const plugins = mergePlugins(chosen.flatMap((c) => (c.plugins ? [c.plugins] : [])));
+  const hook = chosen.some((c) => c.hook);
 
   if (settings.state === "missing") {
     const obj: Record<string, unknown> = {};
@@ -248,6 +265,7 @@ export function applyFixes(settings: SettingsRead, chosen: FixCandidate[]): File
         obj.extraKnownMarketplaces = plugins.marketplaces;
       obj.enabledPlugins = Object.fromEntries(plugins.enable.map((p) => [p, true]));
     }
+    if (hook) obj.hooks = { PreToolUse: [HOOK_ENTRY] };
     const after = JSON.stringify(obj, null, 2) + "\n";
     return { path: SETTINGS_PATH, before: null, after, content: after };
   }
@@ -308,6 +326,16 @@ export function applyFixes(settings: SettingsRead, chosen: FixCandidate[]): File
     }
   }
 
+  if (hook) {
+    const root = parseTree(text);
+    const hooks = member(root, "hooks");
+    const pre = member(hooks, "PreToolUse");
+    if (hooks === undefined)
+      text = addMember(text, root, "hooks", { PreToolUse: [HOOK_ENTRY] }, fmt);
+    else if (pre === undefined) text = addMember(text, hooks, "PreToolUse", [HOOK_ENTRY], fmt);
+    else text = addArrayItems(text, pre, [HOOK_ENTRY], fmt);
+  }
+
   JSON.parse(text); // 끼워 넣은 결과가 올바른 JSON인지 확인
   return {
     path: SETTINGS_PATH,
@@ -320,8 +348,12 @@ export function applyFixes(settings: SettingsRead, chosen: FixCandidate[]): File
 // 고른 후보 전체의 파일 변경: 설정 파일 한 개(필요할 때) + 새로 만들 파일들
 export function applyAll(settings: SettingsRead, chosen: FixCandidate[]): FileChange[] {
   const changes: FileChange[] = [];
-  const settingsChosen = chosen.filter((c) => c.denyRules.length > 0 || c.bypass || c.plugins);
+  const settingsChosen = chosen.filter(
+    (c) => c.denyRules.length > 0 || c.bypass || c.plugins || c.hook,
+  );
   if (settingsChosen.length > 0) changes.push(applyFixes(settings, settingsChosen));
+  for (const h of chosen.flatMap((c) => c.hook?.files ?? []))
+    changes.push({ path: h.path, before: null, after: h.content, content: h.content });
   for (const c of chosen) {
     if (!c.createFile) continue;
     const content = c.createFile.content.endsWith("\n")

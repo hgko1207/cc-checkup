@@ -175,7 +175,14 @@ describe("바로 고치기·되돌리기 (미리 보기 → 적용)", () => {
     expect(preview.kind).toBe("preview");
     if (preview.kind === "preview") expect(preview.previews[0]?.isNew).toBe(true);
     const applied = await core.fix(repo, nos, true);
-    expect(applied).toMatchObject({ kind: "applied", files: [".claude/settings.json"] });
+    expect(applied).toMatchObject({
+      kind: "applied",
+      files: [
+        ".claude/settings.json",
+        ".claude/hooks/cc-guard/block-dangerous-bash.cjs",
+        ".claude/hooks/cc-guard/lib.cjs",
+      ],
+    });
     if (applied.kind === "applied") expect(applied.commitHint).toContain("git add");
     const after = await core.diagnose(repo);
     expect(after.score).toBeGreaterThan(before.score);

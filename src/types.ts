@@ -1,4 +1,4 @@
-import type { Standard } from "./standard.js";
+import type { FolderKind, Standard } from "./standard.js";
 
 // 진단 결과 한 건
 export type Severity = "ok" | "warn" | "fail";
@@ -21,6 +21,10 @@ export interface Finding {
   claudeTask?: string;
   // 작업 지시문의 {{이름}} 자리에 넣을 값 (예: missing = 빠진 섹션)
   claudeVars?: Record<string, string>;
+  // [예시 보기]에 보여 줄 내용 (필수 섹션·필수 파일)
+  example?: string;
+  // "바로 고치기" 후보: 위험 명령 차단 훅을 저장소에 넣는다
+  hookFix?: boolean;
 }
 
 // settings.json의 줄바꿈·들여쓰기·BOM (고쳐 쓸 때 그대로 유지)
@@ -62,7 +66,8 @@ export interface CheckContext {
   settings: SettingsRead;
   scan: EnvScan;
   git: GitTracking;
-  standard: Standard;
+  standard: Standard; // 폴더 종류에 맞춘 기준 (standardFor)
+  kind: FolderKind;
 }
 
 // 진단 하나: 공유 입력을 받아 결과 목록을 돌려준다
