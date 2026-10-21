@@ -144,7 +144,8 @@ describe("stream-json 진행", () => {
   });
 });
 
-describe("claude 찾기 (Windows)", () => {
+// Windows 경로 구분자로 파일을 찾으므로 Windows에서만 돈다 (macOS·Linux는 아래 describe)
+describe.skipIf(process.platform !== "win32")("claude 찾기 (Windows)", () => {
   it("npm 설치본(claude.cmd)이면 node로 cli.js를 직접 실행", async () => {
     const dir = await repoWith({
       "claude.cmd":

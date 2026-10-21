@@ -95,7 +95,12 @@ function wrap<A extends unknown[], T>(fn: (...args: A) => Promise<T>) {
 
 async function start(): Promise<void> {
   serveUi();
-  Menu.setApplicationMenu(null);
+  // macOS는 메뉴가 없으면 복사·붙여넣기·종료 단축키가 동작하지 않아 최소 메뉴만 둔다
+  Menu.setApplicationMenu(
+    process.platform === "darwin"
+      ? Menu.buildFromTemplate([{ role: "appMenu" }, { role: "editMenu" }])
+      : null,
+  );
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
 

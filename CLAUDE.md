@@ -7,9 +7,10 @@
 
 ## 구조
 
-- `src/` — CLI 흐름(cli), 진단 실행(diagnose), .env 규칙 판정(env-rules), 고치기(fix), 백업·되돌리기(backup), 질문(prompt), 출력(report), 사내 표준 정의(standard·standard-default), 점수(score), Claude로 반영 실행기(claude-runner)
+- `src/` — CLI 흐름(cli), 진단 실행(diagnose), .env 규칙 판정(env-rules), 고치기(fix), 백업·되돌리기(backup), 질문(prompt), 출력(report), 사내 표준 정의(standard·standard-default), 점수(score), Claude로 반영 실행기(claude-runner), 폴더 종류 판별(kind), [자세히] 설명(details), 차단 훅 템플릿 읽기(hook-template)
 - `standard/` — 사내 표준 정의 파일 예시 (진단 기준은 코드가 아니라 표준 파일에서 읽는다)
 - `src/checks/` — 진단 항목별 체크 함수 (Check 타입)
+- `src/templates/hooks/` — 저장소에 넣는 위험 명령 차단 훅 (team-ai-kit 복사본, 린트·포맷 제외, 원본을 고치면 맞춘다)
 - `src/app/` — 설치형 앱(Electron). main(창·보안·IPC), preload.cts(고정 함수만 노출), core(입력 검증·엔진 연결, 단위 테스트 대상), ui/(화면, textContent로만 렌더링)
 - `test/` — vitest 테스트
 - `docs/` — 제품 문서, 팀 가이드

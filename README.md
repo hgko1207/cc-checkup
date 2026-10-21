@@ -30,24 +30,34 @@
 
 번호를 고르면 변경 내용(diff)을 보여 주고 `[y/N]`으로 한 번 더 묻는다. 적용 전 원본은 저장소 밖 `~/.cc-checkup/backups/`에 백업한다.
 
-## 설치형 앱 (Windows, 사내 배포용)
+## 설치형 앱 (Windows·macOS, 사내 배포용)
 
 프로그램을 띄워 폴더를 고르면 사내 표준 대비 점수와 영역별(보안·팀 표준·문서·구조·스킬·플러그인) 결과를 보여 준다.
 
-- **바로 고치기 / 바로 만들기 / 설치하기**: 도구가 정한 내용(차단 규칙, 우회 모드 막기, plan.md 템플릿, 사내 플러그인 설정)을 넣는다. 바뀔 내용을 먼저 보여 주고 [적용]을 눌러야 쓴다.
-- **Claude로 반영 / Claude로 만들기**: 그 폴더에서 Claude Code(`claude -p`)를 실행해 CLAUDE.md 필수 섹션이나 DESIGN.md를 쓰게 한다. Claude는 대상 파일만 고칠 수 있고(명령 실행·`.env` 읽기 금지), 끝나면 바뀐 내용을 보여 준 뒤 [적용]/[취소]를 고른다. 진행 로그가 보이고 [중단]할 수 있으며 10분이 넘으면 자동으로 멈추고 원래대로 돌린다. 이 PC에 Claude Code가 설치·로그인돼 있어야 한다.
+- **폴더 종류**: 개발 저장소 / 문서·기획 폴더를 자동으로 판별하고 이유를 보여 준다. 바꾸면 그 폴더에 기억한다. 문서 폴더는 표준 파일의 `docs` 기준(폴더 목적·구조·문서 작성 규칙·하지 말 것)으로 진단한다.
+- **바로 고치기 / 바로 만들기 / 설치하기**: 도구가 정한 내용(.env 차단 규칙, 우회 모드 막기, 위험 명령 차단 훅, plan.md 템플릿, 사내 플러그인 설정)을 넣는다. 바뀔 내용을 먼저 보여 주고 [적용]을 눌러야 쓴다.
+- **Claude로 반영 / Claude로 만들기**: 그 폴더에서 Claude Code(`claude -p`)를 실행해 CLAUDE.md(없을 때 새로 만들기, 빠진 섹션·검증 명령 채우기)나 DESIGN.md를 쓰게 한다. Claude는 대상 파일만 고칠 수 있고(명령 실행·`.env` 읽기 금지), 끝나면 바뀐 내용을 보여 준 뒤 [적용]/[취소]를 고른다. 진행 로그가 보이고 [중단]할 수 있으며 10분이 넘으면 자동으로 멈추고 원래대로 돌린다. 근거를 찾지 못한 규칙은 지어내지 않고 `TODO`로 남긴다.
+- **[자세히] / [예시 보기]**: 항목마다 왜 문제인지·고치면 무엇이 바뀌는지·남는 한계, 필수 섹션·파일의 예시를 펼쳐 본다.
 - **↶ 마지막 반영 되돌리기**: 바로 고치기와 Claude로 반영 모두 적용 전 원본을 `~/.cc-checkup/backups/`에 남기므로 되돌릴 수 있다.
+- **Claude Code 상태**: 설치·버전·로그인 계정을 보여 준다. 로그인이 안 돼 있으면 Claude 버튼이 꺼지고, 로그인 후 [다시 확인]을 누른다.
 - **사내 표준**: 왼쪽 [표준 파일 선택]으로 공유 폴더의 `standard.json`을 지정한다(앱이 기억함). 지정하지 않으면 기본 표준.
+- **새 버전 알림**: 사내 표준 파일의 `app.latestVersion`이 지금 버전보다 높으면 맨 위에 알리고, [설치 파일 위치 열기]로 `app.downloadUrl`(공유 폴더 경로나 사내 주소)을 연다. 설치 파일을 직접 실행하지는 않는다.
 - **리포트 저장**: 결과를 마크다운으로 저장한다(TF가 팀별 결과를 모을 때).
 
-**설치 파일 만들기** (개발 PC, 한 번)
+**위험 명령 차단 훅**: "바로 고치기"는 team-ai-kit의 차단 훅(강제 푸시·`rm -rf /` 같은 되돌리기 어려운 명령 차단)을 `.claude/hooks/cc-guard/`에 복사하고 `.claude/settings.json`의 PreToolUse에 등록한다. team-ai-kit 저장소가 비공개라 플러그인 대신 파일로 넣는다. 실행하려면 그 PC에 Node.js가 있어야 한다. 실제 Claude Code(2.1.83, Windows)에서 `git push --force origin main`을 막는 것을 확인했다.
+
+**설치 파일 만들기**
 
 ```powershell
 npm install
-npm run dist:win     # releaseCC Checkup Setup 0.1.0.exe 생성 → 사내 배포 경로에 올린다
+npm run dist:win     # release\CC Checkup Setup 0.1.0.exe → 사내 배포 경로에 올린다
+npm run dist:mac     # macOS에서만: release/*.dmg, *.zip
 ```
 
-설치 파일은 아직 코드 서명이 없어 처음 실행할 때 Windows SmartScreen 경고가 뜬다(사내 배포·서명 방식은 정해지지 않음).
+- GitHub Actions: `v0.2.0` 같은 태그를 올리거나 Actions 화면에서 `release`를 실행하면 Windows·macOS 설치 파일을 만들어 Artifacts로 남긴다. PR마다 `ci`가 테스트와 앱 E2E를 돌린다. (비공개 저장소는 Actions 사용 시간이 과금되고 macOS는 Windows보다 비싸다.)
+- **코드 서명**: 인증서가 없으면 서명 없이 만들어 처음 실행할 때 Windows SmartScreen·macOS Gatekeeper 경고가 뜬다. 인증서를 저장소 Secrets(`CSC_LINK`, `CSC_KEY_PASSWORD`, macOS는 `MAC_CSC_LINK`·`MAC_CSC_KEY_PASSWORD`·공증용 `APPLE_ID`·`APPLE_APP_SPECIFIC_PASSWORD`·`APPLE_TEAM_ID`)에 넣으면 자동으로 서명한다. 로컬 빌드도 같은 이름의 환경 변수를 쓴다.
+- 새 버전을 배포하면 사내 표준 파일의 `app.latestVersion`과 `app.downloadUrl`을 올려 사용자에게 알린다.
+- 아이콘: `build/icon.png` (`npx electron scripts/make-icon.cjs`로 다시 만든다. VS Code 터미널이면 `ELECTRON_RUN_AS_NODE`를 지우고 실행).
 
 **개발 중 바로 띄우기:** `npm run app`
 
@@ -144,20 +154,46 @@ node dist/cli.js --help
 - `--standard <파일>`로 사내 표준 파일을 지정하면 그 값이 우선이고, 적지 않은 항목은 기본값을 쓴다.
 - 파일이 없거나 형식이 틀리면 경고하고 기본 표준으로 진단한다. 화면·리포트 맨 위에 어떤 표준으로 진단했는지 표시된다.
 - 예시: [standard/example-company.json](standard/example-company.json) — CLAUDE.md 필수 섹션(검증 명령·코딩 규칙·하지 말 것), plan.md 템플릿, 화면 있는 프로젝트의 DESIGN.md, 사내 플러그인(team-ai).
-- 표준 파일로 정할 수 있는 것: `.env` 차단 대상, CLAUDE.md 길이·필수 섹션(제목 별칭), 필수 파일(템플릿 또는 Claude 작업), 필수 플러그인과 마켓플레이스, 화면 판정 규칙, 점수 가중치, Claude 작업 지시문.
+- 표준 파일로 정할 수 있는 것: `.env` 차단 대상, CLAUDE.md 길이·필수 섹션(제목 별칭·예시), 필수 파일(템플릿 또는 Claude 작업·예시), 필수 플러그인과 마켓플레이스, 화면 판정 규칙, 점수 가중치, Claude 작업 지시문, 문서·기획 폴더 기준(`docs`), 안내 문구에 붙일 사내 가이드 주소(`guideUrl`), 새 버전 알림(`app`).
 - 고치기 후보에 "사내 표준 플러그인 설정 추가"(저장소 settings.json에 더하기만)와 "plan.md 만들기"(템플릿)가 더해진다.
+- 폴더 종류: CLI는 기본이 개발 저장소(예전과 같음)이고 `--kind docs`·`--kind auto`(자동 판별)로 바꾼다. 앱은 자동 판별한다.
+
+```jsonc
+{
+  "guideUrl": "https://wiki.your-company.example/claude", // 없으면 링크를 붙이지 않는다
+  "app": {
+    "latestVersion": "0.2.0",
+    "downloadUrl": "\\\\fileserver\\tools\\cc-checkup\\",
+    "note": "…",
+  },
+  "docs": {
+    "claudeMd": {
+      "requiredSections": [
+        {
+          "id": "purpose",
+          "title": "폴더 목적",
+          "aliases": ["목적"],
+          "example": "## 폴더 목적\n…",
+        },
+      ],
+    },
+    "requiredFiles": [],
+    "plugins": { "required": [] }, // 없으면 개발 저장소와 같은 플러그인을 요구
+  },
+}
+```
 
 ## 개발
 
-| 용도      | 명령                |
-| --------- | ------------------- |
-| 타입체크  | `npm run typecheck` |
-| 린트      | `npm run lint`      |
-| 테스트    | `npm test`          |
-| 앱 E2E    | `npm run test:e2e`  |
-| 앱 실행   | `npm run app`       |
-| 설치 파일 | `npm run dist:win`  |
-| 포맷      | `npm run format`    |
-| 빌드      | `npm run build`     |
+| 용도      | 명령                                           |
+| --------- | ---------------------------------------------- |
+| 타입체크  | `npm run typecheck`                            |
+| 린트      | `npm run lint`                                 |
+| 테스트    | `npm test`                                     |
+| 앱 E2E    | `npm run test:e2e`                             |
+| 앱 실행   | `npm run app`                                  |
+| 설치 파일 | `npm run dist:win` (macOS: `npm run dist:mac`) |
+| 포맷      | `npm run format`                               |
+| 빌드      | `npm run build`                                |
 
 진단 하나는 `src/checks/<이름>.ts`에 `Check` 함수(`(ctx) => Finding[]`)로 만들고 `src/diagnose.ts`의 `CHECKS`에 등록하고, `test/<이름>.test.ts`에 테스트를 둔다. `.env` 규칙 판정은 `src/env-rules.ts` 하나를 진단과 고치기가 함께 쓴다.

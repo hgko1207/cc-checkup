@@ -19,7 +19,8 @@
     "test:e2e": "npm run build && playwright test",
     "start": "node dist/cli.js",
     "app": "npm run build && node scripts/run-app.mjs",
-    "dist:win": "npm run build && electron-builder --win nsis"
+    "dist:win": "npm run build && electron-builder --win nsis",
+    "dist:mac": "npm run build && electron-builder --mac dmg zip"
   },
   "engines": {
     "node": ">=20"
@@ -42,8 +43,12 @@
   "build": {
     "appId": "io.github.hgko1207.cc-checkup",
     "productName": "CC Checkup",
+    "extraMetadata": {
+      "main": "dist/app/main.js"
+    },
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
@@ -51,7 +56,8 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.png"
     },
     "nsis": {
       "oneClick": false,
@@ -59,8 +65,14 @@
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "Claude 세팅 점검"
     },
-    "extraMetadata": {
-      "main": "dist/app/main.js"
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": true
     }
   }
 }
