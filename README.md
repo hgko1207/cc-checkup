@@ -50,7 +50,7 @@
 
 ```powershell
 npm install
-npm run dist:win     # release\cc-checkup-setup-0.1.0.exe → 사내 배포 경로에 올린다
+npm run dist:win     # release\cc-checkup-setup-1.0.0.exe → 사내 배포 경로에 올린다
 npm run dist:mac     # macOS에서만: release/*.dmg, *.zip
 ```
 
@@ -105,9 +105,9 @@ npm uninstall -g cc-checkup   # 지우기
 
 ```powershell
 npm run build
-npm pack                                   # cc-checkup-0.1.0.tgz 생성 → 파일 전달
+npm pack                                   # cc-checkup-1.0.0.tgz 생성 → 파일 전달
 # 받은 사람 (Node 20 이상):
-npm install -g D:\받은경로\cc-checkup-0.1.0.tgz
+npm install -g D:\받은경로\cc-checkup-1.0.0.tgz
 cd 진단할-저장소
 cc-checkup
 ```

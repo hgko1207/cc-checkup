@@ -59,7 +59,7 @@
   },
   "guideUrl": "https://wiki.your-company.example/claude",
   "app": {
-    "latestVersion": "0.1.0",
+    "latestVersion": "1.0.0",
     "downloadUrl": "\\fileserver\toolscc-checkup\\",
     "note": "TF가 새 설치 파일을 올리면 이 값을 올린다"
   }
