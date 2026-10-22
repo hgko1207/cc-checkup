@@ -128,7 +128,10 @@ describe("진단 화면 데이터", () => {
       claudeLabel: "Claude로 반영",
     });
     expect(byId("file/plan")).toMatchObject({ area: "docs", fixLabel: "바로 만들기" });
-    expect(byId("plugins/required")).toMatchObject({ area: "plugins", fixLabel: "설치하기" });
+    expect(byId("plugins/required")).toMatchObject({
+      area: "plugins",
+      fixLabel: "플러그인 설정 추가",
+    });
     expect(all.filter((f) => f.severity === "ok").every((f) => f.fixNo === undefined)).toBe(true);
     expect(v.counts.fail + v.counts.warn + v.counts.ok).toBe(all.length);
     expect(v.canUndo).toBe(false);

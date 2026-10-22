@@ -55,6 +55,7 @@ test("렌더러는 Node에 접근할 수 없고 정해진 함수만 보인다", 
       "fix",
       "getState",
       "onEvent",
+      "showFolder",
       "openGuide",
       "openUpdate",
       "pickFolder",
@@ -80,12 +81,22 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   await expect(page.locator("#path-full")).toHaveText(repo);
   const before = Number(await page.locator("#score").textContent());
   expect(before).toBeLessThan(100);
-  await expect(page.getByText("보안", { exact: true })).toBeVisible();
+  await expect(page.locator(".area h2").first()).toContainText("보안");
 
   // Esc로 패널을 닫으면 포커스가 누른 버튼으로 돌아온다
   const fixAll = page.getByRole("button", { name: /바로 고칠 수 있는 \d+개 고치기/ });
   await fixAll.click();
   await expect(page.locator("#panel-title")).toHaveText("바뀔 내용 확인");
+  // 모달: 뒤 화면은 inert, Shift+Tab·Tab을 여러 번 눌러도 패널 밖으로 나가지 않는다
+  expect(await page.evaluate(() => (document.querySelector(".side") as HTMLElement).inert)).toBe(
+    true,
+  );
+  for (const key of ["Shift+Tab", "Shift+Tab", "Tab", "Tab", "Tab"]) {
+    await page.keyboard.press(key);
+    expect(
+      await page.evaluate(() => document.getElementById("panel")!.contains(document.activeElement)),
+    ).toBe(true);
+  }
   await page.keyboard.press("Escape");
   await expect(page.locator("#panel")).toBeHidden();
   await expect(fixAll).toBeFocused();
@@ -119,7 +130,11 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   await expect(page.locator("#kind-docs")).toBeChecked();
   await expect(page.locator("#kind-note")).toContainText("자동 판별");
   await page.locator("#kind-dev").check();
-  await expect(page.locator("#kind-note")).toHaveText("직접 고른 종류입니다");
+  await expect(page.locator("#kind-note")).toContainText("직접 지정: 개발 저장소 기준");
+  await expect(page.locator("#kind-note")).toContainText("자동 판별은 문서·기획 폴더");
+  await expect(page.locator("#notice")).toContainText("폴더 종류를 바꿔");
+  // 다시 점검 뒤에도 키보드 포커스가 라디오에 남는다
+  await expect(page.locator("#kind-dev")).toBeFocused();
   await expect(page.getByText("CLAUDE.md에 검증 명령이 있습니다")).toBeVisible();
   await page.getByRole("button", { name: "자동 판별로 되돌리기" }).click();
   await expect(page.locator("#kind-docs")).toBeChecked();

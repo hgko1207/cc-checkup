@@ -1,5 +1,7 @@
 :root {
   color-scheme: light;
+  --side-w: 270px;
+  --scrim: rgb(0 0 0 / 0.28);
   --bg: #f6f5f2;
   --surface: #ffffff;
   --ink: #1d1d1b;
@@ -24,6 +26,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
+    --scrim: rgb(0 0 0 / 0.55);
     --bg: #171716;
     --surface: #212120;
     --ink: #ecebe6;
@@ -62,7 +65,7 @@ body {
 
 .shell {
   display: grid;
-  grid-template-columns: 270px 1fr;
+  grid-template-columns: var(--side-w) 1fr;
   height: 100%;
 }
 
@@ -204,13 +207,28 @@ body {
   border-radius: var(--radius);
   padding: 16px 18px;
 }
+.path-line {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  min-width: 0;
+  margin: 2px 0 4px;
+}
+/* 경로는 한 줄, 앞쪽을 줄여 폴더 끝이 보이게 (전체는 마우스를 올리면) */
 .path {
-  margin: 0;
+  min-width: 0;
   font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 12px;
   color: var(--ink-2);
-  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+.path-line .linkish {
+  flex: none;
+  font-size: 12px;
 }
 .score-line {
   display: flex;
@@ -259,6 +277,10 @@ body {
   margin-bottom: 12px;
 }
 .area h2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
   margin: 0;
   font-size: 15px;
   font-weight: 650;
@@ -461,13 +483,13 @@ body {
 
 .scrim {
   position: fixed;
-  inset: 0 0 0 270px;
-  background: rgb(0 0 0 / 0.28);
+  inset: 0;
+  background: var(--scrim);
   z-index: 5;
 }
 .panel {
   position: fixed;
-  left: calc(270px + 24px);
+  left: calc(var(--side-w) + 24px);
   right: 24px;
   bottom: 16px;
   z-index: 6;
@@ -524,38 +546,6 @@ body {
 }
 
 @media (max-width: 900px) {
-  /* 좁은 창: 사이드바와 본문이 각자 스크롤하지 않고 한 화면으로 이어진다 */
-  html,
-  body,
-  .shell {
-    height: auto;
-  }
-  .shell {
-    display: block;
-  }
-  .side,
-  .main {
-    overflow: visible;
-  }
-  .shell {
-    display: flex;
-    flex-direction: column;
-  }
-  .main {
-    order: -1;
-  }
-  .scrim {
-    inset: 0;
-  }
-  .panel {
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-  }
-  .side {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
   .finding {
     grid-template-columns: 28px 1fr;
   }
@@ -563,15 +553,15 @@ body {
     grid-column: 2;
     justify-content: flex-start;
   }
+  .why-off {
+    text-align: left;
+  }
 }
 
 /* 패널 제목은 포커스를 받지만 테두리는 키보드 이동 때만 */
+/* 패널 제목은 열릴 때 포커스만 받는 자리라 테두리를 그리지 않는다 */
 #panel-title:focus {
   outline: none;
-}
-#panel-title:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 /* 실행 전 확인 */
@@ -728,7 +718,7 @@ body {
 .notice-line {
   margin: 6px 0 0;
   font-size: 13px;
-  color: var(--accent);
+  color: var(--warn);
   word-break: keep-all;
 }
 
@@ -755,4 +745,64 @@ body {
   color: var(--ink-2);
   max-width: 180px;
   word-break: keep-all;
+}
+
+.warn-text {
+  color: var(--warn);
+}
+.area-status {
+  font-size: 12px;
+  font-weight: 600;
+}
+.area-status.fail {
+  color: var(--fail);
+}
+.area-status.warn {
+  color: var(--warn);
+}
+.area-status.ok {
+  color: var(--ok);
+}
+.area-status.na,
+.muted-note {
+  color: var(--ink-2);
+}
+
+/* 파일 요약 줄의 접기 표시 */
+.file summary {
+  list-style: none;
+}
+.file summary::-webkit-details-marker {
+  display: none;
+}
+.file summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--ink-2);
+  border-bottom: 2px solid var(--ink-2);
+  transform: rotate(-45deg);
+  margin-right: 2px;
+  flex: none;
+  align-self: center;
+  transition: transform 0.12s ease-out;
+}
+.file[open] summary::before {
+  transform: rotate(45deg);
+}
+
+/* 사이드바를 줄여 좁은 창에서도 두 칸을 유지한다 (창 최소 폭 760px) */
+@media (max-width: 1000px) {
+  :root {
+    --side-w: 220px;
+  }
+}
+
+/* 머리말 왼쪽(폴더·점수)이 긴 경로 때문에 넓어지지 않게 */
+.summary > div:first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.main {
+  overflow-x: hidden;
 }

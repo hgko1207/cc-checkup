@@ -71,6 +71,7 @@ export interface CoreDeps {
   appVersion?: string; // 새 버전 알림 비교용
   openExternal?: (url: string) => Promise<void>; // http(s) 주소 열기
   showItem?: (path: string) => void; // 파일 탐색기에서 보기
+  openPath?: (path: string) => Promise<void>; // 폴더를 탐색기로 열기
 }
 
 interface Config {
@@ -190,7 +191,11 @@ export function toView(
     };
     if (fix) {
       view.fixNo = fix.no;
-      view.fixLabel = fix.createFile ? "바로 만들기" : fix.plugins ? "설치하기" : "바로 고치기";
+      view.fixLabel = fix.createFile
+        ? "바로 만들기"
+        : fix.plugins
+          ? "플러그인 설정 추가"
+          : "바로 고치기";
     }
     if (f.severity !== "ok" && f.claudeTask && diag.standard.standard.claudeTasks[f.claudeTask]) {
       view.claudeTask = f.claudeTask;
@@ -217,6 +222,7 @@ export function toView(
     kind: diag.kind,
     kindAuto,
     kindReason: diag.kindGuess.reason,
+    kindGuess: diag.kindGuess.kind,
     counts,
     areas,
     fixes: plan.candidates.map((c) => ({ no: c.no, title: c.title })),
@@ -391,6 +397,10 @@ export class AppCore {
     else throw new InputError(`열 수 없는 위치입니다: ${url}`);
   }
 
+  async showFolder(v: unknown): Promise<void> {
+    await this.deps.openPath?.(this.folder(v));
+  }
+
   async openGuide(): Promise<void> {
     const url = (await this.standard()).standard.guideUrl;
     if (!url) throw new InputError("사내 표준 파일에 가이드 주소(guideUrl)가 없습니다");
@@ -441,7 +451,13 @@ export class AppCore {
       await this.remember(path, undefined, kindIn === "auto" ? null : kindIn);
     }
     const { diag, plan } = await this.run(path);
-    await this.remember(path, diag.score);
+    // 직접 고른 종류가 자동 판별과 같으면 직접 지정을 풀고 자동으로 둔다
+    const chosen = this.entry(path)?.kind;
+    await this.remember(
+      path,
+      diag.score,
+      chosen && chosen === diag.kindGuess.kind ? null : undefined,
+    );
     const canUndo = (await findUndoTarget(path, this.deps.backup)) !== null;
     return toView(diag, plan, canUndo, this.entry(path)?.kind === undefined);
   }

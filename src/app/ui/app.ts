@@ -150,8 +150,7 @@ function rememberFocus(): void {
 function panel(title: string, message = "", tone: "" | "error" = ""): void {
   rememberFocus();
   $("panel").hidden = false;
-  $("scrim").hidden = false;
-  $("panel").setAttribute("aria-modal", "true");
+  setModal(true);
   $("panel-title").textContent = title;
   const m = $("panel-message");
   m.textContent = message;
@@ -175,8 +174,7 @@ function panelButtons(...btns: HTMLButtonElement[]): void {
 // 결과·안내만 보여 주는 패널: 뒤 화면을 막지 않는다 (확인이 필요한 패널만 모달)
 function closeOnly(): void {
   panelButtons(button("닫기", closePanel));
-  $("scrim").hidden = true;
-  $("panel").setAttribute("aria-modal", "false");
+  setModal(false);
   locked = false;
   render();
 }
@@ -184,7 +182,7 @@ function closeOnly(): void {
 function closePanel(): void {
   stopElapsed();
   $("panel").hidden = true;
-  $("scrim").hidden = true;
+  setModal(false);
   locked = false;
   render();
   // 버튼이 다시 그려졌으면 같은 이름표의 새 버튼으로, 없으면 보고서 제목으로
@@ -197,24 +195,32 @@ function closePanel(): void {
   returnKey = null;
 }
 
-// 패널이 열려 있으면 Tab이 패널 안에서만 돈다 (뒤 화면은 잠겨 있음)
+// 확인 패널이 열린 동안에는 뒤 화면(사이드바·보고서·알림)을 통째로 비활성(inert)으로 만든다:
+// 클릭도 Tab도 닿지 않는다
+function setModal(on: boolean): void {
+  $("scrim").hidden = !on;
+  $("panel").setAttribute("aria-modal", String(on));
+  for (const el of document.querySelectorAll<HTMLElement>(".side, #report, #update, #empty"))
+    el.inert = on;
+}
+
+// 모달 안에서 Tab이 돈다 (뒤 화면은 inert라 갈 곳이 없지만, 처음·끝에서 반대쪽으로 넘긴다)
 function trapFocus(e: KeyboardEvent): void {
   if (e.key !== "Tab" || $("panel").hidden || $("scrim").hidden) return;
   const items = [
     ...$("panel").querySelectorAll<HTMLElement>(
-      "button:not([disabled]):not([hidden]), input:not([disabled]), summary, [tabindex='-1']",
+      "button:not([disabled]):not([hidden]), input:not([disabled]), summary",
     ),
-  ].filter((el) => el.offsetParent !== null || el.id === "panel-title");
+  ].filter((el) => el.offsetParent !== null);
   const first = items[0];
   const last = items[items.length - 1];
   if (!first || !last) return;
-  if (e.shiftKey && document.activeElement === first) {
+  const at = document.activeElement;
+  const outside = !(at instanceof HTMLElement) || !items.includes(at);
+  if (e.shiftKey && (at === first || outside)) {
     e.preventDefault();
     last.focus();
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault();
-    first.focus();
-  } else if (!$("panel").contains(document.activeElement)) {
+  } else if (!e.shiftKey && (at === last || outside)) {
     e.preventDefault();
     first.focus();
   }
@@ -319,6 +325,9 @@ let notice = ""; // 점수가 바뀐 이유 (폴더 종류를 바꿨을 때)
 
 async function load(path: string, kind?: Kind | "auto"): Promise<void> {
   const prev = current?.path === path ? current : null;
+  const at = document.activeElement as HTMLElement | null;
+  const back = at && at !== document.body ? { id: at.id, key: at.dataset.key ?? null } : null;
+  let failed = false; // 실패하면 오류 패널에 포커스를 둔다
   loading = true;
   setBusy(true);
   try {
@@ -329,14 +338,34 @@ async function load(path: string, kind?: Kind | "auto"): Promise<void> {
         : "";
     state = await api.getState();
   } catch (e) {
+    failed = true;
     showError(e);
   } finally {
     loading = false;
     setBusy(false);
+    if (!failed) restoreAfterLoad(back, prev !== null);
   }
 }
 
+// 다시 진단한 뒤 포커스 돌려주기: 같은 폴더면 누른 컨트롤로, 새 폴더면 보고서 제목으로
+function restoreAfterLoad(back: { id: string; key: string | null } | null, sameFolder: boolean) {
+  if (!sameFolder) {
+    $("path").focus();
+    return;
+  }
+  if (!back) return;
+  if (back.id === "kind-dev" || back.id === "kind-docs") {
+    ($(current?.kind === "docs" ? "kind-docs" : "kind-dev") as HTMLInputElement).focus();
+    return;
+  }
+  const el = back.id ? document.getElementById(back.id) : null;
+  if (el && !(el as HTMLButtonElement).disabled && !el.hidden) el.focus();
+  else if (!focusKey(back.key)) $("path").focus();
+}
+
 async function openFolder(recent?: string): Promise<void> {
+  // 확인 패널·Claude 실행 중에는 다른 폴더로 넘어가지 않는다 (결과 확인을 건너뛰면 잠긴다)
+  if (locked || busy || state?.running) return;
   try {
     const path = await api.pickFolder(recent);
     if (path !== null) {
@@ -722,7 +751,15 @@ function renderFinding(f: FindingView): HTMLElement {
   const more = h("div", {});
   const toggle = (key: string, label: string, make: () => HTMLElement) => {
     const id = `${f.id}:${key}`;
-    const t = keyed(h("button", { class: "linkish", type: "button" }, label), id);
+    const open = expanded.has(id);
+    const t = keyed(
+      h(
+        "button",
+        { class: "linkish", type: "button" },
+        open ? (label === "자세히" ? "설명 접기" : "예시 접기") : label,
+      ),
+      id,
+    );
     t.setAttribute("aria-expanded", String(expanded.has(id)));
     t.addEventListener("click", () => {
       if (expanded.has(id)) expanded.delete(id);
@@ -821,7 +858,7 @@ function render(): void {
                   h("span", { class: "name" }, folderName(r.path)),
                   h("span", { class: "where" }, r.path),
                 ),
-                h("span", { class: "pts" }, score),
+                h("span", { class: "pts" }, score + (r.kind ? " · 직접 지정" : "")),
               ),
               `recent:${r.path}`,
             );
@@ -861,11 +898,15 @@ function render(): void {
     dev.checked = current?.kind === "dev";
     docs.checked = current?.kind === "docs";
   }
-  $("kind-note").textContent = !current
+  // 직접 고른 종류여도 자동 판별 결과와 이유를 계속 보여 준다 (점수가 종류에 따라 달라지므로)
+  const KIND_NAME = { dev: "개발 저장소", docs: "문서·기획 폴더" };
+  const kn = $("kind-note");
+  kn.textContent = !current
     ? "폴더를 열면 자동으로 판별합니다"
     : current.kindAuto
       ? `자동 판별: ${current.kindReason}`
-      : "직접 고른 종류입니다";
+      : `직접 지정: ${KIND_NAME[current.kind]} 기준으로 봅니다. 자동 판별은 ${KIND_NAME[current.kindGuess]}입니다 (${current.kindReason})`;
+  kn.className = `small ${current && !current.kindAuto ? "warn-text" : "muted"}`;
   $("kind-auto").hidden = !current || current.kindAuto;
 
   $("empty").hidden = current !== null;
@@ -876,6 +917,7 @@ function render(): void {
   const n = $("notice");
   n.hidden = !notice;
   n.textContent = notice;
+  ($("show-folder") as HTMLButtonElement).disabled = blocked;
   const score = $("score");
   score.textContent = String(current.score);
   score.className = `score ${current.score >= READY_SCORE ? "good" : current.score >= 50 ? "mid" : "bad"}${loading ? " stale" : ""}`;
@@ -919,20 +961,52 @@ function render(): void {
   ($("hide-ok") as HTMLInputElement).checked = hideOk;
   const active = document.activeElement as HTMLElement | null;
   const activeKey = $("areas").contains(active) ? (active?.dataset.key ?? null) : null;
+  // 영역 제목 옆에 영역 상태, 이 폴더 종류에서 보지 않는 영역은 한 줄로 남긴다
+  const AREAS: { area: string; title: string }[] = [
+    { area: "security", title: "보안" },
+    { area: "team", title: "팀 표준 (CLAUDE.md)" },
+    { area: "docs", title: "문서·구조" },
+    { area: "plugins", title: "스킬·플러그인" },
+  ];
   $("areas").replaceChildren(
-    ...current.areas.map((a) => {
+    ...AREAS.map(({ area, title }) => {
+      const a = current?.areas.find((x) => x.area === area);
+      if (!a)
+        return h(
+          "section",
+          { class: "area" },
+          areaHead(title, "해당 없음", "na"),
+          h(
+            "div",
+            { class: "passed-note muted-note" },
+            current?.kind === "docs"
+              ? "문서·기획 폴더에서는 보는 항목이 없습니다"
+              : "사내 표준에 이 영역의 항목이 없습니다",
+          ),
+        );
+      const fail = a.findings.filter((f) => f.severity === "fail" && !f.notApplicable).length;
+      const warn = a.findings.filter((f) => f.severity === "warn" && !f.notApplicable).length;
+      const status =
+        fail + warn === 0
+          ? "모두 통과"
+          : [fail ? `위험 ${fail}` : "", warn ? `주의 ${warn}` : ""].filter(Boolean).join(" · ");
+      const tone = fail ? "fail" : warn ? "warn" : "ok";
       const shown = hideOk ? a.findings.filter((f) => f.severity !== "ok") : a.findings;
       const passed = a.findings.length - shown.length;
       return h(
         "section",
         { class: "area" },
-        h("h2", {}, a.title),
+        areaHead(a.title, status, tone),
         ...shown.map(renderFinding),
         hideOk && passed > 0 ? passedNote(shown.length === 0, passed) : null,
       );
     }),
   );
   if (activeKey && !$("areas").contains(document.activeElement)) focusKey(activeKey);
+}
+
+function areaHead(title: string, status: string, tone: string): HTMLElement {
+  return h("h2", {}, title, h("span", { class: `area-status ${tone}` }, status));
 }
 
 // 숨긴 통과 항목: 누르면 숨기기를 끈다
@@ -961,6 +1035,9 @@ function setHideOk(v: boolean): void {
 // ---- 시작 ----
 
 $("open").addEventListener("click", () => void openFolder());
+$("show-folder").addEventListener("click", () => {
+  if (current) void api.showFolder(current.path).catch(showError);
+});
 $("open-guide").addEventListener("click", () => void api.openGuide().catch(showError));
 $("hide-ok").addEventListener("change", (e) => setHideOk((e.target as HTMLInputElement).checked));
 $("score-how").addEventListener("click", () => {

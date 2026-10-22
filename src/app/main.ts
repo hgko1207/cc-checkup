@@ -141,6 +141,10 @@ async function start(): Promise<void> {
     appVersion: appVersion(),
     openExternal: (url) => shell.openExternal(url),
     showItem: (path) => shell.showItemInFolder(path),
+    openPath: async (path) => {
+      const err = await shell.openPath(path);
+      if (err) throw new Error(err);
+    },
   });
   await core.init();
 
@@ -183,6 +187,10 @@ async function start(): Promise<void> {
   ipcMain.handle(
     CHANNELS.openGuide,
     wrap(() => core.openGuide()),
+  );
+  ipcMain.handle(
+    CHANNELS.showFolder,
+    wrap((p: unknown) => core.showFolder(p)),
   );
 
   win = new BrowserWindow({

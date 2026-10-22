@@ -62,6 +62,7 @@ export interface DiagnosisView {
   kind: Kind;
   kindAuto: boolean; // 자동 판별 결과를 쓰는 중
   kindReason: string; // 자동 판별 이유
+  kindGuess: Kind; // 자동 판별 결과 (직접 고른 종류와 다를 수 있음)
   counts: Record<Severity, number>;
   areas: AreaView[];
   fixes: { no: number; title: string }[];
@@ -146,5 +147,6 @@ export interface CcCheckupApi {
   saveReport(path: string): Promise<string | null>;
   openUpdate(): Promise<void>; // 사내 표준 파일이 알려 준 새 설치 파일 위치 열기
   openGuide(): Promise<void>; // 사내 표준 파일의 guideUrl 열기
+  showFolder(path: string): Promise<void>; // 점검 중인 폴더를 탐색기로 열기
   onEvent(cb: (e: AppEvent) => void): () => void;
 }
