@@ -7,6 +7,14 @@ import type { Finding, Severity } from "./types.js";
 
 // 안내 링크는 표준 파일의 guideUrl이 있을 때만 붙인다 (예전 착지 주소는 페이지가 없어 뺐다)
 export const KIND_LABEL = { dev: "개발 저장소", docs: "문서·기획 폴더" } as const;
+// 직접 고른 종류가 자동 판별과 다르면 리포트에 남긴다 (점수 기준이 달라지므로)
+function kindLine(diag: Diagnosis): string {
+  const label = KIND_LABEL[diag.kind];
+  return diag.kind === diag.kindGuess.kind
+    ? label
+    : `${label} (직접 지정, 자동 판별: ${KIND_LABEL[diag.kindGuess.kind]})`;
+}
+
 export const REPORT_MARKER = "<!-- cc-checkup report -->";
 
 const MARK = { ok: "✓", warn: "!", fail: "✗" } as const;
@@ -47,7 +55,7 @@ export function formatText(diag: Diagnosis): string {
   const out = [
     "이 저장소의 Claude Code 팀 세팅 진단",
     `사내 표준: ${describeStandard(diag.standard)}`,
-    `폴더 종류: ${KIND_LABEL[diag.kind]}`,
+    `폴더 종류: ${kindLine(diag)}`,
     `사내 표준 대비 점수: ${diag.score} / 100`,
     "",
   ];
@@ -85,7 +93,7 @@ export function formatMarkdown(diag: Diagnosis, plan: FixPlan, now = new Date())
     `- 대상 폴더: \`${basename(diag.ctx.repoDir)}\``,
     `- 진단 일시: ${date}`,
     `- 사내 표준: ${describeStandard(diag.standard)}`,
-    `- 폴더 종류: ${KIND_LABEL[diag.kind]}`,
+    `- 폴더 종류: ${kindLine(diag)}`,
     `- 표준 충족도: **${diag.score} / 100**`,
   ];
   for (const g of GROUPS) {

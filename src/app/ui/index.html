@@ -22,7 +22,15 @@
           </div>
         </div>
 
-        <button id="open" class="btn primary wide" type="button">폴더 열기…</button>
+        <button
+          id="open"
+          class="btn primary wide"
+          type="button"
+          title="Ctrl+O"
+          aria-keyshortcuts="Control+O"
+        >
+          폴더 열기…
+        </button>
 
         <section class="side-box">
           <h2>폴더 종류</h2>
@@ -48,6 +56,7 @@
         <section class="side-box">
           <h2>사내 표준</h2>
           <p id="standard" class="small"></p>
+          <button id="open-guide" class="btn small" type="button" hidden>사내 가이드 열기</button>
           <p id="standard-error" class="small error" hidden></p>
           <div class="row-btns">
             <button id="pick-standard" class="btn small" type="button">표준 파일 선택</button>
@@ -82,28 +91,51 @@
         <div id="report" hidden>
           <header class="summary">
             <div>
-              <h1 id="path" class="path"></h1>
+              <h1 id="path" class="folder" tabindex="-1"></h1>
+              <div class="path-line">
+                <span id="path-full" class="path"></span>
+                <button id="show-folder" class="linkish" type="button">탐색기에서 열기</button>
+              </div>
               <div class="score-line">
                 <span id="score" class="score"></span><span class="score-max">/ 100</span>
                 <span id="goal" class="goal"></span>
+                <button id="score-how" class="linkish" type="button" aria-controls="score-how-text">
+                  점수 계산 방법
+                </button>
               </div>
+              <p id="score-how-text" class="small muted how" hidden></p>
               <div id="counts" class="counts"></div>
               <div id="std-line" class="small muted"></div>
+              <p id="notice" class="notice-line" role="status" hidden></p>
             </div>
             <div class="summary-btns">
               <button id="fix-all" class="btn primary" type="button" hidden>
                 바로 고칠 수 있는 것 고치기
               </button>
               <button id="undo" class="btn" type="button">↶ 마지막 반영 되돌리기</button>
-              <button id="save-report" class="btn" type="button">리포트 저장</button>
-              <button id="rerun" class="btn" type="button">다시 점검</button>
+              <button id="save-report" class="btn ghost" type="button">리포트 저장</button>
+              <button id="rerun" class="btn ghost" type="button" title="F5" aria-keyshortcuts="F5">
+                다시 점검
+              </button>
             </div>
           </header>
           <p id="blocked" class="notice warn" hidden></p>
+          <div class="toolbar">
+            <span class="toolbar-title">진단 항목</span>
+            <label class="check"><input id="hide-ok" type="checkbox" /> 통과 항목 숨기기</label>
+          </div>
           <div id="areas"></div>
         </div>
 
-        <section id="panel" class="panel" hidden aria-labelledby="panel-title">
+        <div id="scrim" class="scrim" hidden></div>
+        <section
+          id="panel"
+          class="panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="panel-title"
+          hidden
+        >
           <div class="panel-head">
             <h2 id="panel-title" tabindex="-1">진행 · 변경 확인</h2>
             <div class="row-btns">
@@ -115,7 +147,7 @@
           </div>
           <p id="panel-message" class="panel-message" aria-live="polite"></p>
           <p id="panel-note" class="small muted"></p>
-          <ol id="log" class="log" hidden></ol>
+          <ol id="log" class="log" role="log" hidden></ol>
           <ul id="outside" class="outside" hidden></ul>
           <div id="diffs"></div>
         </section>

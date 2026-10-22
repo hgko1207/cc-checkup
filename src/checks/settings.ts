@@ -93,11 +93,19 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
   ];
 
   const problems: string[] = [];
-  if (missing.length === targets.length) {
+  const hasEnv = ctx.scan.envFiles.length > 0;
+  if (missing.length === targets.length && !hasEnv) {
+    // 아직 .env가 없는 폴더: 지금 새는 것은 없으니 예방 차원의 주의로 알린다
     problems.push(
       read
-        ? "Claude가 파일 도구와 cat 같은 명령으로 .env를 읽을 수 있습니다 (읽기 차단 규칙 없음)"
-        : "Claude가 .env 파일을 고쳐 쓸 수 있습니다 (쓰기 차단 규칙 없음)",
+        ? "아직 .env 파일은 없지만, 생기면 Claude가 읽을 수 있습니다 (읽기 차단 규칙 없음). 미리 막아 두세요"
+        : "아직 .env 파일은 없지만, 생기면 Claude가 고칠 수 있습니다 (쓰기 차단 규칙 없음). 미리 막아 두세요",
+    );
+  } else if (missing.length === targets.length) {
+    problems.push(
+      read
+        ? "Claude가 비밀 설정 파일(.env)을 읽을 수 있습니다 (읽기 차단 규칙 없음)"
+        : "Claude가 비밀 설정 파일(.env)을 고칠 수 있습니다 (쓰기 차단 규칙 없음)",
     );
   } else if (missing.length > 0) {
     problems.push(
@@ -105,7 +113,7 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
     );
   }
   if (uncovered.length > 0) {
-    problems.push(`${verb} 차단에서 빠진 실제 파일: ${listNames(uncovered)}`);
+    problems.push(`${verb} 차단이 안 된 .env 파일: ${listNames(uncovered)}`);
   }
   if (ctx.scan.truncated) {
     problems.push("파일이 많아 일부 폴더만 확인했습니다 (20만 개 상한)");
@@ -119,7 +127,8 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
       message: `.env ${verb} 차단: 기본 ${targets.length}개${extra} (${SCOPE_NOTE})`,
     };
   }
-  const severe = read && (missing.length === targets.length || uncovered.length > 0);
+  // 위험: 실제 .env가 있는데 읽기 차단이 없거나, 차단에서 빠진 실제 .env가 있을 때
+  const severe = read && ((missing.length === targets.length && hasEnv) || uncovered.length > 0);
   return {
     id,
     severity: severe ? "fail" : "warn",
@@ -198,6 +207,7 @@ function hooksFinding(settings: SettingsRead, kind: CheckContext["kind"]): Findi
       id: "hooks/present",
       severity: "ok",
       message: "위험 명령 차단 훅은 문서 폴더에서 선택 사항입니다",
+      notApplicable: true,
     };
   const message = "위험 명령(강제 푸시, rm -rf 등)을 막는 훅이 없습니다";
   // 훅을 더할 자리가 예상과 다르면(hooks·PreToolUse 형식) 기존 값을 바꿔야 해서 판단 필요

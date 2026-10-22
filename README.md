@@ -9,7 +9,7 @@
 이 저장소의 Claude Code 팀 세팅 진단
 
 위험
-  ✗ Claude가 파일 도구와 cat 같은 명령으로 .env를 읽을 수 있습니다 (읽기 차단 규칙 없음)
+  ✗ Claude가 비밀 설정 파일(.env)을 읽을 수 있습니다 (읽기 차단 규칙 없음)
 주의
   ! 권한 우회 모드가 막혀 있지 않습니다
   ! 위험 명령(강제 푸시, rm -rf 등)을 막는 훅이 없습니다
@@ -50,7 +50,7 @@
 
 ```powershell
 npm install
-npm run dist:win     # release\cc-checkup-setup-0.1.0.exe → 사내 배포 경로에 올린다
+npm run dist:win     # release\cc-checkup-setup-1.0.0.exe → 사내 배포 경로에 올린다
 npm run dist:mac     # macOS에서만: release/*.dmg, *.zip
 ```
 
@@ -105,9 +105,9 @@ npm uninstall -g cc-checkup   # 지우기
 
 ```powershell
 npm run build
-npm pack                                   # cc-checkup-0.1.0.tgz 생성 → 파일 전달
+npm pack                                   # cc-checkup-1.0.0.tgz 생성 → 파일 전달
 # 받은 사람 (Node 20 이상):
-npm install -g D:\받은경로\cc-checkup-0.1.0.tgz
+npm install -g D:\받은경로\cc-checkup-1.0.0.tgz
 cd 진단할-저장소
 cc-checkup
 ```

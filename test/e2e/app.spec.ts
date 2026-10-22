@@ -55,6 +55,8 @@ test("렌더러는 Node에 접근할 수 없고 정해진 함수만 보인다", 
       "fix",
       "getState",
       "onEvent",
+      "showFolder",
+      "openGuide",
       "openUpdate",
       "pickFolder",
       "pickStandard",
@@ -76,15 +78,25 @@ test("렌더러는 Node에 접근할 수 없고 정해진 함수만 보인다", 
 test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () => {
   const page = await app.firstWindow();
   await page.getByRole("button", { name: "폴더 열기…" }).click();
-  await expect(page.locator("#path")).toHaveText(repo);
+  await expect(page.locator("#path-full")).toHaveText(repo);
   const before = Number(await page.locator("#score").textContent());
   expect(before).toBeLessThan(100);
-  await expect(page.getByText("보안", { exact: true })).toBeVisible();
+  await expect(page.locator(".area h2").first()).toContainText("보안");
 
   // Esc로 패널을 닫으면 포커스가 누른 버튼으로 돌아온다
   const fixAll = page.getByRole("button", { name: /바로 고칠 수 있는 \d+개 고치기/ });
   await fixAll.click();
   await expect(page.locator("#panel-title")).toHaveText("바뀔 내용 확인");
+  // 모달: 뒤 화면은 inert, Shift+Tab·Tab을 여러 번 눌러도 패널 밖으로 나가지 않는다
+  expect(await page.evaluate(() => (document.querySelector(".side") as HTMLElement).inert)).toBe(
+    true,
+  );
+  for (const key of ["Shift+Tab", "Shift+Tab", "Tab", "Tab", "Tab"]) {
+    await page.keyboard.press(key);
+    expect(
+      await page.evaluate(() => document.getElementById("panel")!.contains(document.activeElement)),
+    ).toBe(true);
+  }
   await page.keyboard.press("Escape");
   await expect(page.locator("#panel")).toBeHidden();
   await expect(fixAll).toBeFocused();
@@ -94,8 +106,13 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   await expect(page.locator(".file-path").first()).toContainText(".claude/settings.json");
   // 미리 보는 동안 다른 고치기 버튼은 꺼진다
   await expect(page.getByRole("button", { name: "다시 점검" })).toBeDisabled();
+  // 미리 보기의 예상 점수가 적용 후 실제 점수와 같다
+  const summary = (await page.locator("#panel-message").textContent()) ?? "";
+  const expected = Number(/예상 점수 \d+ → (\d+)점/.exec(summary)?.[1]);
+  expect(expected).toBeGreaterThan(before);
   await page.locator("#panel-btns").getByRole("button", { name: "적용" }).click();
   await expect(page.locator("#panel-title")).toHaveText("적용했습니다");
+  await expect(page.locator("#score")).toHaveText(String(expected));
   await expect(page.locator("#panel-message")).toContainText(`점수 ${before} →`);
   expect(await exists(join(repo, ".claude", "settings.json"))).toBe(true);
   await expect
@@ -113,7 +130,11 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   await expect(page.locator("#kind-docs")).toBeChecked();
   await expect(page.locator("#kind-note")).toContainText("자동 판별");
   await page.locator("#kind-dev").check();
-  await expect(page.locator("#kind-note")).toHaveText("직접 고른 종류입니다");
+  await expect(page.locator("#kind-note")).toContainText("직접 지정: 개발 저장소 기준");
+  await expect(page.locator("#kind-note")).toContainText("자동 판별은 문서·기획 폴더");
+  await expect(page.locator("#notice")).toContainText("폴더 종류를 바꿔");
+  // 다시 점검 뒤에도 키보드 포커스가 라디오에 남는다
+  await expect(page.locator("#kind-dev")).toBeFocused();
   await expect(page.getByText("CLAUDE.md에 검증 명령이 있습니다")).toBeVisible();
   await page.getByRole("button", { name: "자동 판별로 되돌리기" }).click();
   await expect(page.locator("#kind-docs")).toBeChecked();
@@ -121,6 +142,16 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   // [자세히]를 누르면 이유가 펼쳐진다
   await page.getByRole("button", { name: "자세히" }).first().click();
   await expect(page.locator(".more").first()).toContainText("왜 문제인가");
+
+  // 통과 항목 숨기기
+  await page.getByLabel("통과 항목 숨기기").check();
+  await expect(page.locator(".finding.ok")).toHaveCount(0);
+  await page.getByLabel("통과 항목 숨기기").uncheck();
+  await expect(page.locator(".finding.ok").first()).toBeVisible();
+
+  // F5로 다시 점검
+  await page.keyboard.press("F5");
+  await expect(page.locator("#rerun")).toHaveText("다시 점검");
 
   // 최근 폴더에 점수와 함께 남는다
   await expect(page.locator("#recent")).toContainText(`${before}점`);

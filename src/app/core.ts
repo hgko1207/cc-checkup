@@ -30,6 +30,7 @@ import {
 } from "../claude-runner.js";
 import { diagnose, type Diagnosis } from "../diagnose.js";
 import { HOOK_DIR } from "../hook-template.js";
+import { score } from "../score.js";
 import { applyAll, lineDiff, planFixes, type FixCandidate, type FixPlan } from "../fix.js";
 import { commitGuide, formatMarkdown, writeReport } from "../report.js";
 import { detailFor } from "../details.js";
@@ -70,6 +71,7 @@ export interface CoreDeps {
   appVersion?: string; // 새 버전 알림 비교용
   openExternal?: (url: string) => Promise<void>; // http(s) 주소 열기
   showItem?: (path: string) => void; // 파일 탐색기에서 보기
+  openPath?: (path: string) => Promise<void>; // 폴더를 탐색기로 열기
 }
 
 interface Config {
@@ -77,6 +79,26 @@ interface Config {
 }
 
 export class InputError extends Error {}
+
+// 화면에 보여 줄 오류 문장: 무엇이 안 됐는지와 다음에 할 일 (Node 오류 코드를 사람 말로)
+export function friendlyError(e: unknown): string {
+  if (e instanceof InputError) return e.message;
+  const err = e as NodeJS.ErrnoException;
+  const where = err.path ? ` (${err.path})` : "";
+  switch (err.code) {
+    case "EACCES":
+    case "EPERM":
+      return `파일에 쓸 권한이 없습니다${where}. 읽기 전용 폴더이거나 다른 계정의 파일인지 확인한 뒤 다시 시도하세요.`;
+    case "EBUSY":
+      return `다른 프로그램이 파일을 쓰고 있습니다${where}. 편집기나 동기화 프로그램을 닫고 다시 시도하세요.`;
+    case "ENOENT":
+      return `파일이나 폴더를 찾지 못했습니다${where}. 폴더가 옮겨졌다면 [폴더 열기]로 다시 고르세요.`;
+    case "ENOSPC":
+      return "디스크 공간이 부족합니다. 공간을 확보한 뒤 다시 시도하세요.";
+    default:
+      return `처리하지 못했습니다: ${err.message ?? String(e)}. [다시 점검]을 누른 뒤 다시 시도하세요.`;
+  }
+}
 
 function str(v: unknown, what: string): string {
   if (typeof v !== "string" || v.length === 0 || v.length > 4096)
@@ -115,7 +137,7 @@ function fixFor(f: Finding, candidates: FixCandidate[]): FixCandidate | undefine
   if (f.severity === "ok") return undefined;
   // settings.json이 없으면 차단 규칙·우회 막기·훅 고치기가 그 파일을 만든다
   if (f.id === "settings/missing" && !f.judgment)
-    return candidates.find((c) => c.denyRules.length > 0 || c.bypass || c.hook);
+    return candidates.find((c) => c.denyRules.length > 0 || c.bypass || c.hook || c.plugins);
   return candidates.find(
     (c) =>
       (f.denyRules?.length && c.denyRules.length > 0) ||
@@ -124,6 +146,26 @@ function fixFor(f: Finding, candidates: FixCandidate[]): FixCandidate | undefine
       (f.pluginFix && c.plugins) ||
       (f.createFile && c.createFile?.path === f.createFile.path),
   );
+}
+
+// 고치기를 적용했을 때의 예상 점수. 해결되는 항목은 통과로 보고, settings.json을 새로 만들면
+// 생기는 "커밋 여부" 진단(checks/git.ts와 같은 규칙)을 더한다
+export function expectedScore(diag: Diagnosis, chosen: FixCandidate[]): number {
+  const findings: Finding[] = diag.findings.map((f) =>
+    fixFor(f, chosen) ? { ...f, severity: "ok" } : f,
+  );
+  const createsSettings =
+    diag.ctx.settings.state === "missing" &&
+    chosen.some((c) => c.denyRules.length > 0 || c.bypass || c.plugins || c.hook);
+  if (createsSettings) {
+    const { tracked, reason } = diag.ctx.git;
+    const skip = diag.kind === "docs" && reason === "git 저장소가 아닙니다";
+    if (tracked === false)
+      findings.push({ id: "settings/committed", severity: "fail", message: "" });
+    else if (tracked === null && !skip)
+      findings.push({ id: "settings/committed", severity: "warn", message: "" });
+  }
+  return score(findings, diag.ctx.standard);
 }
 
 export function toView(
@@ -136,7 +178,7 @@ export function toView(
   const byArea = new Map<Area, FindingView[]>();
   const order = { fail: 0, warn: 1, ok: 2 };
   for (const f of diag.findings) {
-    counts[f.severity]++;
+    if (!f.notApplicable) counts[f.severity]++; // 해당 없음은 통과로 세지 않는다
     const fix = fixFor(f, plan.candidates);
     const view: FindingView = {
       id: f.id,
@@ -144,11 +186,16 @@ export function toView(
       message: f.message,
       judgment: f.judgment,
       detail: detailFor(f.id),
+      notApplicable: f.notApplicable,
       example: f.severity === "ok" ? undefined : f.example || undefined,
     };
     if (fix) {
       view.fixNo = fix.no;
-      view.fixLabel = fix.createFile ? "바로 만들기" : fix.plugins ? "설치하기" : "바로 고치기";
+      view.fixLabel = fix.createFile
+        ? "바로 만들기"
+        : fix.plugins
+          ? "플러그인 설정 추가"
+          : "바로 고치기";
     }
     if (f.severity !== "ok" && f.claudeTask && diag.standard.standard.claudeTasks[f.claudeTask]) {
       view.claudeTask = f.claudeTask;
@@ -167,16 +214,30 @@ export function toView(
       title: AREA_TITLES[a],
       findings: (byArea.get(a) ?? []).sort((x, y) => order[x.severity] - order[y.severity]),
     }));
+  // 같은 고치기를 여러 항목이 나눠 쓰면(예: .env 차단 규칙) 화면에 먼저 나오는 항목에만 버튼을 둔다
+  const shown = new Set<number>();
+  for (const f of areas.flatMap((a) => a.findings)) {
+    if (f.fixNo === undefined) continue;
+    if (shown.has(f.fixNo)) {
+      f.fixSharedWith = f.fixNo;
+      delete f.fixNo;
+      delete f.fixLabel;
+    } else shown.add(f.fixNo);
+  }
   return {
     path: diag.ctx.repoDir,
     score: diag.score,
     standard: describeStandard(diag.standard),
+    standardName: `${diag.standard.standard.name} ${diag.standard.standard.version}`,
     kind: diag.kind,
     kindAuto,
     kindReason: diag.kindGuess.reason,
+    kindGuess: diag.kindGuess.kind,
     counts,
     areas,
     fixes: plan.candidates.map((c) => ({ no: c.no, title: c.title })),
+    weights: diag.ctx.standard.score,
+    expectedScore: plan.candidates.length > 0 ? expectedScore(diag, plan.candidates) : undefined,
     blocked: plan.blocked,
     canUndo,
   };
@@ -314,6 +375,13 @@ export class AppCore {
     const state: AppState = {
       recent: this.recent,
       standard: describeStandard(loaded),
+      standardInfo: {
+        name: loaded.standard.name,
+        version: loaded.standard.version,
+        file: loaded.source === "shared" && loaded.path ? basename(loaded.path) : undefined,
+        path: loaded.source === "shared" ? loaded.path : undefined,
+        guideUrl: loaded.standard.guideUrl,
+      },
       standardError: loaded.error,
       claude: this.claudeStatus,
       running: isClaudeRunning(),
@@ -337,6 +405,16 @@ export class AppCore {
     if (/^https?:\/\//i.test(url)) await this.deps.openExternal?.(url);
     else if (isAbsolute(url) || url.startsWith("\\\\")) this.deps.showItem?.(url);
     else throw new InputError(`열 수 없는 위치입니다: ${url}`);
+  }
+
+  async showFolder(v: unknown): Promise<void> {
+    await this.deps.openPath?.(this.folder(v));
+  }
+
+  async openGuide(): Promise<void> {
+    const url = (await this.standard()).standard.guideUrl;
+    if (!url) throw new InputError("사내 표준 파일에 가이드 주소(guideUrl)가 없습니다");
+    await this.deps.openExternal?.(url);
   }
 
   async pickFolder(recent?: unknown): Promise<string | null> {
@@ -383,7 +461,13 @@ export class AppCore {
       await this.remember(path, undefined, kindIn === "auto" ? null : kindIn);
     }
     const { diag, plan } = await this.run(path);
-    await this.remember(path, diag.score);
+    // 직접 고른 종류가 자동 판별과 같으면 직접 지정을 풀고 자동으로 둔다
+    const chosen = this.entry(path)?.kind;
+    await this.remember(
+      path,
+      diag.score,
+      chosen && chosen === diag.kindGuess.kind ? null : undefined,
+    );
     const canUndo = (await findUndoTarget(path, this.deps.backup)) !== null;
     return toView(diag, plan, canUndo, this.entry(path)?.kind === undefined);
   }
@@ -428,6 +512,7 @@ export class AppCore {
         }),
         items: chosen.map((c) => ({ no: c.no, title: c.title })),
         resolves: diag.findings.filter((f) => fixFor(f, chosen) !== undefined).length,
+        expectedScore: expectedScore(diag, chosen),
       };
     }
     const p = this.fixPreview;

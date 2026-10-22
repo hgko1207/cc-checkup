@@ -25,6 +25,7 @@ export interface AppState {
   recent: RecentFolder[];
   standard: string; // "이름 버전 (기본 내장|공유 파일: 경로)"
   standardError?: string; // 공유 파일을 쓰지 못한 이유
+  standardInfo: { name: string; version: string; file?: string; path?: string; guideUrl?: string };
   claude: ClaudeStatus;
   running: boolean; // Claude 작업 실행 중 또는 확인 대기 중
   update?: { current: string; latest: string; downloadUrl?: string; note?: string }; // 새 버전 알림
@@ -38,10 +39,12 @@ export interface FindingView {
   detail?: { why: string; fix?: string; limit?: string }; // [자세히]
   example?: string; // [예시 보기]
   fixNo?: number; // 바로 고치기 후보 번호
-  fixLabel?: string; // 바로 고치기 | 바로 만들기 | 설치하기
+  fixLabel?: string; // 바로 고치기 | 바로 만들기 | 플러그인 설정 추가
+  fixSharedWith?: number; // 다른 항목의 바로 고치기에 함께 포함됨 (버튼은 그 항목에만)
   claudeTask?: string;
   claudeLabel?: string; // Claude로 반영 | Claude로 만들기
   claudeTargets?: string[]; // Claude가 고칠 수 있는 파일 (실행 전 확인에 보여 줌)
+  notApplicable?: boolean; // 이 폴더 종류에는 해당 없음
 }
 
 export interface AreaView {
@@ -54,9 +57,13 @@ export interface DiagnosisView {
   path: string;
   score: number;
   standard: string;
+  standardName: string; // "이름 버전"
+  weights: { fail: number; warn: number }; // 위험·주의 한 건의 감점
+  expectedScore?: number; // 바로 고칠 수 있는 것을 모두 고쳤을 때 예상 점수
   kind: Kind;
   kindAuto: boolean; // 자동 판별 결과를 쓰는 중
   kindReason: string; // 자동 판별 이유
+  kindGuess: Kind; // 자동 판별 결과 (직접 고른 종류와 다를 수 있음)
   counts: Record<Severity, number>;
   areas: AreaView[];
   fixes: { no: number; title: string }[];
@@ -78,6 +85,7 @@ export type FixView =
       previews: FilePreview[];
       items: { no: number; title: string }[]; // 고르는 고치기 항목
       resolves: number; // 이 고치기로 통과로 바뀌는 진단 항목 수
+      expectedScore: number; // 적용했을 때 예상 점수
     }
   | { kind: "applied"; files: string[]; backupDir: string; commitHint: string };
 
@@ -139,5 +147,7 @@ export interface CcCheckupApi {
   undo(path: string, apply: boolean): Promise<UndoView>;
   saveReport(path: string): Promise<string | null>;
   openUpdate(): Promise<void>; // 사내 표준 파일이 알려 준 새 설치 파일 위치 열기
+  openGuide(): Promise<void>; // 사내 표준 파일의 guideUrl 열기
+  showFolder(path: string): Promise<void>; // 점검 중인 폴더를 탐색기로 열기
   onEvent(cb: (e: AppEvent) => void): () => void;
 }

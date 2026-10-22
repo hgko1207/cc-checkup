@@ -1,6 +1,6 @@
 {
   "name": "cc-checkup",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "저장소의 Claude Code 팀 세팅 상태를 사내 표준과 비교해 진단·반영하는 CLI와 설치형 앱",
   "type": "module",
   "bin": {

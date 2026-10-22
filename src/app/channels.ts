@@ -10,6 +10,8 @@ export const CHANNELS = {
   undo: "cc:undo",
   saveReport: "cc:saveReport",
   openUpdate: "cc:openUpdate",
+  openGuide: "cc:openGuide",
+  showFolder: "cc:showFolder",
 } as const;
 
 export const EVENT_CHANNEL = "cc:event";

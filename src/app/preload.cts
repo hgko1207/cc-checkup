@@ -19,6 +19,8 @@ const api: CcCheckupApi = {
   undo: (path, apply) => call("cc:undo", path, apply),
   saveReport: (path) => call("cc:saveReport", path),
   openUpdate: () => call("cc:openUpdate"),
+  openGuide: () => call("cc:openGuide"),
+  showFolder: (path) => call("cc:showFolder", path),
   onEvent: (cb) => {
     const listener = (_e: unknown, ev: AppEvent) => cb(ev);
     ipcRenderer.on("cc:event", listener);
