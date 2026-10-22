@@ -81,11 +81,22 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   expect(before).toBeLessThan(100);
   await expect(page.getByText("보안", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "바로 고칠 수 있는 것 모두" }).click();
+  // Esc로 패널을 닫으면 포커스가 누른 버튼으로 돌아온다
+  const fixAll = page.getByRole("button", { name: /바로 고칠 수 있는 \d+개 고치기/ });
+  await fixAll.click();
   await expect(page.locator("#panel-title")).toHaveText("바뀔 내용 확인");
-  await expect(page.locator(".diff-title").first()).toContainText(".claude/settings.json");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#panel")).toBeHidden();
+  await expect(fixAll).toBeFocused();
+
+  await fixAll.click();
+  await expect(page.locator("#panel-title")).toHaveText("바뀔 내용 확인");
+  await expect(page.locator(".file-path").first()).toContainText(".claude/settings.json");
+  // 미리 보는 동안 다른 고치기 버튼은 꺼진다
+  await expect(page.getByRole("button", { name: "다시 점검" })).toBeDisabled();
   await page.locator("#panel-btns").getByRole("button", { name: "적용" }).click();
   await expect(page.locator("#panel-title")).toHaveText("적용했습니다");
+  await expect(page.locator("#panel-message")).toContainText(`점수 ${before} →`);
   expect(await exists(join(repo, ".claude", "settings.json"))).toBe(true);
   await expect
     .poll(async () => Number(await page.locator("#score").textContent()))

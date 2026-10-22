@@ -17,7 +17,7 @@ describe("진단 1 CLAUDE.md (R8)", () => {
   it("루트만 있어도 ok", async () => {
     const [f] = await run({ "CLAUDE.md": "# 프로젝트\n" });
     expect(f?.severity).toBe("ok");
-    expect(f?.message).toBe("CLAUDE.md 1줄");
+    expect(f?.message).toBe("CLAUDE.md 1줄 (기준 200줄 이하)");
   });
 
   it(".claude/CLAUDE.md만 있어도 ok", async () => {

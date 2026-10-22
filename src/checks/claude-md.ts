@@ -75,7 +75,7 @@ export const checkClaudeMd: Check = async ({ repoDir, standard }) => {
           message: `${name}가 ${lines}줄입니다 (권장 ${maxLines}줄 이하)`,
           judgment: `${name}의 긴 설명을 docs/로 옮기고 링크만 남기세요`,
         }
-      : { id: "claude-md", severity: "ok", message: `${name} ${lines}줄` };
+      : { id: "claude-md", severity: "ok", message: `${name} ${lines}줄 (기준 ${maxLines}줄 이하)` };
   });
 
   // 표준에 "verify" 섹션이 있을 때만 검증 명령을 본다 (기본 표준에는 있음)

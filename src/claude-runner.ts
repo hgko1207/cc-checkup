@@ -561,7 +561,7 @@ async function runLocked(
   let settled = false;
   return result(
     "ready",
-    `${diffs.map((d) => d.path).join(", ")}이(가) 바뀌었습니다. 확인 후 적용하거나 취소하세요`,
+    `바뀐 파일: ${diffs.map((d) => d.path).join(", ")}. 확인 후 적용하거나 취소하세요`,
     {
       diffs,
       keep: async () => {

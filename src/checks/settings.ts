@@ -176,7 +176,7 @@ export function matcherHitsBash(matcher: unknown): boolean {
   }
 }
 
-function hooksFinding(settings: SettingsRead): Finding {
+function hooksFinding(settings: SettingsRead, kind: CheckContext["kind"]): Finding {
   const data = settings.state === "ok" ? settings.data : {};
   const hooks = isObject(data.hooks) ? data.hooks : {};
   const pre = Array.isArray(hooks.PreToolUse) ? hooks.PreToolUse : [];
@@ -192,6 +192,13 @@ function hooksFinding(settings: SettingsRead): Finding {
         : "Bash 명령 전에 실행되는 훅이 있습니다 (내용은 확인하지 않음)",
     };
   }
+  // 문서·기획 폴더는 Claude가 git·삭제 명령을 쓸 일이 드물어 선택 사항으로 둔다 (점수에 넣지 않음)
+  if (kind === "docs")
+    return {
+      id: "hooks/present",
+      severity: "ok",
+      message: "위험 명령 차단 훅은 문서 폴더에서 선택 사항입니다",
+    };
   const message = "위험 명령(강제 푸시, rm -rf 등)을 막는 훅이 없습니다";
   // 훅을 더할 자리가 예상과 다르면(hooks·PreToolUse 형식) 기존 값을 바꿔야 해서 판단 필요
   const shapeOk =
@@ -255,6 +262,6 @@ export const checkSettings: Check = async (ctx) => {
   findings.push(envDenyFinding(ctx, deny, "Edit"));
   findings.push(riskyAllowFinding(stringArray(permissions.allow)));
   findings.push(bypassFinding(permissions));
-  findings.push(hooksFinding(settings));
+  findings.push(hooksFinding(settings, ctx.kind));
   return findings;
 };
