@@ -31,8 +31,11 @@ async function exists(p: string): Promise<boolean> {
 
 const S = ".claude/settings.json";
 
+// Windows 경로 규칙(드라이브 문자·대소문자 무시·역슬래시)을 실제 파일 시스템으로 확인하는 테스트는 Windows에서만
+const onWindows = it.skipIf(process.platform !== "win32");
+
 describe("normalizeBase (R3)", () => {
-  it("Windows에서는 대소문자·끝 구분자·상대 경로가 달라도 같은 키", async () => {
+  onWindows("Windows에서는 대소문자·끝 구분자·상대 경로가 달라도 같은 키", async () => {
     const dir = await repoWith({});
     const a = normalizeBase(dir, "win32");
     expect(normalizeBase(dir.toUpperCase(), "win32").hash).toBe(a.hash);
@@ -48,7 +51,7 @@ describe("normalizeBase (R3)", () => {
     expect(normalizeBase(link, "win32").hash).toBe(normalizeBase(dir, "win32").hash);
   });
 
-  it("드라이브 루트는 끝 구분자를 남긴다", () => {
+  onWindows("드라이브 루트는 끝 구분자를 남긴다", () => {
     expect(normalizeBase("C:\\", "win32").normalized).toBe("c:\\");
   });
 });
@@ -129,7 +132,7 @@ describe("--undo (R5)", () => {
     expect(await findUndoTarget(repo, opts)).toBeNull();
   });
 
-  it("다른 표기(대문자)로 실행해도 같은 백업을 찾는다", async () => {
+  onWindows("다른 표기(대문자)로 실행해도 같은 백업을 찾는다", async () => {
     const repo = await repoWith({ [S]: "v0" });
     const opts = { ...(await home()), now: clock(), platform: "win32" as const };
     await applyWithBackup(repo, [{ path: S, content: "v1" }], opts);
