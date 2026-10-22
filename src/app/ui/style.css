@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --bg: #f6f5f2;
   --surface: #ffffff;
   --ink: #1d1d1b;
@@ -22,6 +23,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark;
     --bg: #171716;
     --surface: #212120;
     --ink: #ecebe6;
@@ -365,6 +367,10 @@ body {
 .btn.ghost {
   background: transparent;
   border-color: transparent;
+  color: var(--accent);
+}
+.btn.ghost:hover:not(:disabled) {
+  border-color: var(--line);
 }
 .btn.small {
   font-size: 12px;
@@ -453,16 +459,24 @@ body {
   color: var(--warn);
 }
 
+.scrim {
+  position: fixed;
+  inset: 0 0 0 270px;
+  background: rgb(0 0 0 / 0.28);
+  z-index: 5;
+}
 .panel {
-  position: sticky;
-  bottom: 0;
-  flex-shrink: 0;
+  position: fixed;
+  left: calc(270px + 24px);
+  right: 24px;
+  bottom: 16px;
+  z-index: 6;
   background: var(--surface);
-  border: 1px solid var(--ink-2);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 14px 16px;
-  box-shadow: 0 -6px 24px rgb(0 0 0 / 0.08);
-  max-height: 62vh;
+  box-shadow: 0 12px 36px rgb(0 0 0 / 0.18);
+  max-height: min(72vh, 720px);
   overflow-y: auto;
 }
 .panel-head {
@@ -523,6 +537,21 @@ body {
   .main {
     overflow: visible;
   }
+  .shell {
+    display: flex;
+    flex-direction: column;
+  }
+  .main {
+    order: -1;
+  }
+  .scrim {
+    inset: 0;
+  }
+  .panel {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+  }
   .side {
     border-right: 0;
     border-bottom: 1px solid var(--line);
@@ -564,9 +593,10 @@ body {
 
 /* 미리 보기: 고를 항목 */
 .pick {
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 8px 12px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0 0 10px;
   margin: 0 0 12px;
   display: grid;
   gap: 4px;
@@ -575,7 +605,7 @@ body {
   font-size: 12px;
   font-weight: 600;
   color: var(--ink-2);
-  padding: 0 4px;
+  padding: 0 0 4px;
 }
 .pick-item {
   display: flex;
@@ -619,8 +649,6 @@ body {
   border-top: 1px solid var(--line);
   padding: 8px 0;
   overflow-x: auto;
-  max-height: 420px;
-  overflow-y: auto;
 }
 .file pre span {
   display: block;
@@ -681,4 +709,50 @@ body {
 }
 #open-guide {
   margin-bottom: 6px;
+}
+
+/* 머리말: 폴더 이름이 제목, 경로는 보조 줄 */
+.folder {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  word-break: break-all;
+}
+.folder:focus {
+  outline: none;
+}
+.how {
+  max-width: 64ch;
+  margin: 2px 0 6px;
+}
+.notice-line {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--accent);
+  word-break: keep-all;
+}
+
+/* 해당 없음 (이 폴더 종류에는 보지 않는 항목) */
+.badge.na {
+  background: var(--code-bg);
+  color: var(--ink-2);
+}
+.finding.na .msg {
+  color: var(--ink-2);
+}
+
+/* 진단 문장의 보조 줄, 꺼진 버튼의 이유 */
+.finding .sub {
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-top: 2px;
+  word-break: keep-all;
+}
+.why-off {
+  flex-basis: 100%;
+  text-align: right;
+  font-size: 11px;
+  color: var(--ink-2);
+  max-width: 180px;
+  word-break: keep-all;
 }

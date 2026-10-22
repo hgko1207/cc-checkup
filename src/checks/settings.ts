@@ -198,6 +198,7 @@ function hooksFinding(settings: SettingsRead, kind: CheckContext["kind"]): Findi
       id: "hooks/present",
       severity: "ok",
       message: "위험 명령 차단 훅은 문서 폴더에서 선택 사항입니다",
+      notApplicable: true,
     };
   const message = "위험 명령(강제 푸시, rm -rf 등)을 막는 훅이 없습니다";
   // 훅을 더할 자리가 예상과 다르면(hooks·PreToolUse 형식) 기존 값을 바꿔야 해서 판단 필요

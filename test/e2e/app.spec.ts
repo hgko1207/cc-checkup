@@ -77,7 +77,7 @@ test("렌더러는 Node에 접근할 수 없고 정해진 함수만 보인다", 
 test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () => {
   const page = await app.firstWindow();
   await page.getByRole("button", { name: "폴더 열기…" }).click();
-  await expect(page.locator("#path")).toHaveText(repo);
+  await expect(page.locator("#path-full")).toHaveText(repo);
   const before = Number(await page.locator("#score").textContent());
   expect(before).toBeLessThan(100);
   await expect(page.getByText("보안", { exact: true })).toBeVisible();
@@ -95,8 +95,13 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   await expect(page.locator(".file-path").first()).toContainText(".claude/settings.json");
   // 미리 보는 동안 다른 고치기 버튼은 꺼진다
   await expect(page.getByRole("button", { name: "다시 점검" })).toBeDisabled();
+  // 미리 보기의 예상 점수가 적용 후 실제 점수와 같다
+  const summary = (await page.locator("#panel-message").textContent()) ?? "";
+  const expected = Number(/예상 점수 \d+ → (\d+)점/.exec(summary)?.[1]);
+  expect(expected).toBeGreaterThan(before);
   await page.locator("#panel-btns").getByRole("button", { name: "적용" }).click();
   await expect(page.locator("#panel-title")).toHaveText("적용했습니다");
+  await expect(page.locator("#score")).toHaveText(String(expected));
   await expect(page.locator("#panel-message")).toContainText(`점수 ${before} →`);
   expect(await exists(join(repo, ".claude", "settings.json"))).toBe(true);
   await expect

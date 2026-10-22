@@ -412,3 +412,33 @@ describe("오류 문장·사내 가이드·표준 표시", () => {
     expect(opened).toEqual(["https://wiki.example.com/c"]);
   });
 });
+
+describe("예상 점수", () => {
+  it("git 저장소에 settings.json을 새로 만들면 커밋 전 위험까지 넣어 실제 점수와 같다", async () => {
+    // setup의 fakeGit은 "pathspec did not match"(git 저장소인데 추적 안 됨)를 돌려준다
+    const { core, repo } = await setup();
+    await core.pickFolder();
+    const before = await core.diagnose(repo, "dev");
+    const nos = before.fixes.map((f) => f.no);
+    const preview = await core.fix(repo, nos, false);
+    if (preview.kind !== "preview") throw new Error("preview");
+    expect(before.expectedScore).toBe(preview.expectedScore);
+    await core.fix(repo, nos, true);
+    const after = await core.diagnose(repo);
+    expect(after.score).toBe(preview.expectedScore);
+    // 커밋 전이라 settings/committed 위험이 남는다
+    expect(
+      after.areas.flatMap((a) => a.findings).find((f) => f.id === "settings/committed")?.severity,
+    ).toBe("fail");
+  });
+
+  it("문서 폴더의 해당 없음 항목은 통과로 세지 않는다", async () => {
+    const { core, repo } = await setup({ "기획.md": "# 기획\n" });
+    await core.pickFolder();
+    const v = await core.diagnose(repo, "docs");
+    const hook = v.areas.flatMap((a) => a.findings).find((f) => f.id === "hooks/present");
+    expect(hook?.notApplicable).toBe(true);
+    const all = v.areas.flatMap((a) => a.findings);
+    expect(v.counts.ok).toBe(all.filter((f) => f.severity === "ok" && !f.notApplicable).length);
+  });
+});

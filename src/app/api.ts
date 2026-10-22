@@ -43,6 +43,7 @@ export interface FindingView {
   claudeTask?: string;
   claudeLabel?: string; // Claude로 반영 | Claude로 만들기
   claudeTargets?: string[]; // Claude가 고칠 수 있는 파일 (실행 전 확인에 보여 줌)
+  notApplicable?: boolean; // 이 폴더 종류에는 해당 없음
 }
 
 export interface AreaView {
@@ -56,6 +57,8 @@ export interface DiagnosisView {
   score: number;
   standard: string;
   standardName: string; // "이름 버전"
+  weights: { fail: number; warn: number }; // 위험·주의 한 건의 감점
+  expectedScore?: number; // 바로 고칠 수 있는 것을 모두 고쳤을 때 예상 점수
   kind: Kind;
   kindAuto: boolean; // 자동 판별 결과를 쓰는 중
   kindReason: string; // 자동 판별 이유
@@ -80,6 +83,7 @@ export type FixView =
       previews: FilePreview[];
       items: { no: number; title: string }[]; // 고르는 고치기 항목
       resolves: number; // 이 고치기로 통과로 바뀌는 진단 항목 수
+      expectedScore: number; // 적용했을 때 예상 점수
     }
   | { kind: "applied"; files: string[]; backupDir: string; commitHint: string };
 

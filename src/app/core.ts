@@ -30,6 +30,7 @@ import {
 } from "../claude-runner.js";
 import { diagnose, type Diagnosis } from "../diagnose.js";
 import { HOOK_DIR } from "../hook-template.js";
+import { score } from "../score.js";
 import { applyAll, lineDiff, planFixes, type FixCandidate, type FixPlan } from "../fix.js";
 import { commitGuide, formatMarkdown, writeReport } from "../report.js";
 import { detailFor } from "../details.js";
@@ -135,7 +136,7 @@ function fixFor(f: Finding, candidates: FixCandidate[]): FixCandidate | undefine
   if (f.severity === "ok") return undefined;
   // settings.json이 없으면 차단 규칙·우회 막기·훅 고치기가 그 파일을 만든다
   if (f.id === "settings/missing" && !f.judgment)
-    return candidates.find((c) => c.denyRules.length > 0 || c.bypass || c.hook);
+    return candidates.find((c) => c.denyRules.length > 0 || c.bypass || c.hook || c.plugins);
   return candidates.find(
     (c) =>
       (f.denyRules?.length && c.denyRules.length > 0) ||
@@ -144,6 +145,26 @@ function fixFor(f: Finding, candidates: FixCandidate[]): FixCandidate | undefine
       (f.pluginFix && c.plugins) ||
       (f.createFile && c.createFile?.path === f.createFile.path),
   );
+}
+
+// 고치기를 적용했을 때의 예상 점수. 해결되는 항목은 통과로 보고, settings.json을 새로 만들면
+// 생기는 "커밋 여부" 진단(checks/git.ts와 같은 규칙)을 더한다
+export function expectedScore(diag: Diagnosis, chosen: FixCandidate[]): number {
+  const findings: Finding[] = diag.findings.map((f) =>
+    fixFor(f, chosen) ? { ...f, severity: "ok" } : f,
+  );
+  const createsSettings =
+    diag.ctx.settings.state === "missing" &&
+    chosen.some((c) => c.denyRules.length > 0 || c.bypass || c.plugins || c.hook);
+  if (createsSettings) {
+    const { tracked, reason } = diag.ctx.git;
+    const skip = diag.kind === "docs" && reason === "git 저장소가 아닙니다";
+    if (tracked === false)
+      findings.push({ id: "settings/committed", severity: "fail", message: "" });
+    else if (tracked === null && !skip)
+      findings.push({ id: "settings/committed", severity: "warn", message: "" });
+  }
+  return score(findings, diag.ctx.standard);
 }
 
 export function toView(
@@ -156,7 +177,7 @@ export function toView(
   const byArea = new Map<Area, FindingView[]>();
   const order = { fail: 0, warn: 1, ok: 2 };
   for (const f of diag.findings) {
-    counts[f.severity]++;
+    if (!f.notApplicable) counts[f.severity]++; // 해당 없음은 통과로 세지 않는다
     const fix = fixFor(f, plan.candidates);
     const view: FindingView = {
       id: f.id,
@@ -164,6 +185,7 @@ export function toView(
       message: f.message,
       judgment: f.judgment,
       detail: detailFor(f.id),
+      notApplicable: f.notApplicable,
       example: f.severity === "ok" ? undefined : f.example || undefined,
     };
     if (fix) {
@@ -198,6 +220,8 @@ export function toView(
     counts,
     areas,
     fixes: plan.candidates.map((c) => ({ no: c.no, title: c.title })),
+    weights: diag.ctx.standard.score,
+    expectedScore: plan.candidates.length > 0 ? expectedScore(diag, plan.candidates) : undefined,
     blocked: plan.blocked,
     canUndo,
   };
@@ -462,6 +486,7 @@ export class AppCore {
         }),
         items: chosen.map((c) => ({ no: c.no, title: c.title })),
         resolves: diag.findings.filter((f) => fixFor(f, chosen) !== undefined).length,
+        expectedScore: expectedScore(diag, chosen),
       };
     }
     const p = this.fixPreview;

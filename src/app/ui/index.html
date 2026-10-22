@@ -91,13 +91,19 @@
         <div id="report" hidden>
           <header class="summary">
             <div>
-              <h1 id="path" class="path"></h1>
+              <h1 id="path" class="folder" tabindex="-1"></h1>
+              <p id="path-full" class="path"></p>
               <div class="score-line">
                 <span id="score" class="score"></span><span class="score-max">/ 100</span>
                 <span id="goal" class="goal"></span>
+                <button id="score-how" class="linkish" type="button" aria-controls="score-how-text">
+                  점수 계산 방법
+                </button>
               </div>
+              <p id="score-how-text" class="small muted how" hidden></p>
               <div id="counts" class="counts"></div>
               <div id="std-line" class="small muted"></div>
+              <p id="notice" class="notice-line" role="status" hidden></p>
             </div>
             <div class="summary-btns">
               <button id="fix-all" class="btn primary" type="button" hidden>
@@ -117,7 +123,15 @@
           <div id="areas"></div>
         </div>
 
-        <section id="panel" class="panel" hidden aria-labelledby="panel-title">
+        <div id="scrim" class="scrim" hidden></div>
+        <section
+          id="panel"
+          class="panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="panel-title"
+          hidden
+        >
           <div class="panel-head">
             <h2 id="panel-title" tabindex="-1">진행 · 변경 확인</h2>
             <div class="row-btns">
@@ -129,7 +143,7 @@
           </div>
           <p id="panel-message" class="panel-message" aria-live="polite"></p>
           <p id="panel-note" class="small muted"></p>
-          <ol id="log" class="log" hidden></ol>
+          <ol id="log" class="log" role="log" hidden></ol>
           <ul id="outside" class="outside" hidden></ul>
           <div id="diffs"></div>
         </section>

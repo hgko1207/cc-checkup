@@ -25,6 +25,8 @@ export interface Finding {
   example?: string;
   // "바로 고치기" 후보: 위험 명령 차단 훅을 저장소에 넣는다
   hookFix?: boolean;
+  // 이 폴더 종류에는 해당하지 않아 점수에 넣지 않는 항목 (화면에 "해당 없음"으로)
+  notApplicable?: boolean;
 }
 
 // settings.json의 줄바꿈·들여쓰기·BOM (고쳐 쓸 때 그대로 유지)
