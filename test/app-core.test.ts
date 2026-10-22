@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AppEvent, ClaudeView } from "../src/app/api.js";
 import { CHANNELS, EVENT_CHANNEL } from "../src/app/channels.js";
-import { AppCore, InputError, areaOf, type CoreDeps } from "../src/app/core.js";
+import { AppCore, InputError, areaOf, friendlyError, type CoreDeps } from "../src/app/core.js";
 import { fakeGit, repoWith } from "./helpers.js";
 
 const FAKE = join(process.cwd(), "test", "fixtures", "fake-claude.mjs");
@@ -372,5 +372,43 @@ describe("새 버전 알림·Claude 다시 확인", () => {
     expect((await core.getState()).claude.loggedIn).toBe(false);
     expect((await core.getState(true)).claude.loggedIn).toBe(true);
     await expect(core.getState("yes")).rejects.toThrow(InputError);
+  });
+});
+
+describe("오류 문장·사내 가이드·표준 표시", () => {
+  it("파일 오류는 무엇이 안 됐는지와 다음 할 일로 바꾼다", () => {
+    const err = (code: string) => Object.assign(new Error("x"), { code, path: "C:/r/a.json" });
+    expect(friendlyError(err("EACCES"))).toContain("쓸 권한이 없습니다 (C:/r/a.json)");
+    expect(friendlyError(err("EBUSY"))).toContain("다른 프로그램이 파일을 쓰고 있습니다");
+    expect(friendlyError(err("ENOENT"))).toContain("[폴더 열기]로 다시 고르세요");
+    expect(friendlyError(new InputError("입력 오류"))).toBe("입력 오류");
+    expect(friendlyError(new Error("boom"))).toContain("[다시 점검]");
+  });
+
+  it("표준 이름·버전·파일 이름과 가이드 주소를 알려 주고 가이드를 연다", async () => {
+    const { deps } = await setup();
+    const file = join(await mkdtemp(join(tmpdir(), "cc-std-")), "team.json");
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(
+      file,
+      JSON.stringify({ name: "우리 표준", version: "2.1", guideUrl: "https://wiki.example.com/c" }),
+    );
+    const opened: string[] = [];
+    const core = new AppCore({
+      ...deps,
+      pickStandardFile: async () => file,
+      openExternal: async (u) => void opened.push(u),
+    });
+    await core.init();
+    await expect(core.openGuide()).rejects.toThrow("guideUrl");
+    const s = await core.pickStandard();
+    expect(s.standardInfo).toMatchObject({
+      name: "우리 표준",
+      version: "2.1",
+      file: "team.json",
+      guideUrl: "https://wiki.example.com/c",
+    });
+    await core.openGuide();
+    expect(opened).toEqual(["https://wiki.example.com/c"]);
   });
 });

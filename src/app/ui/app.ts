@@ -58,8 +58,36 @@ let returnFocus: HTMLElement | null = null;
 let dismissedUpdate: string | null = null;
 let elapsedTimer: number | undefined;
 const expanded = new Set<string>(); // 펼친 [자세히]·[예시 보기] (항목 id:종류)
+let loading = false; // 진단 중 (점수 자리에 "점검 중…")
+
+// 통과 항목 숨기기는 이 PC에만 기억한다 (저장소를 쓸 수 없으면 기억하지 않음)
+function readHideOk(): boolean {
+  try {
+    return localStorage.getItem("hideOk") === "1";
+  } catch {
+    return false;
+  }
+}
+let hideOk = readHideOk();
 
 const READY_SCORE = 80; // 이 점수 이상이면 "준비됨"
+
+// 상태 아이콘 (직접 그린 SVG, 굵기 하나)
+const SVG_NS = "http://www.w3.org/2000/svg";
+const ICON_PATH = {
+  fail: "M7 7l10 10M17 7L7 17",
+  warn: "M12 6v7M12 17.5v.01",
+  ok: "M6 12.5l4 4 8-9",
+};
+function icon(kind: keyof typeof ICON_PATH): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS(SVG_NS, "path");
+  path.setAttribute("d", ICON_PATH[kind]);
+  svg.append(path);
+  return svg;
+}
 
 function setBusy(v: boolean): void {
   busy = v;
@@ -220,6 +248,7 @@ async function refreshState(): Promise<void> {
 }
 
 async function load(path: string, kind?: Kind | "auto"): Promise<void> {
+  loading = true;
   setBusy(true);
   try {
     current = await api.diagnose(path, kind);
@@ -227,6 +256,7 @@ async function load(path: string, kind?: Kind | "auto"): Promise<void> {
   } catch (e) {
     showError(e);
   } finally {
+    loading = false;
     setBusy(false);
   }
 }
@@ -566,7 +596,6 @@ async function saveReport(): Promise<void> {
 
 // ---- 그리기 ----
 
-const ICON = { fail: "✗", warn: "!", ok: "✓" };
 const SEVERITY = { fail: "위험", warn: "주의", ok: "통과" };
 
 function renderFinding(f: FindingView): HTMLElement {
@@ -638,7 +667,7 @@ function renderFinding(f: FindingView): HTMLElement {
       "span",
       { class: `badge ${f.severity}` },
       h("span", { class: "sr-only" }, SEVERITY[f.severity]),
-      h("span", { class: "glyph" }, ICON[f.severity]),
+      icon(f.severity),
     ),
     body,
     acts,
@@ -701,7 +730,12 @@ function render(): void {
             return h("li", {}, b);
           })),
     );
-    $("standard").textContent = state.standard;
+    // 사내 표준: 이름·버전과 파일 이름만, 전체 경로는 마우스를 올리면
+    const si = state.standardInfo;
+    const std = $("standard");
+    std.textContent = `${si.name} ${si.version}${si.file ? ` · ${si.file}` : " · 기본 내장"}`;
+    std.title = si.path ?? "";
+    $("open-guide").hidden = !si.guideUrl;
     const se = $("standard-error");
     se.hidden = !state.standardError;
     se.textContent = state.standardError ? `기본 표준으로 진단합니다: ${state.standardError}` : "";
@@ -740,12 +774,15 @@ function render(): void {
   $("path").textContent = current.path;
   const score = $("score");
   score.textContent = String(current.score);
-  score.className = `score ${current.score >= READY_SCORE ? "good" : current.score >= 50 ? "mid" : "bad"}`;
-  $("goal").textContent =
-    current.score >= READY_SCORE ? "준비됨" : `${READY_SCORE}점 이상이면 준비됨`;
+  score.className = `score ${current.score >= READY_SCORE ? "good" : current.score >= 50 ? "mid" : "bad"}${loading ? " stale" : ""}`;
+  $("goal").textContent = loading
+    ? "점검 중…"
+    : current.score >= READY_SCORE
+      ? "준비됨"
+      : `${READY_SCORE}점 이상이면 준비됨`;
   $("counts").textContent =
     `위험 ${current.counts.fail} · 주의 ${current.counts.warn} · 통과 ${current.counts.ok}`;
-  $("std-line").textContent = `사내 표준: ${current.standard}`;
+  $("std-line").textContent = `사내 표준: ${current.standardName}`;
   const blockedNote = $("blocked");
   blockedNote.hidden = !current.blocked;
   blockedNote.textContent = current.blocked
@@ -758,19 +795,58 @@ function render(): void {
   fixAll.textContent = `바로 고칠 수 있는 ${current.fixes.length}개 고치기`;
   fixAll.disabled = blocked;
   ($("undo") as HTMLButtonElement).disabled = blocked || !current.canUndo;
-  ($("rerun") as HTMLButtonElement).disabled = blocked;
+  const rerun = $("rerun") as HTMLButtonElement;
+  rerun.disabled = blocked;
+  rerun.textContent = loading ? "점검 중…" : "다시 점검";
   ($("save-report") as HTMLButtonElement).disabled = blocked;
 
+  // 통과 항목 숨기기: 영역에 문제가 없으면 "모두 통과 (N개)" 한 줄만
+  ($("hide-ok") as HTMLInputElement).checked = hideOk;
   $("areas").replaceChildren(
-    ...current.areas.map((a) =>
-      h("section", { class: "area" }, h("h2", {}, a.title), ...a.findings.map(renderFinding)),
-    ),
+    ...current.areas.map((a) => {
+      const shown = hideOk ? a.findings.filter((f) => f.severity !== "ok") : a.findings;
+      const passed = a.findings.length - shown.length;
+      return h(
+        "section",
+        { class: "area" },
+        h("h2", {}, a.title),
+        ...shown.map(renderFinding),
+        hideOk && passed > 0
+          ? h(
+              "div",
+              { class: "passed-note" },
+              shown.length === 0 ? `모두 통과 (${passed}개)` : `통과 ${passed}개 숨김`,
+            )
+          : null,
+      );
+    }),
   );
 }
 
 // ---- 시작 ----
 
 $("open").addEventListener("click", () => void openFolder());
+$("open-guide").addEventListener("click", () => void api.openGuide().catch(showError));
+$("hide-ok").addEventListener("change", (e) => {
+  hideOk = (e.target as HTMLInputElement).checked;
+  try {
+    localStorage.setItem("hideOk", hideOk ? "1" : "0");
+  } catch {
+    // 기억하지 못해도 이번 실행에는 적용된다
+  }
+  render();
+});
+// 단축키: Ctrl+O 폴더 열기, F5·Ctrl+R 다시 점검 (버튼이 꺼져 있으면 무시)
+document.addEventListener("keydown", (e) => {
+  const enabled = (id: string) => !($(id) as HTMLButtonElement).disabled;
+  if (e.ctrlKey && e.key.toLowerCase() === "o" && enabled("open")) {
+    e.preventDefault();
+    void openFolder();
+  } else if ((e.key === "F5" || (e.ctrlKey && e.key.toLowerCase() === "r")) && current) {
+    e.preventDefault();
+    if (enabled("rerun")) void load(current.path);
+  }
+});
 $("empty-open").addEventListener("click", () => void openFolder());
 for (const id of ["kind-dev", "kind-docs"])
   $(id).addEventListener("change", (e) => {

@@ -644,3 +644,41 @@ body {
   color: var(--ink-2);
   margin-bottom: 4px;
 }
+
+/* 상태 아이콘 (SVG) */
+.badge svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 다시 진단하는 동안 이전 점수는 흐리게 */
+.score.stale {
+  opacity: 0.45;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 8px;
+}
+.check {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.passed-note {
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--ok);
+}
+#open-guide {
+  margin-bottom: 6px;
+}

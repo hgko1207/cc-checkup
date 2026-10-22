@@ -22,7 +22,15 @@
           </div>
         </div>
 
-        <button id="open" class="btn primary wide" type="button">폴더 열기…</button>
+        <button
+          id="open"
+          class="btn primary wide"
+          type="button"
+          title="Ctrl+O"
+          aria-keyshortcuts="Control+O"
+        >
+          폴더 열기…
+        </button>
 
         <section class="side-box">
           <h2>폴더 종류</h2>
@@ -48,6 +56,7 @@
         <section class="side-box">
           <h2>사내 표준</h2>
           <p id="standard" class="small"></p>
+          <button id="open-guide" class="btn small" type="button" hidden>사내 가이드 열기</button>
           <p id="standard-error" class="small error" hidden></p>
           <div class="row-btns">
             <button id="pick-standard" class="btn small" type="button">표준 파일 선택</button>
@@ -96,10 +105,15 @@
               </button>
               <button id="undo" class="btn" type="button">↶ 마지막 반영 되돌리기</button>
               <button id="save-report" class="btn" type="button">리포트 저장</button>
-              <button id="rerun" class="btn" type="button">다시 점검</button>
+              <button id="rerun" class="btn" type="button" title="F5" aria-keyshortcuts="F5">
+                다시 점검
+              </button>
             </div>
           </header>
           <p id="blocked" class="notice warn" hidden></p>
+          <div class="toolbar">
+            <label class="check"><input id="hide-ok" type="checkbox" /> 통과 항목 숨기기</label>
+          </div>
           <div id="areas"></div>
         </div>
 

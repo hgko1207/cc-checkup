@@ -55,6 +55,7 @@ test("렌더러는 Node에 접근할 수 없고 정해진 함수만 보인다", 
       "fix",
       "getState",
       "onEvent",
+      "openGuide",
       "openUpdate",
       "pickFolder",
       "pickStandard",
@@ -121,6 +122,16 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   // [자세히]를 누르면 이유가 펼쳐진다
   await page.getByRole("button", { name: "자세히" }).first().click();
   await expect(page.locator(".more").first()).toContainText("왜 문제인가");
+
+  // 통과 항목 숨기기
+  await page.getByLabel("통과 항목 숨기기").check();
+  await expect(page.locator(".finding.ok")).toHaveCount(0);
+  await page.getByLabel("통과 항목 숨기기").uncheck();
+  await expect(page.locator(".finding.ok").first()).toBeVisible();
+
+  // F5로 다시 점검
+  await page.keyboard.press("F5");
+  await expect(page.locator("#rerun")).toHaveText("다시 점검");
 
   // 최근 폴더에 점수와 함께 남는다
   await expect(page.locator("#recent")).toContainText(`${before}점`);

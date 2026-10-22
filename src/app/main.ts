@@ -11,7 +11,7 @@ import { dirname, extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AppEvent, Wrapped } from "./api.js";
 import { CHANNELS, EVENT_CHANNEL } from "./channels.js";
-import { AppCore, InputError } from "./core.js";
+import { AppCore, friendlyError } from "./core.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const UI_DIR = join(here, "ui");
@@ -87,8 +87,7 @@ function wrap<A extends unknown[], T>(fn: (...args: A) => Promise<T>) {
     try {
       return { ok: true, value: await fn(...args) };
     } catch (e) {
-      const msg = e instanceof InputError ? e.message : `처리 중 오류: ${(e as Error).message}`;
-      return { ok: false, error: msg };
+      return { ok: false, error: friendlyError(e) };
     }
   };
 }
@@ -180,6 +179,10 @@ async function start(): Promise<void> {
   ipcMain.handle(
     CHANNELS.openUpdate,
     wrap(() => core.openUpdate()),
+  );
+  ipcMain.handle(
+    CHANNELS.openGuide,
+    wrap(() => core.openGuide()),
   );
 
   win = new BrowserWindow({

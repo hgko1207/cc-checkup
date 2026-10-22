@@ -96,8 +96,8 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
   if (missing.length === targets.length) {
     problems.push(
       read
-        ? "Claude가 파일 도구와 cat 같은 명령으로 .env를 읽을 수 있습니다 (읽기 차단 규칙 없음)"
-        : "Claude가 .env 파일을 고쳐 쓸 수 있습니다 (쓰기 차단 규칙 없음)",
+        ? "Claude가 비밀 설정 파일(.env)을 읽을 수 있습니다 (읽기 차단 규칙 없음)"
+        : "Claude가 비밀 설정 파일(.env)을 고칠 수 있습니다 (쓰기 차단 규칙 없음)",
     );
   } else if (missing.length > 0) {
     problems.push(
@@ -105,7 +105,7 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
     );
   }
   if (uncovered.length > 0) {
-    problems.push(`${verb} 차단에서 빠진 실제 파일: ${listNames(uncovered)}`);
+    problems.push(`${verb} 차단이 안 된 .env 파일: ${listNames(uncovered)}`);
   }
   if (ctx.scan.truncated) {
     problems.push("파일이 많아 일부 폴더만 확인했습니다 (20만 개 상한)");

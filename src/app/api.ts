@@ -25,6 +25,7 @@ export interface AppState {
   recent: RecentFolder[];
   standard: string; // "이름 버전 (기본 내장|공유 파일: 경로)"
   standardError?: string; // 공유 파일을 쓰지 못한 이유
+  standardInfo: { name: string; version: string; file?: string; path?: string; guideUrl?: string };
   claude: ClaudeStatus;
   running: boolean; // Claude 작업 실행 중 또는 확인 대기 중
   update?: { current: string; latest: string; downloadUrl?: string; note?: string }; // 새 버전 알림
@@ -54,6 +55,7 @@ export interface DiagnosisView {
   path: string;
   score: number;
   standard: string;
+  standardName: string; // "이름 버전"
   kind: Kind;
   kindAuto: boolean; // 자동 판별 결과를 쓰는 중
   kindReason: string; // 자동 판별 이유
@@ -139,5 +141,6 @@ export interface CcCheckupApi {
   undo(path: string, apply: boolean): Promise<UndoView>;
   saveReport(path: string): Promise<string | null>;
   openUpdate(): Promise<void>; // 사내 표준 파일이 알려 준 새 설치 파일 위치 열기
+  openGuide(): Promise<void>; // 사내 표준 파일의 guideUrl 열기
   onEvent(cb: (e: AppEvent) => void): () => void;
 }
