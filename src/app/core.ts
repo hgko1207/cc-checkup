@@ -214,6 +214,16 @@ export function toView(
       title: AREA_TITLES[a],
       findings: (byArea.get(a) ?? []).sort((x, y) => order[x.severity] - order[y.severity]),
     }));
+  // 같은 고치기를 여러 항목이 나눠 쓰면(예: .env 차단 규칙) 화면에 먼저 나오는 항목에만 버튼을 둔다
+  const shown = new Set<number>();
+  for (const f of areas.flatMap((a) => a.findings)) {
+    if (f.fixNo === undefined) continue;
+    if (shown.has(f.fixNo)) {
+      f.fixSharedWith = f.fixNo;
+      delete f.fixNo;
+      delete f.fixLabel;
+    } else shown.add(f.fixNo);
+  }
   return {
     path: diag.ctx.repoDir,
     score: diag.score,

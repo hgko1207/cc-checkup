@@ -113,14 +113,15 @@
                 바로 고칠 수 있는 것 고치기
               </button>
               <button id="undo" class="btn" type="button">↶ 마지막 반영 되돌리기</button>
-              <button id="save-report" class="btn" type="button">리포트 저장</button>
-              <button id="rerun" class="btn" type="button" title="F5" aria-keyshortcuts="F5">
+              <button id="save-report" class="btn ghost" type="button">리포트 저장</button>
+              <button id="rerun" class="btn ghost" type="button" title="F5" aria-keyshortcuts="F5">
                 다시 점검
               </button>
             </div>
           </header>
           <p id="blocked" class="notice warn" hidden></p>
           <div class="toolbar">
+            <span class="toolbar-title">진단 항목</span>
             <label class="check"><input id="hide-ok" type="checkbox" /> 통과 항목 숨기기</label>
           </div>
           <div id="areas"></div>

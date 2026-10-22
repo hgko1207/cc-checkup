@@ -39,7 +39,8 @@ export interface FindingView {
   detail?: { why: string; fix?: string; limit?: string }; // [자세히]
   example?: string; // [예시 보기]
   fixNo?: number; // 바로 고치기 후보 번호
-  fixLabel?: string; // 바로 고치기 | 바로 만들기 | 설치하기
+  fixLabel?: string; // 바로 고치기 | 바로 만들기 | 플러그인 설정 추가
+  fixSharedWith?: number; // 다른 항목의 바로 고치기에 함께 포함됨 (버튼은 그 항목에만)
   claudeTask?: string;
   claudeLabel?: string; // Claude로 반영 | Claude로 만들기
   claudeTargets?: string[]; // Claude가 고칠 수 있는 파일 (실행 전 확인에 보여 줌)

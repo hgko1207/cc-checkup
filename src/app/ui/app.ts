@@ -147,7 +147,8 @@ function rememberFocus(): void {
   }
 }
 
-function panel(title: string, message = "", tone: "" | "error" = ""): void {
+function panel(title: string, message = "", tone: "" | "error" = "", compact = false): void {
+  $("panel").classList.toggle("compact", compact);
   rememberFocus();
   $("panel").hidden = false;
   setModal(true);
@@ -293,7 +294,7 @@ function logLine(p: Progress): void {
     text = `허용 범위 밖이라 막음: ${(p.text.split("\n")[0] ?? "").slice(0, 120)}`;
     cls = "err";
   } else if (p.kind === "result")
-    text = `끝 (${p.ok ? "성공" : "실패"}${p.costUsd !== undefined ? `, 사용량 약 $${p.costUsd.toFixed(2)}` : ""})`;
+    text = `끝 (${p.ok ? "성공" : "실패"}${p.costUsd !== undefined ? `, 사용량 약 ${Math.max(10, Math.round((p.costUsd * 1400) / 10) * 10)}원` : ""})`;
   if (!text) return;
   log.append(h("li", { class: cls }, text));
   log.scrollTop = log.scrollHeight;
@@ -443,6 +444,7 @@ async function fix(nos: number[]): Promise<void> {
       "적용 전 원본은 자동으로 백업되고, [↶ 마지막 반영 되돌리기]로 언제든 되돌릴 수 있습니다.";
     panelButtons(applyBtn, button("취소", closePanel));
     await update();
+    $("diffs").querySelector<HTMLElement>(".pick input, .file summary")?.focus();
   };
 
   const apply = async (): Promise<void> => {
@@ -542,7 +544,7 @@ function confirmClaude(f: FindingView): void {
   rememberFocus();
   const label = f.claudeLabel ?? "Claude로 반영";
   locked = true;
-  panel(`${label}: 실행 전 확인`, "Claude Code가 이 폴더를 읽고 아래 파일만 고칩니다.");
+  panel(`${label}: 실행 전 확인`, "Claude Code가 이 폴더를 읽고 아래 파일만 고칩니다.", "", true);
   const targets = f.claudeTargets?.join(", ") ?? "표준이 정한 파일";
   const fact = (k: string, v: string) => h("li", {}, h("b", {}, k), " ", v);
   $("diffs").replaceChildren(
@@ -745,7 +747,9 @@ function renderFinding(f: FindingView): HTMLElement {
     ...rest.map((r) => h("div", { class: "sub" }, r)),
   );
   // 버튼이 할 일을 대신 말해 주면 안내 문장은 생략한다
-  if (f.judgment && f.fixNo === undefined && !f.claudeTask)
+  if (f.fixSharedWith !== undefined)
+    body.append(h("div", { class: "sub" }, "위에 있는 [바로 고치기]에 함께 포함됩니다"));
+  if (f.judgment && f.fixNo === undefined && f.fixSharedWith === undefined && !f.claudeTask)
     body.append(h("div", { class: "judgment" }, f.judgment));
   const toggles = h("div", {});
   const more = h("div", {});
@@ -923,9 +927,8 @@ function render(): void {
   score.className = `score ${current.score >= READY_SCORE ? "good" : current.score >= 50 ? "mid" : "bad"}${loading ? " stale" : ""}`;
   $("goal").textContent = loading
     ? "점검 중…"
-    : current.score >= READY_SCORE
-      ? "준비됨"
-      : `${READY_SCORE}점 이상이면 준비됨`;
+    : (current.score >= READY_SCORE ? "준비됨" : `${READY_SCORE}점 이상이면 준비됨`) +
+      (current.kindAuto ? "" : " · 직접 지정한 폴더 종류 기준");
   $("counts").textContent =
     `위험 ${current.counts.fail} · 주의 ${current.counts.warn} · 통과 ${current.counts.ok}`;
   const how = $("score-how");
@@ -1061,8 +1064,35 @@ $("empty-open").addEventListener("click", () => void openFolder());
 for (const id of ["kind-dev", "kind-docs"])
   $(id).addEventListener("change", (e) => {
     const kind = (e.target as HTMLInputElement).value as Kind;
-    if (current) void load(current.path, kind);
+    if (!current) return;
+    if (kind === "docs" && current.kindGuess === "dev") confirmLooserKind();
+    else void load(current.path, kind);
   });
+
+// 개발 저장소로 판별된 폴더를 문서 기준으로 보면 보는 항목이 줄어 점수가 오른다: 이유를 알리고 확인
+function confirmLooserKind(): void {
+  if (!current) return;
+  const path = current.path;
+  locked = true;
+  panel(
+    "문서·기획 폴더 기준으로 볼까요?",
+    `이 폴더는 개발 저장소로 판별됐습니다 (${current.kindReason}). 문서 기준으로 보면 검증 명령·위험 명령 차단 훅·화면 규칙(DESIGN.md) 같은 개발 항목을 보지 않아 점수가 올라갈 수 있습니다. 리포트에는 직접 지정으로 남습니다.`,
+    "",
+    true,
+  );
+  panelButtons(
+    button(
+      "문서 기준으로 보기",
+      () => {
+        closePanel();
+        void load(path, "docs");
+      },
+      "btn primary",
+    ),
+    button("취소", closePanel),
+  );
+  render();
+}
 $("kind-auto").addEventListener("click", () => {
   if (!current) return;
   void load(current.path, "auto").then(() =>
@@ -1108,6 +1138,8 @@ $("reset-standard").addEventListener("click", () => {
   panel(
     "기본 표준으로 되돌릴까요?",
     "사내 표준 파일 대신 앱에 들어 있는 기본 표준으로 진단합니다. 표준 파일은 지우지 않고, [표준 파일 선택]으로 다시 고를 수 있습니다.",
+    "",
+    true,
   );
   panelButtons(button("기본 표준으로", resetStandard, "btn primary"), button("취소", closePanel));
   render();

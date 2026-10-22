@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { Standard, StandardFile } from "../standard.js";
 import type { Check, Finding, SettingsRead } from "../types.js";
 import { readClaudeMd } from "./claude-md.js";
+import { withJosa } from "../josa.js";
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -95,7 +96,7 @@ async function fileFinding(
   const finding: Finding = {
     id,
     severity: file.severity,
-    message: `${file.title}가 없습니다${why}`,
+    message: `${withJosa(file.title, "이", "가")} 없습니다${why}`,
   };
   const example = file.example ?? file.template;
   if (example !== undefined) finding.example = example;
@@ -103,7 +104,7 @@ async function fileFinding(
     finding.createFile = { path: file.path, content: file.template };
   } else if (file.claudeTask !== undefined) {
     finding.claudeTask = file.claudeTask;
-    finding.judgment = `${file.title}를 만드세요 (점검 프로그램의 "Claude로 만들기" 또는 Claude Code에서 직접)`;
+    finding.judgment = `${withJosa(file.title, "을", "를")} 만드세요 (점검 프로그램의 "Claude로 만들기" 또는 Claude Code에서 직접)`;
   } else {
     finding.judgment = `${file.path}를 만드세요`;
   }
