@@ -65,7 +65,10 @@
       <main class="main">
         <div id="update" class="notice info" hidden>
           <span id="update-text"></span>
-          <button id="update-open" class="btn small" type="button">설치 파일 위치 열기</button>
+          <span class="row-btns">
+            <button id="update-open" class="btn small" type="button">설치 파일 위치 열기</button>
+            <button id="update-close" class="btn small ghost" type="button">닫기</button>
+          </span>
         </div>
         <div id="empty" class="empty">
           <h1>점검할 폴더를 여세요</h1>
@@ -73,21 +76,23 @@
             폴더를 고르면 사내 표준과 비교해 보안·팀 표준·문서·플러그인 상태를 점수로 보여 줍니다.
             고치기 전에는 항상 바뀔 내용을 먼저 보여 주고, 적용한 뒤에도 되돌릴 수 있습니다.
           </p>
+          <button id="empty-open" class="btn primary" type="button">점검할 폴더 고르기</button>
         </div>
 
         <div id="report" hidden>
           <header class="summary">
             <div>
-              <div id="path" class="path"></div>
+              <h1 id="path" class="path"></h1>
               <div class="score-line">
                 <span id="score" class="score"></span><span class="score-max">/ 100</span>
-                <span id="counts" class="counts"></span>
+                <span id="goal" class="goal"></span>
               </div>
+              <div id="counts" class="counts"></div>
               <div id="std-line" class="small muted"></div>
             </div>
             <div class="summary-btns">
-              <button id="fix-all" class="btn" type="button" hidden>
-                바로 고칠 수 있는 것 모두
+              <button id="fix-all" class="btn primary" type="button" hidden>
+                바로 고칠 수 있는 것 고치기
               </button>
               <button id="undo" class="btn" type="button">↶ 마지막 반영 되돌리기</button>
               <button id="save-report" class="btn" type="button">리포트 저장</button>
@@ -98,9 +103,9 @@
           <div id="areas"></div>
         </div>
 
-        <section id="panel" class="panel" hidden aria-live="polite">
+        <section id="panel" class="panel" hidden aria-labelledby="panel-title">
           <div class="panel-head">
-            <h2 id="panel-title">진행 · 변경 확인</h2>
+            <h2 id="panel-title" tabindex="-1">진행 · 변경 확인</h2>
             <div class="row-btns">
               <div id="panel-btns" class="row-btns"></div>
               <button id="panel-close" class="btn small ghost" type="button" aria-label="닫기">
@@ -108,7 +113,7 @@
               </button>
             </div>
           </div>
-          <p id="panel-message" class="panel-message"></p>
+          <p id="panel-message" class="panel-message" aria-live="polite"></p>
           <p id="panel-note" class="small muted"></p>
           <ol id="log" class="log" hidden></ol>
           <ul id="outside" class="outside" hidden></ul>

@@ -29,6 +29,7 @@ import {
   type RunnerOptions,
 } from "../claude-runner.js";
 import { diagnose, type Diagnosis } from "../diagnose.js";
+import { HOOK_DIR } from "../hook-template.js";
 import { applyAll, lineDiff, planFixes, type FixCandidate, type FixPlan } from "../fix.js";
 import { commitGuide, formatMarkdown, writeReport } from "../report.js";
 import { detailFor } from "../details.js";
@@ -151,7 +152,10 @@ export function toView(
     }
     if (f.severity !== "ok" && f.claudeTask && diag.standard.standard.claudeTasks[f.claudeTask]) {
       view.claudeTask = f.claudeTask;
-      view.claudeLabel = f.id.startsWith("file/") ? "Claude로 만들기" : "Claude로 반영";
+      // 없는 파일을 새로 쓰면 "만들기", 있는 파일을 고치면 "반영"
+      view.claudeLabel =
+        f.id.startsWith("file/") || f.id === "claude-md" ? "Claude로 만들기" : "Claude로 반영";
+      view.claudeTargets = diag.standard.standard.claudeTasks[f.claudeTask]?.targets;
     }
     const area = areaOf(f.id);
     byArea.set(area, [...(byArea.get(area) ?? []), view]);
@@ -408,11 +412,22 @@ export class AppCore {
       this.fixPreview = { key, nos, titles };
       return {
         kind: "preview",
-        previews: changes.map((c) => ({
-          path: c.path,
-          diff: lineDiff(c.before, c.after, c.path),
-          isNew: c.before === null,
-        })),
+        previews: changes.map((c) => {
+          const diff = lineDiff(c.before, c.after, c.path);
+          return {
+            path: c.path,
+            diff,
+            isNew: c.before === null,
+            added: diff.split("\n").filter((l) => l.startsWith("+ ")).length,
+            note: c.path.startsWith(`${HOOK_DIR}/`)
+              ? "team-ai-kit 위험 명령 차단 훅 원본 그대로 복사"
+              : chosen.some((x) => x.createFile?.path === c.path)
+                ? "사내 표준 템플릿"
+                : undefined,
+          };
+        }),
+        items: chosen.map((c) => ({ no: c.no, title: c.title })),
+        resolves: diag.findings.filter((f) => fixFor(f, chosen) !== undefined).length,
       };
     }
     const p = this.fixPreview;
@@ -434,7 +449,10 @@ export class AppCore {
       kind: "applied",
       files: changes.map((c) => c.path),
       backupDir,
-      commitHint: commitGuide(diag, changes),
+      commitHint:
+        diag.kind === "docs" && diag.ctx.git.tracked === null
+          ? "이 폴더를 함께 쓰는 팀원에게도 적용됩니다 (git 저장소가 아님)"
+          : commitGuide(diag, changes),
     };
   }
 

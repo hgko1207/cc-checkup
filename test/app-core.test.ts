@@ -169,7 +169,7 @@ describe("바로 고치기·되돌리기 (미리 보기 → 적용)", () => {
   it("미리 보기 → 적용 → 되돌리기 왕복", async () => {
     const { core, repo } = await setup();
     await core.pickFolder();
-    const before = await core.diagnose(repo);
+    const before = await core.diagnose(repo, "dev");
     const nos = before.fixes.map((f) => f.no);
     const preview = await core.fix(repo, nos, false);
     expect(preview.kind).toBe("preview");

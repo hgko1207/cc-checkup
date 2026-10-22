@@ -46,11 +46,11 @@
 
 **위험 명령 차단 훅**: "바로 고치기"는 team-ai-kit의 차단 훅(강제 푸시·`rm -rf /` 같은 되돌리기 어려운 명령 차단)을 `.claude/hooks/cc-guard/`에 복사하고 `.claude/settings.json`의 PreToolUse에 등록한다. team-ai-kit 저장소가 비공개라 플러그인 대신 파일로 넣는다. 실행하려면 그 PC에 Node.js가 있어야 한다. 실제 Claude Code(2.1.83, Windows)에서 `git push --force origin main`을 막는 것을 확인했다.
 
-**설치 파일 만들기**
+**설치 파일 만들기** (태그를 올리면 GitHub Actions가 설치 파일을 릴리스 초안에 붙인다. 아래는 직접 만들 때)
 
 ```powershell
 npm install
-npm run dist:win     # release\CC Checkup Setup 0.1.0.exe → 사내 배포 경로에 올린다
+npm run dist:win     # release\cc-checkup-setup-0.1.0.exe → 사내 배포 경로에 올린다
 npm run dist:mac     # macOS에서만: release/*.dmg, *.zip
 ```
 

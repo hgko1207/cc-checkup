@@ -41,6 +41,7 @@ export interface FindingView {
   fixLabel?: string; // 바로 고치기 | 바로 만들기 | 설치하기
   claudeTask?: string;
   claudeLabel?: string; // Claude로 반영 | Claude로 만들기
+  claudeTargets?: string[]; // Claude가 고칠 수 있는 파일 (실행 전 확인에 보여 줌)
 }
 
 export interface AreaView {
@@ -67,10 +68,17 @@ export interface FilePreview {
   path: string;
   diff: string;
   isNew: boolean;
+  added: number; // 더해지는 줄 수
+  note?: string; // 출처 (예: team-ai-kit 차단 훅 원본 그대로)
 }
 
 export type FixView =
-  | { kind: "preview"; previews: FilePreview[] }
+  | {
+      kind: "preview";
+      previews: FilePreview[];
+      items: { no: number; title: string }[]; // 고르는 고치기 항목
+      resolves: number; // 이 고치기로 통과로 바뀌는 진단 항목 수
+    }
   | { kind: "applied"; files: string[]; backupDir: string; commitHint: string };
 
 export type Progress =
