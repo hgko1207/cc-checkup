@@ -54,7 +54,7 @@ describe("settings.json 읽기", () => {
       await repoWith({ ".claude/settings.json": '{"permissions":{"deny":"Read(.env)"}}' }),
     );
     expect(s.state === "ok" && s.unwritable).toBe("permissions.deny가 배열이 아닙니다");
-    const findings = await run({ ".claude/settings.json": '{"permissions":[]}' });
+    const findings = await run({ ".claude/settings.json": '{"permissions":[]}', ".env": "X=1" });
     expect(byId(findings, "settings/missing")?.severity).toBe("fail");
     expect(byId(findings, "settings/env-read-deny")?.severity).toBe("fail");
   });
@@ -82,10 +82,21 @@ describe("진단 4·5 .env 차단", () => {
     expect(byId(findings, "settings/env-edit-deny")?.severity).toBe("ok");
   });
 
-  it("Read 규칙이 하나도 없으면 fail, Edit는 warn", async () => {
-    const findings = await run({ ".claude/settings.json": settingsJson({ deny: [] }) });
+  it("실제 .env가 있는데 Read 규칙이 하나도 없으면 fail, Edit는 warn", async () => {
+    const findings = await run({
+      ".claude/settings.json": settingsJson({ deny: [] }),
+      ".env": "X=1",
+    });
     expect(byId(findings, "settings/env-read-deny")?.severity).toBe("fail");
     expect(byId(findings, "settings/env-edit-deny")?.severity).toBe("warn");
+  });
+
+  it(".env가 아직 없으면 읽기 차단 없음은 예방 차원의 warn (고치기 후보는 그대로)", async () => {
+    const findings = await run({ ".claude/settings.json": settingsJson({ deny: [] }) });
+    const read = byId(findings, "settings/env-read-deny");
+    expect(read?.severity).toBe("warn");
+    expect(read?.message).toContain("아직 .env 파일은 없지만");
+    expect(read?.denyRules).toHaveLength(6);
   });
 
   it("Read(**/.env) 하나만 있으면 일부만 있음=warn, 빠진 5개만 후보", async () => {

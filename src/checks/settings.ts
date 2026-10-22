@@ -93,7 +93,15 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
   ];
 
   const problems: string[] = [];
-  if (missing.length === targets.length) {
+  const hasEnv = ctx.scan.envFiles.length > 0;
+  if (missing.length === targets.length && !hasEnv) {
+    // 아직 .env가 없는 폴더: 지금 새는 것은 없으니 예방 차원의 주의로 알린다
+    problems.push(
+      read
+        ? "아직 .env 파일은 없지만, 생기면 Claude가 읽을 수 있습니다 (읽기 차단 규칙 없음). 미리 막아 두세요"
+        : "아직 .env 파일은 없지만, 생기면 Claude가 고칠 수 있습니다 (쓰기 차단 규칙 없음). 미리 막아 두세요",
+    );
+  } else if (missing.length === targets.length) {
     problems.push(
       read
         ? "Claude가 비밀 설정 파일(.env)을 읽을 수 있습니다 (읽기 차단 규칙 없음)"
@@ -119,7 +127,8 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
       message: `.env ${verb} 차단: 기본 ${targets.length}개${extra} (${SCOPE_NOTE})`,
     };
   }
-  const severe = read && (missing.length === targets.length || uncovered.length > 0);
+  // 위험: 실제 .env가 있는데 읽기 차단이 없거나, 차단에서 빠진 실제 .env가 있을 때
+  const severe = read && ((missing.length === targets.length && hasEnv) || uncovered.length > 0);
   return {
     id,
     severity: severe ? "fail" : "warn",
