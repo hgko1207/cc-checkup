@@ -16,7 +16,13 @@ export const runGit: GitRunner = (args, cwd, timeoutMs = 10_000) =>
     execFile(
       "git",
       args,
-      { cwd, timeout: timeoutMs, windowsHide: true },
+      // 비밀번호를 터미널에서 묻다 멈추지 않게 한다 (창으로 묻는 자격 증명 관리자는 그대로)
+      {
+        cwd,
+        timeout: timeoutMs,
+        windowsHide: true,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+      },
       (error, stdout, stderr) => {
         const code = error ? (typeof error.code === "number" ? error.code : null) : 0;
         resolve({

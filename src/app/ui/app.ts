@@ -161,14 +161,15 @@ function panel(title: string, message = "", tone: "" | "error" = "", compact = f
   $("panel-title").focus();
 }
 
+// 주 버튼을 먼저 넘기면 화면에는 오른쪽 끝에 놓고, Tab 순서도 화면 순서(취소 → 주 버튼)와 같게 한다.
+// 확인창의 주 버튼은 Ctrl+Enter로도 누른다. 돈이 들거나 되돌릴 수 없는 버튼(deliberate)은 빼고
 function panelButtons(...btns: HTMLButtonElement[]): void {
-  // 확인창의 주 버튼은 Ctrl+Enter로도 누른다
   for (const b of btns)
-    if (b.classList.contains("primary")) {
+    if (b.classList.contains("primary") && !b.classList.contains("deliberate")) {
       b.title = "Ctrl+Enter";
       b.setAttribute("aria-keyshortcuts", "Control+Enter");
     }
-  $("panel-btns").replaceChildren(...btns);
+  $("panel-btns").replaceChildren(...[...btns].reverse());
 }
 
 // 결과·안내만 보여 주는 패널: 뒤 화면을 막지 않는다 (확인이 필요한 패널만 모달)
@@ -191,6 +192,7 @@ function closePanel(): void {
     el?.isConnected && el.offsetParent !== null && !(el as HTMLButtonElement).disabled;
   if (visible(returnFocus)) returnFocus?.focus();
   else if (visible($("hero-commit"))) $("hero-commit").focus();
+  else if (visible($("hero-push"))) $("hero-push").focus();
   else if (!focusKey(returnKey)) {
     if (busy) pendingReturn = { el: returnFocus, key: returnKey };
     $("path").focus();
@@ -233,7 +235,7 @@ function trapFocus(e: KeyboardEvent): void {
 // 커밋 안내("git add a b 후 커밋해야 …")에서 바로 실행할 명령을 만든다
 function commitCommand(hint: string): string | null {
   const m = /^(git add .+?) 후 커밋/.exec(hint);
-  return m?.[1] ? `${m[1]} && git commit -m "Claude Code 팀 설정"` : null;
+  return m?.[1] ? `${m[1]} && git commit -m "chore: Claude Code 팀 설정 추가"` : null;
 }
 const commitCmds = new Map<string, string>(); // 폴더별 마지막 고치기의 커밋 명령
 
@@ -322,6 +324,8 @@ async function commitFlow(): Promise<void> {
 function showError(e: unknown): void {
   locked = false;
   panel("처리하지 못했습니다", (e as Error).message ?? String(e), "error");
+  $("panel-note").textContent =
+    "‘다시 점검’을 누른 뒤 다시 시도하세요. 계속되면 ‘리포트 저장’으로 결과를 남겨 TF에 알려 주세요.";
   closeOnly();
   render();
 }
@@ -671,7 +675,7 @@ function confirmClaude(f: FindingView): void {
       fact("걸리는 시간", "보통 1분 안팎. 10분이 넘으면 자동으로 멈추고 원래대로 돌립니다."),
       fact(
         "사용량",
-        "Claude 사용량이 듭니다. 작은 저장소 기준 1회 약 150~400원어치($0.1~0.3)이고, 요금제 한도에서 차감됩니다.",
+        "작은 저장소 기준 1회 약 $0.1~0.3어치입니다. 구독 요금제면 사용 한도에서 차감되고, API 키로 쓰면 그만큼 청구됩니다. 이 앱이 따로 받는 돈은 없습니다.",
       ),
       fact("안전", "명령 실행과 .env 읽기는 막혀 있고, 실행 전에 원본을 백업합니다."),
       fact("결과", "바뀐 내용을 먼저 보여 드리고, ‘적용’을 눌러야 반영됩니다."),
@@ -679,14 +683,14 @@ function confirmClaude(f: FindingView): void {
   );
   panelButtons(
     button(
-      "Claude 실행 · 약 150~400원",
+      "Claude 실행 (사용량 듦)",
       () => {
         claudeQueue = [];
         queueTotal = 1;
         queueDone = 0;
         void runClaude(f, label);
       },
-      "btn primary",
+      "btn primary deliberate",
     ),
     button("취소", closePanel),
   );
@@ -719,7 +723,7 @@ function confirmClaudeAll(list: FindingView[]): void {
       fact("걸리는 시간", `건당 보통 1분 안팎, 모두 ${n}건. 10분이 넘는 건은 자동으로 멈춥니다.`),
       fact(
         "사용량",
-        `작은 저장소 기준 모두 약 ${150 * n}~${400 * n}원어치이고, 요금제 한도에서 차감됩니다.`,
+        `작은 저장소 기준 모두 약 ${(0.1 * n).toFixed(1)}~${(0.3 * n).toFixed(1)}어치입니다. 구독 요금제면 사용 한도에서 차감되고, API 키로 쓰면 그만큼 청구됩니다.`,
       ),
       fact("안전", "명령 실행과 .env 읽기는 막혀 있고, 실행마다 원본을 백업합니다."),
       fact("중간에 멈추기", "실행 중 ‘중단’을 누르거나 오류가 나면 남은 작업은 실행하지 않습니다."),
@@ -727,7 +731,7 @@ function confirmClaudeAll(list: FindingView[]): void {
   );
   panelButtons(
     button(
-      `Claude 실행 · 약 ${150 * n}~${400 * n}원`,
+      `Claude ${n}건 실행 (사용량 듦)`,
       () => {
         const [first, ...rest] = list;
         if (!first?.claudeTask) return;
@@ -738,7 +742,7 @@ function confirmClaudeAll(list: FindingView[]): void {
         queueDone = 0;
         void runClaude(first, first.claudeLabel ?? "Claude로 반영");
       },
-      "btn primary",
+      "btn primary deliberate",
     ),
     button("취소", closePanel),
   );
@@ -977,7 +981,7 @@ function buildTodos(d: DiagnosisView): Todo[] {
       const creates =
         d.committedScore !== undefined && items.some((x) => x.id === "settings/missing");
       t.gain = t.penalty - (creates ? d.weights.fail : 0);
-      if (creates) t.gainNote = `커밋 후 +${d.weights.fail}`;
+      if (creates) t.gainNote = `나머지 ${d.weights.fail}점은 커밋하면 오릅니다`;
     }
   }
   const rank = (t: Todo) => (t.severity === "fail" ? 0 : 1);
@@ -1086,7 +1090,7 @@ function glossaryList(items: typeof GLOSSARY): HTMLElement {
 
 // 오른쪽 고정 열: 고치면 오르는 점수와 접기 표시. 키보드·읽기 프로그램은 머리 버튼으로 다룬다
 function pointsTail(
-  gain: number,
+  gain: number | null,
   note: string | undefined,
   open: boolean | null,
   toggle?: () => void,
@@ -1097,7 +1101,7 @@ function pointsTail(
     h(
       "span",
       { class: "todo-pts" },
-      `+${gain}점`,
+      gain === null ? "" : `+${gain}점`,
       note ? h("span", { class: "todo-pts-note" }, note) : null,
     ),
     open === null
@@ -1148,7 +1152,7 @@ function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
 
   const row = h("div", { class: "todo-row" }, headBtn);
   if (t.kind === "claude") row.append(h("div", { class: "todo-act" }, ...claudeButton(f)));
-  row.append(pointsTail(t.gain, t.gainNote, open, () => headBtn.click()));
+  row.append(pointsTail(t.gain, undefined, open, () => headBtn.click()));
 
   const box = h("div", { class: `todo${open ? " open" : ""}` }, row);
   if (!open) return box;
@@ -1343,14 +1347,17 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
   const fixTo =
     d.expectedScore !== undefined && d.expectedScore > d.score ? d.expectedScore : undefined;
   const commitTo = d.committedScore;
+  // 앱이 한 커밋이 아직 원격에 없으면 "준비됨"이라 하지 않는다: 팀원은 아직 받지 못했다
+  const unpushed = d.pushPending !== undefined && n === 0;
   const pill = $("status-pill");
-  pill.textContent = ready ? "준비됨" : "아직 준비 전";
-  pill.className = `pill ${ready ? "good" : "warn"}`;
+  pill.textContent = unpushed ? "커밋됨 · push 전" : ready ? "준비됨" : "아직 준비 전";
+  pill.className = `pill ${ready && !unpushed ? "good" : "warn"}`;
   $("std-line").textContent =
     `${d.standardName} 기준` + (d.kindAuto ? "" : ` · ${KIND_NAME[d.kind]}로 직접 지정`);
 
   let headline: string;
-  if (ready)
+  if (unpushed) headline = "push하면 팀원 모두에게\n같은 설정이 적용됩니다";
+  else if (ready)
     headline =
       todos.length === 0
         ? "모든 항목을 통과했습니다"
@@ -1408,6 +1415,10 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
   const commitBtn = $("hero-commit") as HTMLButtonElement;
   commitBtn.hidden = n > 0 || !pending || cmd === null;
   commitBtn.disabled = busy || locked || (state?.running ?? false);
+  const pushBtn = $("hero-push") as HTMLButtonElement;
+  pushBtn.hidden = !unpushed || pending;
+  pushBtn.disabled = commitBtn.disabled;
+  const push = d.pushPending;
   $("fix-caption").textContent =
     n > 0
       ? "바뀌는 내용을 먼저 보여 드립니다\n" +
@@ -1416,7 +1427,9 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
           : "적용한 뒤에도 되돌릴 수 있습니다")
       : pending
         ? `앱이 만든 파일만 커밋합니다\n커밋하면 ${commitTo ?? d.score + d.weights.fail}점이 됩니다`
-        : "";
+        : unpushed && push
+          ? `${push.branch} → ${push.target ?? "원격에 새 브랜치로"}\n보내기 전에 한 번 더 확인합니다`
+          : "";
 }
 
 // 커밋: 점수가 80을 넘는 마지막 걸음이라 할 일 목록에 한 줄로 둔다 (명령 복사)
@@ -1425,13 +1438,44 @@ function commitInfo(d: DiagnosisView): { pending: boolean; cmd: string | null } 
   const pending = d.areas.flatMap((a) => a.findings).some((f) => f.needsCommit);
   const cmd =
     commitCmds.get(d.path) ??
-    (pending ? `git add .claude/settings.json && git commit -m "Claude Code 팀 설정"` : null);
+    (pending
+      ? `git add .claude/settings.json && git commit -m "chore: Claude Code 팀 설정 추가"`
+      : null);
   return { pending, cmd };
+}
+
+// "직접 하려면": 터미널에서 직접 할 명령을 접어 둔다 (기본 동작은 맨 위 주 버튼 하나)
+function manualCommand(cmd: string): HTMLElement {
+  const d = h(
+    "details",
+    { class: "manual" },
+    h("summary", {}, "직접 하려면"),
+    h("div", { class: "cmd-row" }, h("code", {}, cmd), copyButton(cmd)),
+  );
+  return d;
 }
 
 function renderCommit(d: DiagnosisView): HTMLElement[] {
   const { pending, cmd } = commitInfo(d);
-  if (!pending && d.committedScore === undefined) return [];
+  const push = d.pushPending;
+  if (!pending && !push && d.committedScore === undefined) return [];
+  let title: string;
+  let sub: string;
+  let manual: string | null;
+  let group: string;
+  if (push && !pending) {
+    group = "팀원에게 보내 적용합니다";
+    title = "팀원에게 보내기 (git push)";
+    sub = `${push.branch} → ${push.target ?? "원격에 새 브랜치로"} · push해야 팀원이 받습니다`;
+    manual = push.target ? "git push" : `git push -u origin ${push.branch}`;
+  } else {
+    group = "커밋해서 팀에 적용합니다";
+    title = "설정을 git에 커밋하기";
+    sub = pending
+      ? "커밋하고 push하면 팀원 모두에게 같은 설정이 적용됩니다"
+      : "바로 고치기를 적용한 뒤 커밋합니다";
+    manual = pending ? cmd : null;
+  }
   const row = h(
     "div",
     { class: "todo commit" },
@@ -1441,38 +1485,85 @@ function renderCommit(d: DiagnosisView): HTMLElement[] {
       h(
         "div",
         { class: "todo-head static" },
-        sevBadge("commit", "커밋"),
+        sevBadge("commit", push && !pending ? "보내기" : "커밋"),
         h(
           "span",
           { class: "todo-text" },
-          h("span", { class: "todo-title" }, "설정을 git에 커밋하기"),
-          h(
-            "span",
-            { class: "todo-sub" },
-            pending
-              ? "커밋하고 push하면 팀원 모두에게 같은 설정이 적용됩니다"
-              : "바로 고치기를 적용한 뒤 커밋합니다",
-          ),
-          h("span", { class: "sr-only" }, `, 커밋하면 +${d.weights.fail}점`),
+          h("span", { class: "todo-title" }, title),
+          h("span", { class: "todo-sub" }, sub),
+          push && !pending
+            ? null
+            : h("span", { class: "sr-only" }, `, 커밋하면 +${d.weights.fail}점`),
         ),
       ),
-      pointsTail(d.weights.fail, undefined, null),
+      pointsTail(push && !pending ? null : d.weights.fail, undefined, null),
     ),
   );
-  if (cmd && pending)
-    row.append(
-      h(
-        "div",
-        { class: "cmd-row in-todo" },
-        h("code", {}, cmd),
-        keyed(
-          button("커밋하기", () => void commitFlow(), "btn soft small"),
-          "commit:row",
-        ),
-        copyButton(cmd),
-      ),
+  if (manual) row.append(h("div", { class: "in-todo" }, manualCommand(manual)));
+  return [h("h3", { class: "group-label" }, group), row];
+}
+
+// 팀원에게 보내기: 어디로 보낼지 확인 → push → 다시 점검
+async function pushFlow(): Promise<void> {
+  if (!current) return;
+  rememberFocus();
+  const path = current.path;
+  setBusy(true);
+  try {
+    const r = await api.push(path, false);
+    if (r.kind === "none") {
+      panel("보낼 것이 없습니다", r.reason);
+      closeOnly();
+      current = await api.diagnose(path);
+      return;
+    }
+    if (r.kind !== "preview") return;
+    locked = true;
+    panel(
+      "팀원에게 보내기",
+      `${r.branch} 브랜치를 ${r.target}(으)로 push합니다` +
+        `\n${r.ahead !== null ? `커밋 ${r.ahead}개를 보냅니다. ` : ""}` +
+        (r.newBranch ? "원격에 같은 이름의 브랜치를 새로 만듭니다. " : "") +
+        "보낸 뒤에는 앱에서 되돌릴 수 없습니다.",
+      "",
+      true,
     );
-  return [h("h3", { class: "group-label" }, "커밋해서 팀에 적용합니다"), row];
+    $("panel-message").classList.add("lead");
+    $("panel-note").textContent =
+      "로그인이 필요하면 git 자격 증명 창이 뜰 수 있습니다. 팀이 이 브랜치에 바로 push하지 않는다면(PR로 올린다면) 취소하고 평소 방식으로 올리세요.";
+    panelButtons(
+      button(
+        "push하기",
+        () => {
+          void (async () => {
+            setBusy(true);
+            try {
+              const done = await api.push(path, true);
+              current = await api.diagnose(path);
+              state = await api.getState();
+              locked = false;
+              panel(
+                "보냈습니다",
+                `${done.kind === "done" ? done.target : "원격"}에 올렸습니다\n팀원이 받으면 같은 설정이 적용됩니다`,
+              );
+              $("panel-message").classList.add("lead");
+              closeOnly();
+            } catch (e) {
+              showError(e);
+            } finally {
+              setBusy(false);
+            }
+          })();
+        },
+        "btn primary deliberate",
+      ),
+      button("취소", closePanel),
+    );
+  } catch (e) {
+    showError(e);
+  } finally {
+    setBusy(false);
+  }
 }
 
 function renderResults(d: DiagnosisView): void {
@@ -1487,7 +1578,7 @@ function renderResults(d: DiagnosisView): void {
   const activeKey = $("todos").contains(active) ? (active?.dataset.key ?? null) : null;
   const groups: { kind: Todo["kind"]; label: string }[] = [
     { kind: "fix", label: "바로 고칠 수 있습니다" },
-    { kind: "claude", label: "Claude가 써 줍니다 · 건당 약 1분, 150~400원" },
+    { kind: "claude", label: "Claude가 써 줍니다 · 건당 약 1분, 사용량 약 $0.1~0.3" },
     { kind: "manual", label: "직접 해야 합니다" },
   ];
   const out: HTMLElement[] = [];
@@ -1528,10 +1619,11 @@ function renderResults(d: DiagnosisView): void {
   $("passed").replaceChildren(...passed.map(passedItem));
 }
 
+// 위험·주의를 색에만 맡기지 않고 글자로도 구분한다
 const CRIT_STATUS = {
   ok: "통과",
-  warn: "안 됨",
-  fail: "안 됨",
+  warn: "안 됨 · 주의",
+  fail: "안 됨 · 위험",
   na: "해당 없음",
   pending: "확인 전",
 };
@@ -1555,7 +1647,8 @@ function renderCriteria(d: DiagnosisView): void {
   const count = (s: string[]) => c.filter((x) => s.includes(x.status)).length;
   const sum = [
     [`통과 ${count(["ok"])}`, "good"],
-    [`안 됨 ${count(["fail", "warn"])}`, "bad"],
+    [`위험 ${count(["fail"])}`, "bad"],
+    [`주의 ${count(["warn"])}`, "warn"],
     [`확인 전 ${count(["pending"])}`, ""],
     [`해당 없음 ${count(["na"])}`, ""],
   ].filter(([t]) => !String(t).endsWith(" 0"));
@@ -1733,9 +1826,9 @@ document.addEventListener("keydown", (e) => {
     const usable = (el: HTMLElement | null) =>
       el !== null && el.offsetParent !== null && !(el as HTMLButtonElement).disabled;
     const target = modal
-      ? $("panel-btns").querySelector<HTMLElement>(".btn.primary")
+      ? $("panel-btns").querySelector<HTMLElement>(".btn.primary:not(.deliberate)")
       : current && tab === "results"
-        ? ([$("fix-all"), $("hero-commit")].find(usable) ?? null)
+        ? ([$("fix-all"), $("hero-commit"), $("hero-push")].find(usable) ?? null)
         : null;
     if (usable(target)) {
       e.preventDefault();
@@ -1807,6 +1900,7 @@ $("save-report").addEventListener("click", () => void saveReport());
 $("fix-all").addEventListener("click", () => current && void fix(current.fixes.map((f) => f.no)));
 $("panel-close").addEventListener("click", closePanel);
 $("hero-commit").addEventListener("click", () => void commitFlow());
+$("hero-push").addEventListener("click", () => void pushFlow());
 // Esc로 패널 닫기 (Claude 실행 중에는 닫기 버튼이 없으므로 닫지 않는다)
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("panel").hidden && !$("panel-close").hidden) closePanel();
