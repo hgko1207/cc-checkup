@@ -124,8 +124,8 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
     .poll(async () => Number(await page.locator("#score").textContent()))
     .toBeGreaterThan(before);
 
-  await page.getByRole("button", { name: "마지막 반영 되돌리기" }).click();
-  await expect(page.locator("#panel-title")).toHaveText("마지막 반영 되돌리기");
+  await page.getByRole("button", { name: "마지막으로 고친 것 되돌리기" }).click();
+  await expect(page.locator("#panel-title")).toHaveText("마지막으로 고친 것 되돌리기");
   await page.locator("#panel-btns").getByRole("button", { name: "되돌리기" }).click();
   await expect(page.locator("#panel-title")).toHaveText("되돌렸습니다");
   expect(await exists(join(repo, ".claude"))).toBe(false);

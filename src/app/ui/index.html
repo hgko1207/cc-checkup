@@ -40,6 +40,10 @@
         </nav>
 
         <div class="side-foot">
+          <p class="small shortcuts">
+            단축키: Ctrl+O 폴더 열기 · F5 다시 점검 · Ctrl+Enter 다음 단계 · Ctrl+1·2 탭 · Ctrl+Z
+            되돌리기 · 용어·단축키 전체는 점검 기준 탭
+          </p>
           <p id="side-kind" class="small"></p>
           <div class="claude-line">
             <span id="claude-status" class="small"></span>
@@ -100,7 +104,7 @@
                     <path d="M9 14L4 9l5-5" />
                     <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
                   </svg>
-                  마지막 반영 되돌리기
+                  마지막으로 고친 것 되돌리기
                 </button>
                 <button id="save-report" class="btn quiet" type="button">리포트 저장</button>
                 <button
@@ -191,6 +195,7 @@
                   >
                     팀원에게 보내기
                   </button>
+                  <kbd id="hero-kbd" class="kbd" aria-hidden="true">Ctrl+Enter</kbd>
                   <span id="fix-caption" class="caption"></span>
                 </div>
               </section>
@@ -279,6 +284,20 @@
               <section class="card" aria-labelledby="glossary-title">
                 <h2 id="glossary-title" class="card-title">자주 나오는 말</h2>
                 <div id="glossary"></div>
+                <h3 class="card-sub">단축키</h3>
+                <dl class="glossary">
+                  <dt>Ctrl+Enter</dt>
+                  <dd>
+                    다음 단계의 주 버튼(바로 고치기 → 커밋하기 → 팀원에게 보내기), 확인창의 주 버튼.
+                    사용량이 드는 Claude 실행과 push는 직접 눌러야 합니다.
+                  </dd>
+                  <dt>Ctrl+1 · Ctrl+2</dt>
+                  <dd>점검 결과 · 점검 기준 탭</dd>
+                  <dt>Ctrl+Z</dt>
+                  <dd>마지막으로 고친 것 되돌리기 (커밋 전까지)</dd>
+                  <dt>Ctrl+O · F5 · Esc</dt>
+                  <dd>폴더 열기 · 다시 점검 · 확인창·알림 닫기</dd>
+                </dl>
               </section>
             </div>
           </div>
@@ -296,7 +315,11 @@
           <div class="panel-head">
             <h2 id="panel-title" tabindex="-1">진행 · 변경 확인</h2>
             <!-- 닫을 수 있는지(Esc)만 나타내는 자리. 닫기는 아래 행동 바의 [취소]·[닫기]로 한다 -->
-            <button id="panel-close" type="button" aria-label="닫기" tabindex="-1"></button>
+            <button id="panel-close" class="btn quiet small" type="button" aria-label="닫기">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
           </div>
           <div class="panel-body">
             <p id="panel-message" class="panel-message" aria-live="polite"></p>

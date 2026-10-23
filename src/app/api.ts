@@ -98,6 +98,7 @@ export type PushView =
       target: string; // 예: origin/main
       ahead: number | null; // 보낼 커밋 수 (모르면 null)
       newBranch: boolean; // 원격에 추적 브랜치를 새로 만든다
+      commits: { sha: string; subject: string; mine: boolean }[]; // 보낼 커밋 (최대 20개, mine = 앱이 만든 커밋)
     }
   | { kind: "done"; target: string };
 
