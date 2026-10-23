@@ -435,6 +435,25 @@ describe("예상 점수", () => {
     ).toBe("fail");
   });
 
+  it("커밋 뒤 점수: 고친 뒤 settings.json을 커밋하면 실제로 그 점수가 된다", async () => {
+    const { core, deps, repo } = await setup();
+    await core.pickFolder();
+    const before = await core.diagnose(repo, "dev");
+    const commitTo = before.committedScore;
+    expect(commitTo).toBeGreaterThan(before.expectedScore ?? 0);
+    const nos = before.fixes.map((f) => f.no);
+    await core.fix(repo, nos, false);
+    await core.fix(repo, nos, true);
+    const fixed = await core.diagnose(repo);
+    expect(fixed.committedScore).toBe(commitTo);
+    // git이 settings.json을 추적한다고 답하면(커밋 뒤) 커밋 뒤 점수와 같다
+    const committed = new AppCore({ ...deps, runGit: fakeGit({ code: 0, stderr: "" }) });
+    await committed.init();
+    const after = await committed.diagnose(repo);
+    expect(after.score).toBe(commitTo);
+    expect(after.committedScore).toBeUndefined();
+  });
+
   it("문서 폴더의 해당 없음 항목은 통과로 세지 않는다", async () => {
     const { core, repo } = await setup({ "기획.md": "# 기획\n" });
     await core.pickFolder();
@@ -443,5 +462,58 @@ describe("예상 점수", () => {
     expect(hook?.notApplicable).toBe(true);
     const all = v.areas.flatMap((a) => a.findings);
     expect(v.counts.ok).toBe(all.filter((f) => f.severity === "ok" && !f.notApplicable).length);
+  });
+});
+
+describe("점검 기준 화면", () => {
+  it("기본 표준: 보는 항목 전체와 이 폴더 결과, 사내 항목 없음", async () => {
+    const { core, repo } = await setup();
+    await core.pickFolder();
+    const v = await core.diagnose(repo, "dev");
+    const ids = v.criteria.map((c) => c.id);
+    expect(ids).toEqual([
+      "settings/missing",
+      "settings/env-read-deny",
+      "settings/env-edit-deny",
+      "settings/risky-allow",
+      "settings/bypass",
+      "hooks/present",
+      "settings/committed",
+      "claude-md",
+      "claude-md/verify",
+    ]);
+    const by = (id: string) => v.criteria.find((c) => c.id === id);
+    expect(by("settings/missing")).toMatchObject({ status: "fail", penalty: "위험 −15" });
+    // settings.json이 없으면 커밋 여부는 아직 보지 않는다
+    expect(by("settings/committed")).toMatchObject({ status: "pending" });
+    expect(by("claude-md/verify")?.status).toBe("ok");
+    expect(v.criteria.some((c) => c.company)).toBe(false);
+    expect(v.standardSource).toBe("default");
+  });
+
+  it("사내 표준: 필수 섹션·파일·플러그인을 사내 항목으로 더한다", async () => {
+    const s = await setup({ "CLAUDE.md": "# 앱\nnpm run test\n", "index.html": "<p></p>" });
+    await s.core.pickFolder();
+    s.picks.push(EXAMPLE);
+    await s.core.pickStandard();
+    const v = await s.core.diagnose(s.repo, "dev");
+    const company = v.criteria.filter((c) => c.company).map((c) => c.id);
+    expect(company).toEqual(["claude-md/sections", "file/plan", "file/design", "plugins/required"]);
+    expect(v.criteria.find((c) => c.id === "claude-md/sections")?.rule).toBe(
+      "코딩 규칙, 하지 말 것",
+    );
+    expect(v.criteria.find((c) => c.id === "file/design")?.status).toBe("warn");
+    expect(v.standardSource).toBe("shared");
+  });
+
+  it("문서 폴더: 훅은 해당 없음, 화면 없는 폴더의 DESIGN.md도 해당 없음", async () => {
+    const s = await setup({ "기획.md": "# 기획\n" });
+    await s.core.pickFolder();
+    const v = await s.core.diagnose(s.repo, "docs");
+    expect(v.criteria.find((c) => c.id === "hooks/present")?.status).toBe("na");
+    s.picks.push(EXAMPLE);
+    await s.core.pickStandard();
+    const dev = await s.core.diagnose(s.repo, "dev");
+    expect(dev.criteria.find((c) => c.id === "file/design")).toMatchObject({ status: "na" });
   });
 });

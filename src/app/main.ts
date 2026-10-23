@@ -27,6 +27,7 @@ const TYPES: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
+  ".woff2": "font/woff2",
 };
 
 // 테스트(E2E)용: 저장 위치와 폴더 선택을 환경 변수로 바꾼다. 앱을 띄운 사람만 정할 수 있는 값이다

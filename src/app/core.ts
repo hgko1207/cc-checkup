@@ -49,6 +49,7 @@ import type {
   ClaudeAction,
   ClaudeStatus,
   ClaudeView,
+  CriterionView,
   DiagnosisView,
   FindingView,
   FixView,
@@ -168,6 +169,183 @@ export function expectedScore(diag: Diagnosis, chosen: FixCandidate[]): number {
   return score(findings, diag.ctx.standard);
 }
 
+// 고친 뒤 settings.json까지 커밋했을 때의 점수. 커밋으로 풀리는 항목이 있거나 생길 때만 (git 저장소)
+export function committedScore(diag: Diagnosis, chosen: FixCandidate[]): number | undefined {
+  if (diag.ctx.git.tracked !== false) return undefined;
+  const findings: Finding[] = diag.findings.map((f) =>
+    f.needsCommit || fixFor(f, chosen) ? { ...f, severity: "ok" } : f,
+  );
+  const s = score(findings, diag.ctx.standard);
+  const before = chosen.length > 0 ? expectedScore(diag, chosen) : diag.score;
+  return s > before ? s : undefined;
+}
+
+const SEVERITY_NAME = { fail: "위험", warn: "주의" } as const;
+
+// [점검 기준] 화면: 지금 표준·폴더 종류에서 보는 항목 전체와 이 폴더의 결과.
+// 진단 결과가 없는 항목은 아직 확인 전(다른 항목이 먼저 풀려야 봄)이거나 해당 없음이다
+export function criteriaFor(diag: Diagnosis): CriterionView[] {
+  const std = diag.ctx.standard;
+  const shared = diag.standard.source === "shared";
+  const pen = (s: "fail" | "warn") => `${SEVERITY_NAME[s]} −${std.score[s]}`;
+  const out: CriterionView[] = [];
+  const add = (
+    c: Omit<CriterionView, "status" | "company"> & { company?: boolean },
+    missing: Pick<CriterionView, "status" | "note">,
+  ) => {
+    const found = diag.findings.filter((f) => f.id === c.id);
+    let result: Pick<CriterionView, "status" | "note"> = missing;
+    if (found.some((f) => f.notApplicable))
+      result = { status: "na", note: "이 폴더 종류에서는 보지 않습니다" };
+    else if (found.length > 0)
+      result = {
+        status: found.some((f) => f.severity === "fail")
+          ? "fail"
+          : found.some((f) => f.severity === "warn")
+            ? "warn"
+            : "ok",
+      };
+    out.push({ ...c, company: c.company ?? false, ...result });
+  };
+  const notYet = { status: "pending" as const, note: "지금은 확인하지 않았습니다" };
+
+  add(
+    {
+      id: "settings/missing",
+      group: "보안",
+      title: "팀 공용 설정 파일",
+      rule: ".claude/settings.json이 폴더에 있습니다",
+      penalty: pen("fail"),
+    },
+    notYet,
+  );
+  add(
+    {
+      id: "settings/env-read-deny",
+      group: "보안",
+      title: ".env 읽기 차단",
+      rule: `.env 기본 이름 ${std.env.targets.length}가지와 폴더 안 실제 .env 파일을 Claude가 읽지 못하게 막습니다`,
+      penalty: pen("fail"),
+      penaltyNote: `.env가 아직 없으면 ${pen("warn")}`,
+    },
+    notYet,
+  );
+  add(
+    {
+      id: "settings/env-edit-deny",
+      group: "보안",
+      title: ".env 쓰기 차단",
+      rule: "같은 파일을 Claude가 고치거나 새로 쓰지 못하게 막습니다",
+      penalty: pen("warn"),
+    },
+    notYet,
+  );
+  add(
+    {
+      id: "settings/risky-allow",
+      group: "보안",
+      title: "위험한 자동 허용 없음",
+      rule: "강제 푸시·rm -rf·Bash 전체 같은 명령을 묻지 않고 실행하게 허용하지 않습니다",
+      penalty: pen("warn"),
+    },
+    notYet,
+  );
+  add(
+    {
+      id: "settings/bypass",
+      group: "보안",
+      title: "권한 우회 모드 막기",
+      rule: "확인 없이 모든 명령을 실행하는 모드를 켤 수 없게 해 둡니다",
+      penalty: pen("warn"),
+    },
+    notYet,
+  );
+  add(
+    {
+      id: "hooks/present",
+      group: "보안",
+      title: "위험 명령 차단 훅",
+      rule: "강제 푸시·rm -rf를 실행 직전에 멈추는 훅이 등록돼 있습니다",
+      penalty: pen("warn"),
+    },
+    notYet,
+  );
+  add(
+    {
+      id: "settings/committed",
+      group: "팀 공유",
+      title: "설정이 git에 커밋됨",
+      rule: "settings.json이 커밋돼 팀원 모두에게 같게 적용됩니다. 보호 규칙이 개인 설정(settings.local.json)에만 있으면 안 됩니다",
+      penalty: pen("fail"),
+      penaltyNote: `커밋 여부를 확인할 수 없으면 ${pen("warn")}`,
+    },
+    { status: "pending", note: "설정 파일이 생기면 확인합니다" },
+  );
+  add(
+    {
+      id: "claude-md",
+      group: "CLAUDE.md",
+      title: "CLAUDE.md",
+      rule: `CLAUDE.md 또는 .claude/CLAUDE.md가 있고 ${std.claudeMd.maxLines}줄 이하입니다`,
+      penalty: `없으면 ${pen("fail")}`,
+      penaltyNote: `길면 ${pen("warn")}`,
+    },
+    notYet,
+  );
+  const noClaudeMd = { status: "pending" as const, note: "CLAUDE.md가 생기면 확인합니다" };
+  if (std.claudeMd.requiredSections.some((s) => s.id === "verify"))
+    add(
+      {
+        id: "claude-md/verify",
+        group: "CLAUDE.md",
+        title: "검증 명령",
+        rule: "검증 섹션이나 테스트·린트·타입체크 실행 명령이 적혀 있습니다",
+        penalty: pen("warn"),
+      },
+      noClaudeMd,
+    );
+  const sections = std.claudeMd.requiredSections.filter((s) => s.id !== "verify");
+  if (sections.length > 0)
+    add(
+      {
+        id: "claude-md/sections",
+        group: "CLAUDE.md",
+        title: "필수 섹션",
+        rule: sections.map((s) => s.title).join(", "),
+        penalty: pen("warn"),
+        company: shared,
+      },
+      noClaudeMd,
+    );
+  for (const file of std.requiredFiles)
+    add(
+      {
+        id: `file/${file.id}`,
+        group: "필수 파일",
+        title: file.path,
+        rule: file.when === "hasUI" ? `${file.title} · 화면이 있는 프로젝트만 봅니다` : file.title,
+        penalty: pen(file.severity),
+        company: shared,
+      },
+      file.when === "hasUI"
+        ? { status: "na", note: "화면이 없는 프로젝트라 보지 않습니다" }
+        : notYet,
+    );
+  if (std.plugins.required.length > 0)
+    add(
+      {
+        id: "plugins/required",
+        group: "플러그인",
+        title: "사내 플러그인",
+        rule: `저장소 설정에서 켜 둡니다: ${std.plugins.required.join(", ")}`,
+        penalty: pen("warn"),
+        company: shared,
+      },
+      { status: "pending", note: "settings.json을 읽을 수 있으면 확인합니다" },
+    );
+  return out;
+}
+
 export function toView(
   diag: Diagnosis,
   plan: FixPlan,
@@ -229,6 +407,7 @@ export function toView(
     score: diag.score,
     standard: describeStandard(diag.standard),
     standardName: `${diag.standard.standard.name} ${diag.standard.standard.version}`,
+    standardSource: diag.standard.source,
     kind: diag.kind,
     kindAuto,
     kindReason: diag.kindGuess.reason,
@@ -238,6 +417,8 @@ export function toView(
     fixes: plan.candidates.map((c) => ({ no: c.no, title: c.title })),
     weights: diag.ctx.standard.score,
     expectedScore: plan.candidates.length > 0 ? expectedScore(diag, plan.candidates) : undefined,
+    committedScore: committedScore(diag, plan.candidates),
+    criteria: criteriaFor(diag),
     blocked: plan.blocked,
     canUndo,
   };

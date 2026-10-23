@@ -65,6 +65,7 @@ export const checkGit: Check = async ({ repoDir, settings, git, kind }) => {
         severity: "fail",
         message: ".claude/settings.json이 git에 커밋되지 않아 팀원에게 적용되지 않습니다",
         judgment: "git add .claude/settings.json 후 커밋하세요",
+        needsCommit: true,
       });
     } else if (kind === "docs" && git.reason === "git 저장소가 아닙니다") {
       // 문서 폴더는 git 없이 쓰는 경우가 많다. 팀 공유는 폴더 공유로 한다고 보고 넘어간다
