@@ -85,8 +85,21 @@ export interface DiagnosisView {
   areas: AreaView[];
   fixes: { no: number; title: string }[];
   blocked?: string; // settings.json을 쓸 수 없어 설정 고치기를 막은 이유
-  canUndo: boolean;
+  canUndo: boolean; // 되돌릴 반영이 있고 아직 커밋되지 않음
+  pushPending?: { branch: string; target: string | null }; // 앱이 한 커밋이 아직 원격에 없음
 }
+
+// 팀원에게 보내기(git push): 미리 보기 → push
+export type PushView =
+  | { kind: "none"; reason: string }
+  | {
+      kind: "preview";
+      branch: string;
+      target: string; // 예: origin/main
+      ahead: number | null; // 보낼 커밋 수 (모르면 null)
+      newBranch: boolean; // 원격에 추적 브랜치를 새로 만든다
+    }
+  | { kind: "done"; target: string };
 
 export interface FilePreview {
   path: string;
@@ -168,7 +181,8 @@ export interface CcCheckupApi {
   fix(path: string, nos: number[], apply: boolean): Promise<FixView>;
   claude(action: ClaudeAction): Promise<ClaudeView>;
   undo(path: string, apply: boolean): Promise<UndoView>;
-  commit(path: string, apply: boolean): Promise<CommitView>; // 앱이 쓴 파일만 git 커밋 (push는 하지 않음)
+  commit(path: string, apply: boolean): Promise<CommitView>;
+  push(path: string, apply: boolean): Promise<PushView>; // 지금 브랜치를 원격에 push // 앱이 쓴 파일만 git 커밋 (push는 하지 않음)
   saveReport(path: string): Promise<string | null>;
   openUpdate(): Promise<void>; // 사내 표준 파일이 알려 준 새 설치 파일 위치 열기
   openGuide(): Promise<void>; // 사내 표준 파일의 guideUrl 열기

@@ -9,6 +9,7 @@ export const CHANNELS = {
   claude: "cc:claude",
   undo: "cc:undo",
   commit: "cc:commit",
+  push: "cc:push",
   saveReport: "cc:saveReport",
   openUpdate: "cc:openUpdate",
   openGuide: "cc:openGuide",

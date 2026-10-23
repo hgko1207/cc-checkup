@@ -18,6 +18,7 @@ const api: CcCheckupApi = {
   claude: (action) => call("cc:claude", action),
   undo: (path, apply) => call("cc:undo", path, apply),
   commit: (path, apply) => call("cc:commit", path, apply),
+  push: (path, apply) => call("cc:push", path, apply),
   saveReport: (path) => call("cc:saveReport", path),
   openUpdate: () => call("cc:openUpdate"),
   openGuide: () => call("cc:openGuide"),

@@ -552,6 +552,23 @@ describe("앱에서 커밋하기", () => {
     expect(after.score).toBe(before.committedScore);
     expect(after.committedScore).toBeUndefined();
     expect((await core.commit(s.repo, false)).kind).toBe("none");
+    // 커밋한 뒤에는 되돌리기를 숨기고(커밋된 파일을 지우는 새 변경만 남으므로), push 전으로 표시한다
+    expect(after.canUndo).toBe(false);
+    expect(after.pushPending).toEqual({ branch: expect.any(String), target: null });
+
+    // 원격이 없으면 push하지 않고 이유를 알려 준다
+    expect(await core.push(s.repo, false)).toMatchObject({ kind: "none" });
+    // 원격(bare 저장소)을 붙이면 -u로 새 추적 브랜치를 만들어 push한다
+    const remote = await mkdtemp(join(tmpdir(), "cc-remote-"));
+    execFileSync("git", ["init", "-q", "--bare", remote]);
+    git("remote", "add", "origin", remote);
+    const pv = await core.push(s.repo, false);
+    if (pv.kind !== "preview") throw new Error(pv.kind);
+    expect(pv.newBranch).toBe(true);
+    expect(pv.target).toBe(`origin/${after.pushPending?.branch}`);
+    expect(await core.push(s.repo, true)).toEqual({ kind: "done", target: pv.target });
+    expect((await core.diagnose(s.repo)).pushPending).toBeUndefined();
+    expect(await core.push(s.repo, false)).toMatchObject({ kind: "none" });
   });
 
   it("git 저장소가 아니면 커밋하지 않고 이유를 알려 준다", async () => {

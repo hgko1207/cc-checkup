@@ -646,9 +646,14 @@ body {
 .todo.open .todo-head:hover {
   background: transparent;
 }
+/* 키보드 포커스는 줄 전체(오른쪽 점수 열까지)를 감싼다 */
 .todo-head:focus-visible {
+  outline: none;
+}
+.todo-row:has(.todo-head:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
+  border-radius: 14px;
 }
 /* Claude 버튼 열: 폭을 고정해 줄마다 같은 자리 */
 .todo-act {
@@ -1009,6 +1014,9 @@ body {
 }
 #crit-sum .bad {
   color: var(--fail-text);
+}
+#crit-sum .warn {
+  color: var(--warn-text);
 }
 .crit-cols,
 .crit-row {
@@ -1374,7 +1382,7 @@ body {
 .panel-foot {
   flex: none;
   display: flex;
-  flex-direction: row-reverse; /* 주 버튼(먼저 넘긴 것)이 오른쪽 끝 */
+  justify-content: flex-end; /* 취소 → 주 버튼 (주 버튼이 오른쪽 끝, Tab 순서도 같음) */
   flex-wrap: wrap;
   gap: 8px;
   padding: 14px 28px 20px;
@@ -1417,7 +1425,7 @@ body {
   white-space: pre-wrap;
   word-break: break-all;
 }
-.cmd-row.in-todo {
+.in-todo {
   padding: 0 16px 14px 66px;
 }
 
@@ -1622,7 +1630,7 @@ body {
   .todo-act .btn {
     width: auto;
   }
-  .cmd-row.in-todo {
+  .in-todo {
     padding-left: 20px;
   }
 }
@@ -1630,7 +1638,7 @@ body {
 /* Claude 묶음 제목 옆 "모두 처리" */
 .group-head {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
   padding-right: 16px;
@@ -1661,4 +1669,51 @@ body {
 .outside code {
   font-family: var(--mono);
   font-size: 12.5px;
+}
+
+.group-head .btn {
+  margin-bottom: 2px;
+}
+
+/* 직접 하려면: 터미널 명령은 접어 둔다 */
+.manual summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  list-style: none;
+  padding: 2px 0;
+}
+.manual summary::-webkit-details-marker {
+  display: none;
+}
+.manual summary::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s var(--ease);
+}
+.manual[open] summary::before {
+  transform: rotate(45deg);
+}
+.manual summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.manual .cmd-row {
+  margin-top: 8px;
+}
+
+/* 체크박스·라디오도 같은 포커스 테두리 */
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

@@ -57,6 +57,7 @@ import type {
   ClaudeStatus,
   ClaudeView,
   CommitView,
+  PushView,
   CriterionView,
   DiagnosisView,
   FindingView,
@@ -77,6 +78,18 @@ function gitError(what: string, stderr: string): string {
   if (/tell me who you are|user\.email|user\.name/i.test(stderr))
     return "git 사용자 이름·이메일이 설정돼 있지 않습니다. 터미널에서 git config --global user.name, user.email을 설정한 뒤 다시 시도하세요";
   return `${what}에 실패했습니다: ${firstLine(stderr) || "원인 모름"}. 터미널에서 직접 커밋해 보세요`;
+}
+// push 실패를 사람 말로: 로그인·권한, 원격에 새 커밋이 있는 경우가 흔하다
+function pushError(stderr: string): string {
+  if (
+    /Authentication failed|could not read Username|Permission denied|403|terminal prompts disabled/i.test(
+      stderr,
+    )
+  )
+    return "원격 저장소에 로그인돼 있지 않거나 권한이 없습니다. 터미널에서 git push로 로그인한 뒤 다시 시도하세요";
+  if (/rejected|non-fast-forward|fetch first/i.test(stderr))
+    return "원격에 새 커밋이 있어 push가 거절됐습니다. 터미널에서 git pull로 받은 뒤 다시 시도하세요";
+  return `push에 실패했습니다: ${firstLine(stderr) || "원인 모름"}. 터미널에서 직접 push해 보세요`;
 }
 
 export interface CoreDeps {
@@ -506,6 +519,8 @@ export class AppCore {
   private fixPreview: { key: string; nos: number[]; titles: string[] } | null = null;
   private undoPreview: { key: string; backupDir: string } | null = null;
   private commitPreview: { key: string; files: string[] } | null = null;
+  private pushPreview: { key: string; branch: string; target: string } | null = null;
+  private unpushed = new Set<string>(); // 앱이 커밋했지만 아직 push하지 않은 폴더
   // 폴더별로 앱이 쓴 파일 (커밋 대상 후보). 앱을 다시 켜면 settings.json만 본다
   private written = new Map<string, Set<string>>();
   private claudeRun: {
@@ -673,8 +688,12 @@ export class AppCore {
       diag.score,
       chosen && chosen === diag.kindGuess.kind ? null : undefined,
     );
-    const canUndo = (await findUndoTarget(path, this.deps.backup)) !== null;
-    return toView(diag, plan, canUndo, this.entry(path)?.kind === undefined);
+    const target = await findUndoTarget(path, this.deps.backup);
+    const canUndo = target !== null && !(await this.undoCommitted(path, target));
+    const view = toView(diag, plan, canUndo, this.entry(path)?.kind === undefined);
+    const pushPending = await this.pushState(path);
+    if (pushPending) view.pushPending = pushPending;
+    return view;
   }
 
   private notRunning(): void {
@@ -915,7 +934,95 @@ export class AppCore {
     if (c.code !== 0) throw new InputError(gitError("커밋", c.stderr));
     const set = this.written.get(key);
     for (const f of files) set?.delete(f);
+    this.unpushed.add(key);
     return { kind: "done", files, message: COMMIT_MESSAGE };
+  }
+
+  // 마지막 반영이 이미 커밋됐는가: 그 파일들이 git에 추적되고 바뀐 것이 없으면 커밋된 것
+  // (커밋한 뒤 되돌리기는 커밋된 파일을 지우는 새 변경만 남기므로 버튼을 숨긴다)
+  private async undoCommitted(path: string, target: UndoTarget): Promise<boolean> {
+    const git = this.deps.runGit ?? runGit;
+    const files = target.manifest.files.map((f) => f.path);
+    if (files.length === 0) return false;
+    const tracked = await git(["ls-files", "--", ...files], path);
+    if (tracked.code !== 0) return false; // git 저장소가 아니면 판단하지 않는다
+    const listed = (tracked.stdout ?? "").split(/\r?\n/).filter(Boolean).length;
+    if (listed < files.length) return false;
+    const st = await git(["status", "--porcelain", "--", ...files], path);
+    return st.code === 0 && (st.stdout ?? "").trim() === "";
+  }
+
+  // 앱이 한 커밋이 아직 원격에 없는가 (push 전). 앱이 커밋한 폴더만 본다
+  private async pushState(path: string): Promise<{ branch: string; target: string | null } | null> {
+    const key = this.key(path);
+    if (!this.unpushed.has(key)) return null;
+    const git = this.deps.runGit ?? runGit;
+    const head = await git(["rev-parse", "--abbrev-ref", "HEAD"], path);
+    const branch = (head.stdout ?? "").trim();
+    if (head.code !== 0 || !branch) return null;
+    const up = await git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], path);
+    if (up.code !== 0) return { branch, target: null };
+    const ahead = await git(["rev-list", "--count", "@{u}..HEAD"], path);
+    if (ahead.code === 0 && (ahead.stdout ?? "").trim() === "0") {
+      this.unpushed.delete(key);
+      return null;
+    }
+    return { branch, target: (up.stdout ?? "").trim() || null };
+  }
+
+  // 팀원에게 보내기: 지금 브랜치를 원격에 push한다 (미리 보기 → push). 추적 브랜치가 없으면 -u로 만든다
+  async push(v: unknown, applyIn: unknown): Promise<PushView> {
+    const path = this.folder(v);
+    const apply = bool(applyIn, "apply");
+    this.notRunning();
+    const git = this.deps.runGit ?? runGit;
+    const key = this.key(path);
+    const head = await git(["rev-parse", "--abbrev-ref", "HEAD"], path);
+    if (head.code !== 0) return { kind: "none", reason: "git 저장소가 아니라 push할 수 없습니다" };
+    const branch = (head.stdout ?? "").trim();
+    if (branch === "HEAD")
+      return {
+        kind: "none",
+        reason: "브랜치가 아닌 상태(detached HEAD)라 push할 수 없습니다. 터미널에서 확인하세요",
+      };
+    const up = await git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], path);
+    let target: string;
+    let remote: string | null = null;
+    let ahead: number | null = null;
+    if (up.code === 0) {
+      target = (up.stdout ?? "").trim();
+      const n = await git(["rev-list", "--count", "@{u}..HEAD"], path);
+      ahead = n.code === 0 ? Number((n.stdout ?? "").trim()) : null;
+      if (ahead === 0) {
+        this.unpushed.delete(key);
+        return { kind: "none", reason: `이미 ${target}에 올라가 있습니다` };
+      }
+    } else {
+      const remotes = await git(["remote"], path);
+      const names = (remotes.stdout ?? "").split(/\r?\n/).filter(Boolean);
+      remote = names.includes("origin") ? "origin" : names.length === 1 ? (names[0] ?? null) : null;
+      if (remote === null)
+        return {
+          kind: "none",
+          reason:
+            names.length === 0
+              ? "원격 저장소(remote)가 연결돼 있지 않아 push할 수 없습니다"
+              : "원격 저장소가 여러 개라 어디로 보낼지 정할 수 없습니다. 터미널에서 push하세요",
+        };
+      target = `${remote}/${branch}`;
+    }
+    if (!apply) {
+      this.pushPreview = { key, branch, target };
+      return { kind: "preview", branch, target, ahead, newBranch: remote !== null };
+    }
+    const p = this.pushPreview;
+    if (p?.key !== key || p.branch !== branch || p.target !== target)
+      throw new InputError("확인한 내용과 지금 상태가 다릅니다. 다시 확인하세요");
+    this.pushPreview = null;
+    const r = await git(remote ? ["push", "-u", remote, branch] : ["push"], path, 120_000);
+    if (r.code !== 0) throw new InputError(pushError(r.stderr));
+    this.unpushed.delete(key);
+    return { kind: "done", target };
   }
 
   async saveReport(v: unknown): Promise<string | null> {

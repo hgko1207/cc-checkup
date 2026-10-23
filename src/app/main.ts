@@ -182,6 +182,10 @@ async function start(): Promise<void> {
     wrap((p: unknown, apply: unknown) => core.commit(p, apply)),
   );
   ipcMain.handle(
+    CHANNELS.push,
+    wrap((p: unknown, apply: unknown) => core.push(p, apply)),
+  );
+  ipcMain.handle(
     CHANNELS.saveReport,
     wrap((p: unknown) => core.saveReport(p)),
   );
