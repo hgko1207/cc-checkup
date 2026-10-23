@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -515,5 +515,54 @@ describe("점검 기준 화면", () => {
     await s.core.pickStandard();
     const dev = await s.core.diagnose(s.repo, "dev");
     expect(dev.criteria.find((c) => c.id === "file/design")).toMatchObject({ status: "na" });
+  });
+});
+
+describe("앱에서 커밋하기", () => {
+  it("앱이 쓴 파일만 커밋하고, 사용자가 스테이징해 둔 변경은 섞지 않는다", async () => {
+    const { execFileSync } = await import("node:child_process");
+    const s = await setup();
+    const git = (...a: string[]) => execFileSync("git", a, { cwd: s.repo, encoding: "utf8" });
+    git("init", "-q");
+    git("config", "user.email", "t@example.com");
+    git("config", "user.name", "t");
+    git("config", "commit.gpgsign", "false");
+    git("add", "CLAUDE.md");
+    git("commit", "-qm", "init");
+    await writeFile(join(s.repo, "other.txt"), "사용자 작업\n");
+    git("add", "other.txt");
+    // 실제 git으로 진단·커밋한다
+    const core = new AppCore({ ...s.deps, runGit: undefined });
+    await core.init();
+    await core.pickFolder();
+    const before = await core.diagnose(s.repo, "dev");
+    const nos = before.fixes.map((f) => f.no);
+    await core.fix(s.repo, nos, false);
+    await core.fix(s.repo, nos, true);
+    const preview = await core.commit(s.repo, false);
+    if (preview.kind !== "preview") throw new Error(preview.kind);
+    expect(preview.files).toContain(".claude/settings.json");
+    expect(preview.files).not.toContain("other.txt");
+    const done = await core.commit(s.repo, true);
+    expect(done.kind).toBe("done");
+    expect(git("show", "--name-only", "--format=", "HEAD")).toContain(".claude/settings.json");
+    expect(git("show", "--name-only", "--format=", "HEAD")).not.toContain("other.txt");
+    expect(git("diff", "--cached", "--name-only")).toContain("other.txt");
+    const after = await core.diagnose(s.repo);
+    expect(after.score).toBe(before.committedScore);
+    expect(after.committedScore).toBeUndefined();
+    expect((await core.commit(s.repo, false)).kind).toBe("none");
+  });
+
+  it("git 저장소가 아니면 커밋하지 않고 이유를 알려 준다", async () => {
+    const { core, repo, deps } = await setup();
+    await core.pickFolder();
+    const c = new AppCore({
+      ...deps,
+      runGit: fakeGit({ code: 128, stderr: "not a git repository" }),
+    });
+    await c.init();
+    const r = await c.commit(repo, false);
+    expect(r).toEqual({ kind: "none", reason: "git 저장소가 아니라 커밋할 수 없습니다" });
   });
 });

@@ -8,6 +8,7 @@ export const CHANNELS = {
   fix: "cc:fix",
   claude: "cc:claude",
   undo: "cc:undo",
+  commit: "cc:commit",
   saveReport: "cc:saveReport",
   openUpdate: "cc:openUpdate",
   openGuide: "cc:openGuide",

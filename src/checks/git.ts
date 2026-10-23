@@ -6,16 +6,27 @@ import { readJsonSettings } from "./settings.js";
 export interface GitResult {
   code: number | null;
   stderr: string;
+  stdout?: string;
   error?: { code?: string | number | null; killed?: boolean };
 }
-export type GitRunner = (args: string[], cwd: string) => Promise<GitResult>;
+export type GitRunner = (args: string[], cwd: string, timeoutMs?: number) => Promise<GitResult>;
 
-export const runGit: GitRunner = (args, cwd) =>
+export const runGit: GitRunner = (args, cwd, timeoutMs = 10_000) =>
   new Promise((resolve) => {
-    execFile("git", args, { cwd, timeout: 10_000, windowsHide: true }, (error, _stdout, stderr) => {
-      const code = error ? (typeof error.code === "number" ? error.code : null) : 0;
-      resolve({ code, stderr: String(stderr), error: error ?? undefined });
-    });
+    execFile(
+      "git",
+      args,
+      { cwd, timeout: timeoutMs, windowsHide: true },
+      (error, stdout, stderr) => {
+        const code = error ? (typeof error.code === "number" ? error.code : null) : 0;
+        resolve({
+          code,
+          stderr: String(stderr),
+          stdout: String(stdout),
+          error: error ?? undefined,
+        });
+      },
+    );
   });
 
 // .claude/settings.json이 git에 추적되는가. 실행에 실패하면 tracked=null(확인 불가)과 원인

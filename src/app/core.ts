@@ -18,7 +18,7 @@ import {
   type BackupOptions,
   type UndoTarget,
 } from "../backup.js";
-import type { GitRunner } from "../checks/git.js";
+import { runGit, type GitRunner } from "../checks/git.js";
 import {
   claudeEnv,
   isClaudeRunning,
@@ -31,7 +31,14 @@ import {
 import { diagnose, type Diagnosis } from "../diagnose.js";
 import { HOOK_DIR } from "../hook-template.js";
 import { score } from "../score.js";
-import { applyAll, lineDiff, planFixes, type FixCandidate, type FixPlan } from "../fix.js";
+import {
+  applyAll,
+  lineDiff,
+  planFixes,
+  SETTINGS_PATH,
+  type FixCandidate,
+  type FixPlan,
+} from "../fix.js";
 import { commitGuide, formatMarkdown, writeReport } from "../report.js";
 import { detailFor } from "../details.js";
 import {
@@ -49,6 +56,7 @@ import type {
   ClaudeAction,
   ClaudeStatus,
   ClaudeView,
+  CommitView,
   CriterionView,
   DiagnosisView,
   FindingView,
@@ -58,6 +66,18 @@ import type {
 } from "./api.js";
 
 const RECENT_MAX = 10;
+export const COMMIT_MESSAGE = "chore: Claude Code 팀 설정 추가";
+
+function firstLine(text: string): string {
+  return text.trim().split(/\r?\n/)[0] ?? "";
+}
+
+// git 실패를 사람 말로: 이름·이메일 설정이 없을 때가 가장 흔하다
+function gitError(what: string, stderr: string): string {
+  if (/tell me who you are|user\.email|user\.name/i.test(stderr))
+    return "git 사용자 이름·이메일이 설정돼 있지 않습니다. 터미널에서 git config --global user.name, user.email을 설정한 뒤 다시 시도하세요";
+  return `${what}에 실패했습니다: ${firstLine(stderr) || "원인 모름"}. 터미널에서 직접 커밋해 보세요`;
+}
 
 export interface CoreDeps {
   dataDir: string; // 최근 폴더·설정 저장 위치 (Electron userData)
@@ -485,6 +505,9 @@ export class AppCore {
   private claudeStatus: ClaudeStatus = { ok: false, error: "확인 중" };
   private fixPreview: { key: string; nos: number[]; titles: string[] } | null = null;
   private undoPreview: { key: string; backupDir: string } | null = null;
+  private commitPreview: { key: string; files: string[] } | null = null;
+  // 폴더별로 앱이 쓴 파일 (커밋 대상 후보). 앱을 다시 켜면 settings.json만 본다
+  private written = new Map<string, Set<string>>();
   private claudeRun: {
     abort: AbortController;
     pending: RunResult | null;
@@ -707,6 +730,10 @@ export class AppCore {
       throw new InputError("미리 본 내용과 지금 상태가 다릅니다. 바뀔 내용을 다시 확인하세요");
     this.fixPreview = null;
     const changes = applyAll(diag.ctx.settings, chosen);
+    this.noteWritten(
+      key,
+      changes.map((c) => c.path),
+    );
     const { backupDir } = await applyWithBackup(
       path,
       changes.map((c) => ({ path: c.path, content: c.content })),
@@ -770,6 +797,10 @@ export class AppCore {
         await this.logDecision(run.path, run.taskId, a.type);
         if (a.type === "keep") {
           await pending.keep?.();
+          this.noteWritten(
+            this.key(run.path),
+            pending.diffs.map((d) => d.path),
+          );
           return {
             status: "kept",
             message: "적용했습니다. 되돌리기로 되돌릴 수 있습니다",
@@ -825,6 +856,66 @@ export class AppCore {
     this.undoPreview = null;
     const result = await executeUndo(path, target, items, this.deps.backup);
     return { kind: "done", ok: result.ok, statuses: result.statuses };
+  }
+
+  private noteWritten(key: string, paths: string[]): void {
+    const set = this.written.get(key) ?? new Set<string>();
+    for (const p of paths) set.add(p.replace(/\\/g, "/"));
+    this.written.set(key, set);
+  }
+
+  // 앱에서 커밋하기: 앱이 쓴 파일(과 settings.json) 중 git이 바뀌었다고 보는 것만 커밋한다.
+  // `git commit -- 파일`이라 사용자가 따로 스테이징해 둔 변경은 이 커밋에 섞이지 않는다. push는 하지 않는다
+  async commit(v: unknown, applyIn: unknown): Promise<CommitView> {
+    const path = this.folder(v);
+    const apply = bool(applyIn, "apply");
+    this.notRunning();
+    const git = this.deps.runGit ?? runGit;
+    const key = this.key(path);
+    const prefix = await git(["rev-parse", "--show-prefix"], path);
+    if (prefix.code !== 0)
+      return { kind: "none", reason: "git 저장소가 아니라 커밋할 수 없습니다" };
+    const base = (prefix.stdout ?? "").trim();
+    const candidates = [...new Set([...(this.written.get(key) ?? []), SETTINGS_PATH])].filter(
+      (p) => p !== "" && !p.startsWith("/") && !/^[a-z]:/i.test(p) && !p.split("/").includes(".."),
+    );
+    const st = await git(
+      ["status", "--porcelain", "-z", "--untracked-files=all", "--", ...candidates],
+      path,
+    );
+    if (st.code !== 0) throw new InputError(`git 상태를 읽지 못했습니다: ${firstLine(st.stderr)}`);
+    const changed: string[] = [];
+    const parts = (st.stdout ?? "").split("\0");
+    for (let i = 0; i < parts.length; i++) {
+      const e = parts[i] ?? "";
+      if (e.length < 4) continue;
+      const file = e.slice(3);
+      if (e[0] === "R" || e[0] === "C") i++; // 이름 바꾸기는 원래 이름이 다음 칸에 온다
+      const rel = base && file.startsWith(base) ? file.slice(base.length) : file;
+      if (candidates.includes(rel)) changed.push(rel);
+    }
+    const files = [...new Set(changed)].sort();
+    if (files.length === 0)
+      return {
+        kind: "none",
+        reason: "커밋할 변경이 없습니다. 이미 커밋했다면 ‘다시 점검’을 누르세요",
+      };
+    if (!apply) {
+      this.commitPreview = { key, files };
+      return { kind: "preview", files, message: COMMIT_MESSAGE };
+    }
+    const p = this.commitPreview;
+    if (p?.key !== key || p.files.join("\n") !== files.join("\n"))
+      throw new InputError("확인한 파일과 지금 상태가 다릅니다. 커밋할 파일을 다시 확인하세요");
+    this.commitPreview = null;
+    const add = await git(["add", "--", ...files], path);
+    if (add.code !== 0) throw new InputError(gitError("git add", add.stderr));
+    // 커밋 훅(린트 등)이 돌 수 있어 넉넉히 기다린다
+    const c = await git(["commit", "-m", COMMIT_MESSAGE, "--", ...files], path, 120_000);
+    if (c.code !== 0) throw new InputError(gitError("커밋", c.stderr));
+    const set = this.written.get(key);
+    for (const f of files) set?.delete(f);
+    return { kind: "done", files, message: COMMIT_MESSAGE };
   }
 
   async saveReport(v: unknown): Promise<string | null> {

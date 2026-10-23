@@ -106,6 +106,12 @@ export type FixView =
     }
   | { kind: "applied"; files: string[]; backupDir: string; commitHint: string };
 
+// 앱에서 커밋하기: 앱이 쓴 파일만 커밋한다 (미리 보기 → 커밋)
+export type CommitView =
+  | { kind: "none"; reason: string }
+  | { kind: "preview"; files: string[]; message: string }
+  | { kind: "done"; files: string[]; message: string };
+
 export type Progress =
   | { kind: "start"; model?: string }
   | { kind: "text"; text: string }
@@ -162,6 +168,7 @@ export interface CcCheckupApi {
   fix(path: string, nos: number[], apply: boolean): Promise<FixView>;
   claude(action: ClaudeAction): Promise<ClaudeView>;
   undo(path: string, apply: boolean): Promise<UndoView>;
+  commit(path: string, apply: boolean): Promise<CommitView>; // 앱이 쓴 파일만 git 커밋 (push는 하지 않음)
   saveReport(path: string): Promise<string | null>;
   openUpdate(): Promise<void>; // 사내 표준 파일이 알려 준 새 설치 파일 위치 열기
   openGuide(): Promise<void>; // 사내 표준 파일의 guideUrl 열기
