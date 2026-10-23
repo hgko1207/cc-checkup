@@ -365,6 +365,7 @@ export function toView(
       judgment: f.judgment,
       detail: detailFor(f.id),
       notApplicable: f.notApplicable,
+      needsCommit: f.needsCommit,
       example: f.severity === "ok" ? undefined : f.example || undefined,
     };
     if (fix) {

@@ -28,7 +28,7 @@ const DETAILS: Record<string, Detail> = {
   },
   "settings/missing": {
     why: ".claude/settings.json은 팀원 모두에게 같은 권한 규칙(비밀 파일 차단, 위험 명령 확인)을 적용하는 공용 설정입니다. 없으면 각자 개인 설정에 맡겨집니다.",
-    fix: "바로 고치기는 .env 차단 규칙·우회 모드 막기·위험 명령 차단 훅을 담은 settings.json을 새로 만듭니다.",
+    fix: "바로 고치기는 settings.json을 새로 만들고 .env 차단 규칙을 넣습니다. 함께 고른 다른 할 일(권한 우회 모드 막기, 위험 명령 차단 훅 등)도 이 파일에 들어갑니다.",
   },
   "settings/env-read-deny": {
     why: "Claude가 .env를 읽으면 API 키·비밀번호가 대화 기록과 모델 요청에 들어갑니다. 실수로 코드나 답변에 옮겨 적을 수도 있습니다.",
