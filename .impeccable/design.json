@@ -1,0 +1,739 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-23T10:52:14.818Z",
+  "title": "Design System: Claude 세팅 점검",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "페이지 회색",
+        "canonical": "#f2f4f6",
+        "dark": "#141519",
+        "tonalRamp": [
+          "oklch(15% 0.003 248)",
+          "oklch(26% 0.003 248)",
+          "oklch(38% 0.003 248)",
+          "oklch(50% 0.003 248)",
+          "oklch(62% 0.003 248)",
+          "oklch(74% 0.003 248)",
+          "oklch(85% 0.003 248)",
+          "oklch(95% 0.003 248)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "흰 면",
+        "canonical": "#ffffff",
+        "dark": "#1e2026",
+        "tonalRamp": [
+          "oklch(15% 0.000 0)",
+          "oklch(26% 0.000 0)",
+          "oklch(38% 0.000 0)",
+          "oklch(50% 0.000 0)",
+          "oklch(62% 0.000 0)",
+          "oklch(74% 0.000 0)",
+          "oklch(85% 0.000 0)",
+          "oklch(95% 0.000 0)"
+        ]
+      },
+      "soft": {
+        "role": "neutral",
+        "displayName": "옅은 회색 면",
+        "canonical": "#f2f4f6",
+        "dark": "#2a2c33",
+        "tonalRamp": [
+          "oklch(15% 0.003 248)",
+          "oklch(26% 0.003 248)",
+          "oklch(38% 0.003 248)",
+          "oklch(50% 0.003 248)",
+          "oklch(62% 0.003 248)",
+          "oklch(74% 0.003 248)",
+          "oklch(85% 0.003 248)",
+          "oklch(95% 0.003 248)"
+        ]
+      },
+      "soft-2": {
+        "role": "neutral",
+        "displayName": "더 옅은 회색 면",
+        "canonical": "#f9fafb",
+        "dark": "#24262c",
+        "tonalRamp": [
+          "oklch(15% 0.002 0)",
+          "oklch(26% 0.002 0)",
+          "oklch(38% 0.002 0)",
+          "oklch(50% 0.002 0)",
+          "oklch(62% 0.002 0)",
+          "oklch(74% 0.002 0)",
+          "oklch(85% 0.002 0)",
+          "oklch(95% 0.002 0)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "먹색",
+        "canonical": "#191f28",
+        "dark": "#eef0f3",
+        "tonalRamp": [
+          "oklch(15% 0.020 258)",
+          "oklch(26% 0.020 258)",
+          "oklch(38% 0.020 258)",
+          "oklch(50% 0.020 258)",
+          "oklch(62% 0.020 258)",
+          "oklch(74% 0.020 258)",
+          "oklch(85% 0.020 258)",
+          "oklch(95% 0.020 258)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "회색 바탕용 보조 글자",
+        "canonical": "#4e5968",
+        "dark": "#b0b8c1",
+        "tonalRamp": [
+          "oklch(15% 0.028 256)",
+          "oklch(26% 0.028 256)",
+          "oklch(38% 0.028 256)",
+          "oklch(50% 0.028 256)",
+          "oklch(62% 0.028 256)",
+          "oklch(74% 0.028 256)",
+          "oklch(85% 0.028 256)",
+          "oklch(95% 0.028 256)"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "흰 바탕용 보조 글자",
+        "canonical": "#66717f",
+        "dark": "#9aa3ad",
+        "tonalRamp": [
+          "oklch(15% 0.026 254)",
+          "oklch(26% 0.026 254)",
+          "oklch(38% 0.026 254)",
+          "oklch(50% 0.026 254)",
+          "oklch(62% 0.026 254)",
+          "oklch(74% 0.026 254)",
+          "oklch(85% 0.026 254)",
+          "oklch(95% 0.026 254)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "선",
+        "canonical": "#e5e8eb",
+        "dark": "#30333b",
+        "tonalRamp": [
+          "oklch(15% 0.005 248)",
+          "oklch(26% 0.005 248)",
+          "oklch(38% 0.005 248)",
+          "oklch(50% 0.005 248)",
+          "oklch(62% 0.005 248)",
+          "oklch(74% 0.005 248)",
+          "oklch(85% 0.005 248)",
+          "oklch(95% 0.005 248)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "토스 블루",
+        "canonical": "#1b64da",
+        "dark": "#6aa6ff",
+        "tonalRamp": [
+          "oklch(15% 0.194 260)",
+          "oklch(26% 0.194 260)",
+          "oklch(38% 0.194 260)",
+          "oklch(50% 0.194 260)",
+          "oklch(62% 0.194 260)",
+          "oklch(74% 0.194 260)",
+          "oklch(85% 0.194 260)",
+          "oklch(95% 0.194 260)"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "눌린 블루",
+        "canonical": "#1957c2",
+        "dark": "#8ab8ff",
+        "tonalRamp": [
+          "oklch(15% 0.179 261)",
+          "oklch(26% 0.179 261)",
+          "oklch(38% 0.179 261)",
+          "oklch(50% 0.179 261)",
+          "oklch(62% 0.179 261)",
+          "oklch(74% 0.179 261)",
+          "oklch(85% 0.179 261)",
+          "oklch(95% 0.179 261)"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "블루 위 글자",
+        "canonical": "#ffffff",
+        "dark": "#0b1a33",
+        "tonalRamp": [
+          "oklch(15% 0.000 0)",
+          "oklch(26% 0.000 0)",
+          "oklch(38% 0.000 0)",
+          "oklch(50% 0.000 0)",
+          "oklch(62% 0.000 0)",
+          "oklch(74% 0.000 0)",
+          "oklch(85% 0.000 0)",
+          "oklch(95% 0.000 0)"
+        ]
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "옅은 블루",
+        "canonical": "#e8f3ff",
+        "dark": "#1d2b45",
+        "tonalRamp": [
+          "oklch(15% 0.020 250)",
+          "oklch(26% 0.020 250)",
+          "oklch(38% 0.020 250)",
+          "oklch(50% 0.020 250)",
+          "oklch(62% 0.020 250)",
+          "oklch(74% 0.020 250)",
+          "oklch(85% 0.020 250)",
+          "oklch(95% 0.020 250)"
+        ]
+      },
+      "accent-soft-hover": {
+        "role": "primary",
+        "displayName": "옅은 블루 hover",
+        "canonical": "#dbeafe",
+        "dark": "#24406c",
+        "tonalRamp": [
+          "oklch(15% 0.032 256)",
+          "oklch(26% 0.032 256)",
+          "oklch(38% 0.032 256)",
+          "oklch(50% 0.032 256)",
+          "oklch(62% 0.032 256)",
+          "oklch(74% 0.032 256)",
+          "oklch(85% 0.032 256)",
+          "oklch(95% 0.032 256)"
+        ]
+      },
+      "accent-text": {
+        "role": "primary",
+        "displayName": "블루 글자",
+        "canonical": "#1b64da",
+        "dark": "#8ab8ff",
+        "tonalRamp": [
+          "oklch(15% 0.194 260)",
+          "oklch(26% 0.194 260)",
+          "oklch(38% 0.194 260)",
+          "oklch(50% 0.194 260)",
+          "oklch(62% 0.194 260)",
+          "oklch(74% 0.194 260)",
+          "oklch(85% 0.194 260)",
+          "oklch(95% 0.194 260)"
+        ]
+      },
+      "fail": {
+        "role": "status",
+        "displayName": "위험 빨강",
+        "canonical": "#d32f2f",
+        "dark": "#ff8a80",
+        "tonalRamp": [
+          "oklch(15% 0.200 26)",
+          "oklch(26% 0.200 26)",
+          "oklch(38% 0.200 26)",
+          "oklch(50% 0.200 26)",
+          "oklch(62% 0.200 26)",
+          "oklch(74% 0.200 26)",
+          "oklch(85% 0.200 26)",
+          "oklch(95% 0.200 26)"
+        ]
+      },
+      "fail-text": {
+        "role": "status",
+        "displayName": "위험 글자",
+        "canonical": "#b42318",
+        "dark": "#ff9b92",
+        "tonalRamp": [
+          "oklch(15% 0.182 30)",
+          "oklch(26% 0.182 30)",
+          "oklch(38% 0.182 30)",
+          "oklch(50% 0.182 30)",
+          "oklch(62% 0.182 30)",
+          "oklch(74% 0.182 30)",
+          "oklch(85% 0.182 30)",
+          "oklch(95% 0.182 30)"
+        ]
+      },
+      "fail-bg": {
+        "role": "status",
+        "displayName": "위험 바탕",
+        "canonical": "#ffebee",
+        "dark": "#3a2022",
+        "tonalRamp": [
+          "oklch(15% 0.022 7)",
+          "oklch(26% 0.022 7)",
+          "oklch(38% 0.022 7)",
+          "oklch(50% 0.022 7)",
+          "oklch(62% 0.022 7)",
+          "oklch(74% 0.022 7)",
+          "oklch(85% 0.022 7)",
+          "oklch(95% 0.022 7)"
+        ]
+      },
+      "fail-ink": {
+        "role": "status",
+        "displayName": "채운 위험 버튼 글자",
+        "canonical": "#ffffff",
+        "dark": "#2a0d0b",
+        "tonalRamp": [
+          "oklch(15% 0.000 0)",
+          "oklch(26% 0.000 0)",
+          "oklch(38% 0.000 0)",
+          "oklch(50% 0.000 0)",
+          "oklch(62% 0.000 0)",
+          "oklch(74% 0.000 0)",
+          "oklch(85% 0.000 0)",
+          "oklch(95% 0.000 0)"
+        ]
+      },
+      "warn": {
+        "role": "status",
+        "displayName": "주의 주황",
+        "canonical": "#c2410c",
+        "dark": "#ffb366",
+        "tonalRamp": [
+          "oklch(15% 0.174 38)",
+          "oklch(26% 0.174 38)",
+          "oklch(38% 0.174 38)",
+          "oklch(50% 0.174 38)",
+          "oklch(62% 0.174 38)",
+          "oklch(74% 0.174 38)",
+          "oklch(85% 0.174 38)",
+          "oklch(95% 0.174 38)"
+        ]
+      },
+      "warn-text": {
+        "role": "status",
+        "displayName": "주의 글자",
+        "canonical": "#a8410a",
+        "dark": "#ffbe7a",
+        "tonalRamp": [
+          "oklch(15% 0.148 42)",
+          "oklch(26% 0.148 42)",
+          "oklch(38% 0.148 42)",
+          "oklch(50% 0.148 42)",
+          "oklch(62% 0.148 42)",
+          "oklch(74% 0.148 42)",
+          "oklch(85% 0.148 42)",
+          "oklch(95% 0.148 42)"
+        ]
+      },
+      "warn-bg": {
+        "role": "status",
+        "displayName": "주의 바탕",
+        "canonical": "#fff3e0",
+        "dark": "#3a2a18",
+        "tonalRamp": [
+          "oklch(15% 0.028 79)",
+          "oklch(26% 0.028 79)",
+          "oklch(38% 0.028 79)",
+          "oklch(50% 0.028 79)",
+          "oklch(62% 0.028 79)",
+          "oklch(74% 0.028 79)",
+          "oklch(85% 0.028 79)",
+          "oklch(95% 0.028 79)"
+        ]
+      },
+      "ok": {
+        "role": "status",
+        "displayName": "통과 초록",
+        "canonical": "#15803d",
+        "dark": "#6fdc95",
+        "tonalRamp": [
+          "oklch(15% 0.137 150)",
+          "oklch(26% 0.137 150)",
+          "oklch(38% 0.137 150)",
+          "oklch(50% 0.137 150)",
+          "oklch(62% 0.137 150)",
+          "oklch(74% 0.137 150)",
+          "oklch(85% 0.137 150)",
+          "oklch(95% 0.137 150)"
+        ]
+      },
+      "ok-bg": {
+        "role": "status",
+        "displayName": "통과 바탕",
+        "canonical": "#e8f7ee",
+        "dark": "#18311f",
+        "tonalRamp": [
+          "oklch(15% 0.020 160)",
+          "oklch(26% 0.020 160)",
+          "oklch(38% 0.020 160)",
+          "oklch(50% 0.020 160)",
+          "oklch(62% 0.020 160)",
+          "oklch(74% 0.020 160)",
+          "oklch(85% 0.020 160)",
+          "oklch(95% 0.020 160)"
+        ]
+      },
+      "bar-fix": {
+        "role": "neutral",
+        "displayName": "막대 고치면",
+        "canonical": "#b3d4fd",
+        "dark": "#3d6bb3",
+        "tonalRamp": [
+          "oklch(15% 0.067 254)",
+          "oklch(26% 0.067 254)",
+          "oklch(38% 0.067 254)",
+          "oklch(50% 0.067 254)",
+          "oklch(62% 0.067 254)",
+          "oklch(74% 0.067 254)",
+          "oklch(85% 0.067 254)",
+          "oklch(95% 0.067 254)"
+        ]
+      },
+      "bar-commit": {
+        "role": "neutral",
+        "displayName": "막대 커밋하면",
+        "canonical": "#e3eefc",
+        "dark": "#1f2b42",
+        "tonalRamp": [
+          "oklch(15% 0.022 254)",
+          "oklch(26% 0.022 254)",
+          "oklch(38% 0.022 254)",
+          "oklch(50% 0.022 254)",
+          "oklch(62% 0.022 254)",
+          "oklch(74% 0.022 254)",
+          "oklch(85% 0.022 254)",
+          "oklch(95% 0.022 254)"
+        ]
+      },
+      "code-bg": {
+        "role": "neutral",
+        "displayName": "코드 바탕",
+        "canonical": "#f6f7f9",
+        "dark": "#181a1f",
+        "tonalRamp": [
+          "oklch(15% 0.003 265)",
+          "oklch(26% 0.003 265)",
+          "oklch(38% 0.003 265)",
+          "oklch(50% 0.003 265)",
+          "oklch(62% 0.003 265)",
+          "oklch(74% 0.003 265)",
+          "oklch(85% 0.003 265)",
+          "oklch(95% 0.003 265)"
+        ]
+      },
+      "add": {
+        "role": "neutral",
+        "displayName": "추가 줄",
+        "canonical": "#e3f5e8",
+        "dark": "#1c3324",
+        "tonalRamp": [
+          "oklch(15% 0.026 154)",
+          "oklch(26% 0.026 154)",
+          "oklch(38% 0.026 154)",
+          "oklch(50% 0.026 154)",
+          "oklch(62% 0.026 154)",
+          "oklch(74% 0.026 154)",
+          "oklch(85% 0.026 154)",
+          "oklch(95% 0.026 154)"
+        ]
+      },
+      "del": {
+        "role": "neutral",
+        "displayName": "삭제 줄",
+        "canonical": "#fdeaea",
+        "dark": "#3b2224",
+        "tonalRamp": [
+          "oklch(15% 0.021 18)",
+          "oklch(26% 0.021 18)",
+          "oklch(38% 0.021 18)",
+          "oklch(50% 0.021 18)",
+          "oklch(62% 0.021 18)",
+          "oklch(74% 0.021 18)",
+          "oklch(85% 0.021 18)",
+          "oklch(95% 0.021 18)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "큰 점수",
+        "purpose": "요약 카드의 점수 숫자 한 곳."
+      },
+      "headline": {
+        "displayName": "두 줄 결론",
+        "purpose": "요약 카드 결론. pre-line으로 두 줄, 좁은 창 26px."
+      },
+      "title-page": {
+        "displayName": "화면 제목",
+        "purpose": "폴더 이름 h1, 기준 이름."
+      },
+      "title-dialog": {
+        "displayName": "대화 상자 제목",
+        "purpose": "확인 창·알림 제목."
+      },
+      "title": {
+        "displayName": "카드 제목",
+        "purpose": "카드 제목, 대화 상자 첫 줄 요약."
+      },
+      "body-strong": {
+        "displayName": "줄 제목",
+        "purpose": "할 일·기준 항목 제목."
+      },
+      "body-long": {
+        "displayName": "긴 안내",
+        "purpose": "대화 상자 메시지, 빈 화면 안내."
+      },
+      "body": {
+        "displayName": "본문",
+        "purpose": "기본 글자, 버튼, 탭."
+      },
+      "caption": {
+        "displayName": "캡션",
+        "purpose": "부제, 범례, 그룹 이름."
+      },
+      "label": {
+        "displayName": "라벨",
+        "purpose": "표 열 이름, 고르기 제목."
+      },
+      "micro": {
+        "displayName": "작은 라벨",
+        "purpose": "태그, 예시 라벨, 점수 메모."
+      },
+      "mono": {
+        "displayName": "코드",
+        "purpose": "경로, 명령, diff, 로그."
+      }
+    },
+    "shadows": [
+      {
+        "name": "tab-selected",
+        "value": "0 1px 3px rgb(0 0 0 / 0.08)",
+        "purpose": "회색 트랙 위 선택된 흰 탭."
+      },
+      {
+        "name": "dialog",
+        "value": "0 2px 6px rgb(0 0 0 / 0.06), 0 24px 64px rgb(0 0 0 / 0.2)",
+        "purpose": "스크림 위 가운데 확인 창."
+      },
+      {
+        "name": "toast",
+        "value": "0 2px 6px rgb(0 0 0 / 0.08), 0 16px 40px rgb(0 0 0 / 0.18)",
+        "purpose": "아래쪽 비모달 결과 카드."
+      }
+    ],
+    "scrim": {
+      "light": "rgb(0 0 0 / 0.32)",
+      "dark": "rgb(0 0 0 / 0.55)"
+    },
+    "focusRing": {
+      "value": "outline: 2px solid var(--accent); outline-offset: 2px",
+      "note": "줄·토글·파일 칸처럼 안쪽에 그릴 때는 outline-offset: -2px"
+    },
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "점수 막대 폭, 접기 화살표 회전."
+      },
+      {
+        "name": "bar-width",
+        "value": "width 0.7s var(--ease)",
+        "purpose": "유일한 연출 움직임: 점수 막대 구간이 늘어남."
+      },
+      {
+        "name": "state-color",
+        "value": "background-color 0.15s ease-out, color 0.15s ease-out",
+        "purpose": "버튼 hover 색 전환."
+      },
+      {
+        "name": "chevron",
+        "value": "transform 0.2s var(--ease)",
+        "purpose": "통과 항목 토글 화살표 회전(파일 칸은 0.15s)."
+      },
+      {
+        "name": "score-stale",
+        "value": "opacity 0.2s ease-out",
+        "purpose": "다시 계산 중인 점수를 0.45로 흐림."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "@media (prefers-reduced-motion: reduce) { * { transition: none !important } }",
+        "purpose": "모든 전환을 끔."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "1000px"
+      },
+      {
+        "name": "window-min",
+        "value": "760px"
+      }
+    ],
+    "layout": {
+      "sidebarWidth": "248px (≤1000px: 220px)",
+      "contentMaxWidth": "880px",
+      "stackGap": "20px",
+      "todoTailWidth": "104px",
+      "todoActWidth": "148px",
+      "criteriaColumns": "minmax(0,1fr) 160px 120px"
+    },
+    "font": {
+      "family": "Pretendard Variable",
+      "license": "SIL OFL 1.1",
+      "bundledAt": "dist/app/ui/fonts/PretendardVariable.woff2",
+      "weightRange": "45 920"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "한 화면에 하나뿐인 주 행동. 요약 카드와 빈 화면에서는 big(56px).",
+      "html": "<button class=\"ds-btn ds-btn-primary ds-btn-big\">3개 바로 고치기</button>",
+      "css": ".ds-btn{font:600 14px/1 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;letter-spacing:-0.01em;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--soft,#f2f4f6);color:var(--ink,#191f28);cursor:pointer;white-space:nowrap;transition:background-color .15s ease-out,color .15s ease-out}.ds-btn:hover{background:var(--line,#e5e8eb)}.ds-btn:focus-visible{outline:2px solid var(--accent,#1b64da);outline-offset:2px}.ds-btn:disabled{opacity:.45;cursor:not-allowed}.ds-btn-primary{background:var(--accent,#1b64da);color:var(--accent-ink,#fff);font-weight:700}.ds-btn-primary:hover{background:var(--accent-hover,#1957c2)}.ds-btn-big{height:56px;padding:0 32px;border-radius:14px;font-size:17px}"
+    },
+    {
+      "name": "Soft Button",
+      "kind": "button",
+      "refersTo": "button-soft",
+      "description": "줄 단위 행동(이 할 일만 고치기, Claude로 반영, 표준 파일 바꾸기).",
+      "html": "<button class=\"ds-btn ds-btn-soft ds-btn-small\">Claude로 반영</button>",
+      "css": ".ds-btn{font:600 14px/1 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;letter-spacing:-0.01em;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--soft,#f2f4f6);color:var(--ink,#191f28);cursor:pointer;white-space:nowrap;transition:background-color .15s ease-out,color .15s ease-out}.ds-btn:hover{background:var(--line,#e5e8eb)}.ds-btn:focus-visible{outline:2px solid var(--accent,#1b64da);outline-offset:2px}.ds-btn:disabled{opacity:.45;cursor:not-allowed}.ds-btn-soft{background:var(--accent-soft,#e8f3ff);color:var(--accent-text,#1b64da);font-weight:700}.ds-btn-soft:hover{background:var(--accent-soft-hover,#dbeafe);color:var(--accent-hover,#1957c2)}.ds-btn-small{height:34px;padding:0 12px;font-size:13px}"
+    },
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "회색 면 기본 버튼. 대화 상자의 취소·닫기, 알림 안 보조 행동.",
+      "html": "<button class=\"ds-btn\">취소</button>",
+      "css": ".ds-btn{font:600 14px/1 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;letter-spacing:-0.01em;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--soft,#f2f4f6);color:var(--ink,#191f28);cursor:pointer;white-space:nowrap;transition:background-color .15s ease-out,color .15s ease-out}.ds-btn:hover{background:var(--line,#e5e8eb)}.ds-btn:focus-visible{outline:2px solid var(--accent,#1b64da);outline-offset:2px}.ds-btn:disabled{opacity:.45;cursor:not-allowed}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "머리글의 보조 행동. 아이콘은 인라인 선 SVG.",
+      "html": "<button class=\"ds-btn ds-btn-quiet\"><svg class=\"ds-ico\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M9 14L4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 0 11H11\"/></svg>마지막 반영 되돌리기</button>",
+      "css": ".ds-btn{font:600 14px/1 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;letter-spacing:-0.01em;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--soft,#f2f4f6);color:var(--ink,#191f28);cursor:pointer;white-space:nowrap;transition:background-color .15s ease-out,color .15s ease-out}.ds-btn:hover{background:var(--line,#e5e8eb)}.ds-btn:focus-visible{outline:2px solid var(--accent,#1b64da);outline-offset:2px}.ds-btn:disabled{opacity:.45;cursor:not-allowed}.ds-ico{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.ds-btn-quiet{background:transparent;color:var(--ink-2,#4e5968);font-weight:500}.ds-btn-quiet:hover{background:var(--soft,#f2f4f6);color:var(--ink,#191f28)}"
+    },
+    {
+      "name": "Danger-fill Button",
+      "kind": "button",
+      "refersTo": "button-danger-fill",
+      "description": "되돌릴 수 없는 확인에만.",
+      "html": "<button class=\"ds-btn ds-btn-danger\">되돌리기</button>",
+      "css": ".ds-btn{font:600 14px/1 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;letter-spacing:-0.01em;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--soft,#f2f4f6);color:var(--ink,#191f28);cursor:pointer;white-space:nowrap;transition:background-color .15s ease-out,color .15s ease-out}.ds-btn:hover{background:var(--line,#e5e8eb)}.ds-btn:focus-visible{outline:2px solid var(--accent,#1b64da);outline-offset:2px}.ds-btn:disabled{opacity:.45;cursor:not-allowed}.ds-btn-danger{background:var(--fail,#d32f2f);color:var(--fail-ink,#fff);font-weight:700}.ds-btn-danger:hover{background:var(--fail-text,#b42318)}"
+    },
+    {
+      "name": "Tabs",
+      "kind": "nav",
+      "refersTo": "tab-selected",
+      "description": "회색 트랙 안의 탭. roving tabindex, 좌우 화살표·Home·End 이동.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\" aria-label=\"화면\"><button class=\"ds-tab\" role=\"tab\" aria-selected=\"true\" tabindex=\"0\">점검 결과</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\">점검 기준</button></div>",
+      "css": ".ds-tabs{display:inline-flex;gap:4px;padding:4px;border-radius:12px;background:var(--line,#e5e8eb)}.ds-tab{font:500 14px/1 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;height:36px;padding:0 18px;border:0;border-radius:9px;background:transparent;color:var(--ink-2,#4e5968);cursor:pointer}.ds-tab:hover{color:var(--ink,#191f28)}.ds-tab[aria-selected=true]{background:var(--surface,#fff);color:var(--ink,#191f28);font-weight:700;box-shadow:0 1px 3px rgb(0 0 0 / .08)}.ds-tab:focus-visible{outline:2px solid var(--accent,#1b64da);outline-offset:2px}"
+    },
+    {
+      "name": "Summary Hero",
+      "kind": "card",
+      "refersTo": "card-hero",
+      "description": "상태 알약, 두 줄 결론, 점수와 감점 내역, 지금/고치면/커밋하면 막대와 80점 목표선, 범례.",
+      "html": "<section class=\"ds-hero\"><span class=\"ds-pill\">아직 준비 전</span><h2 class=\"ds-headline\">3개를 고치면\n팀 기준을 통과합니다</h2><div class=\"ds-score-row\"><span class=\"ds-score\">62<span class=\"ds-unit\">점</span></span><span class=\"ds-breakdown\">100점에서 위험 2건 −30 + 주의 2건 −8 = −38점</span></div><div class=\"ds-bar\" aria-hidden=\"true\"><span class=\"ds-seg ds-commit\" style=\"width:92%\"></span><span class=\"ds-seg ds-fix\" style=\"width:77%\"></span><span class=\"ds-seg ds-now\" style=\"width:62%\"></span><span class=\"ds-goal\"></span></div><ul class=\"ds-legend\"><li><i class=\"ds-sw ds-now\"></i>지금 62점</li><li><i class=\"ds-sw ds-fix\"></i>고치면 77점</li><li><i class=\"ds-sw ds-commit\"></i>커밋하면 92점</li></ul></section>",
+      "css": ".ds-hero{display:flex;flex-direction:column;gap:22px;padding:34px 40px;border-radius:24px;background:var(--surface,#fff);color:var(--ink,#191f28);font:14px/1.55 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;letter-spacing:-0.01em}.ds-pill{align-self:flex-start;font-size:13px;font-weight:700;border-radius:8px;padding:5px 10px;color:var(--warn-text,#a8410a);background:var(--warn-bg,#fff3e0)}.ds-headline{margin:-6px 0 0;font-size:30px;line-height:1.35;font-weight:800;letter-spacing:-0.03em;white-space:pre-line;word-break:keep-all}.ds-score-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:-8px}.ds-score{font-size:40px;font-weight:800;letter-spacing:-0.03em;line-height:1.1;font-variant-numeric:tabular-nums}.ds-unit{font-size:.6em;margin-left:2px}.ds-breakdown{color:var(--ink-3,#66717f);font-variant-numeric:tabular-nums}.ds-bar{position:relative;height:12px;border-radius:6px;background:var(--soft,#f2f4f6)}.ds-seg{position:absolute;left:0;top:0;bottom:0;border-radius:6px;transition:width .7s cubic-bezier(.16,1,.3,1)}.ds-now{background:var(--accent,#1b64da)}.ds-fix{background:var(--bar-fix,#b3d4fd)}.ds-commit{background:var(--bar-commit,#e3eefc);outline:1.5px dashed var(--bar-fix,#b3d4fd);outline-offset:-1.5px}.ds-goal{position:absolute;left:80%;top:-5px;bottom:-5px;width:2px;border-radius:1px;background:var(--ink,#191f28)}.ds-legend{list-style:none;margin:-10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--ink-2,#4e5968)}.ds-legend li{display:flex;align-items:center;gap:6px}.ds-sw{width:10px;height:10px;border-radius:3px}@media (prefers-reduced-motion:reduce){.ds-seg{transition:none}}"
+    },
+    {
+      "name": "To-do Row",
+      "kind": "custom",
+      "refersTo": "todo-row",
+      "description": "배지, 제목, '고치면:' 부제, 오른쪽 고정 열의 +N점(고치면 되찾는 점수)과 접기 화살표.",
+      "html": "<div class=\"ds-todo\"><button class=\"ds-todo-head\" aria-expanded=\"false\"><span class=\"ds-badge\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 7v6M12 17v.01\"/></svg></span><span class=\"ds-todo-text\"><span class=\"ds-todo-title\">위험 명령 차단 훅이 없습니다</span><span class=\"ds-todo-sub\">고치면: 차단 훅 설치 · 문제 2건</span></span></button><div class=\"ds-tail\" aria-hidden=\"true\"><span class=\"ds-pts\">+15점</span><svg class=\"ds-ico\" viewBox=\"0 0 24 24\"><path d=\"M6 9l6 6 6-6\"/></svg></div></div>",
+      "css": ".ds-todo{display:flex;align-items:center;gap:8px;border-radius:16px;font:14px/1.55 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;color:var(--ink,#191f28)}.ds-todo-head{font:inherit;color:inherit;flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding:14px 16px;border:0;border-radius:14px;background:transparent;text-align:left;cursor:pointer}.ds-todo-head:hover{background:var(--soft-2,#f9fafb)}.ds-todo-head:focus-visible{outline:2px solid var(--accent,#1b64da);outline-offset:-2px}.ds-badge{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--fail-bg,#ffebee);color:var(--fail,#d32f2f)}.ds-badge svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}.ds-todo-text{display:flex;flex-direction:column;gap:2px;word-break:keep-all}.ds-todo-title{font-size:15px;font-weight:700}.ds-todo-sub{font-size:13px;color:var(--ink-3,#66717f)}.ds-tail{flex:none;width:104px;padding-right:16px;display:flex;align-items:center;justify-content:flex-end;gap:10px;color:var(--ink-3,#66717f)}.ds-pts{font-weight:700;color:var(--ink,#191f28);font-variant-numeric:tabular-nums}.ds-ico{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}"
+    },
+    {
+      "name": "Company Tag",
+      "kind": "chip",
+      "refersTo": "tag-company",
+      "description": "사내 표준이 더한 기준 항목 표시.",
+      "html": "<span class=\"ds-tag\">사내</span>",
+      "css": ".ds-tag{font:700 11px/1.4 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;border-radius:6px;padding:2px 6px;background:var(--accent-soft,#e8f3ff);color:var(--accent-text,#1b64da)}"
+    },
+    {
+      "name": "Confirm Dialog",
+      "kind": "custom",
+      "refersTo": "dialog",
+      "description": "제목 / 스크롤 본문(첫 줄은 굵은 한 문장 요약) / 주 버튼이 오른쪽 끝인 행동 바.",
+      "html": "<section class=\"ds-panel\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"ds-t\"><div class=\"ds-panel-head\"><h2 id=\"ds-t\">바뀔 내용 확인</h2></div><div class=\"ds-panel-body\"><p class=\"ds-msg\">할 일 3개를 고치면 62 → 77점\n적용한 뒤에도 마지막 반영 되돌리기로 되돌릴 수 있습니다.</p></div><div class=\"ds-panel-foot\"><button class=\"ds-btn ds-btn-primary\">적용</button><button class=\"ds-btn\">취소</button></div></section>",
+      "css": ".ds-btn{font:600 14px/1 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;letter-spacing:-0.01em;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--soft,#f2f4f6);color:var(--ink,#191f28);cursor:pointer;white-space:nowrap;transition:background-color .15s ease-out,color .15s ease-out}.ds-btn:hover{background:var(--line,#e5e8eb)}.ds-btn:focus-visible{outline:2px solid var(--accent,#1b64da);outline-offset:2px}.ds-btn:disabled{opacity:.45;cursor:not-allowed}.ds-panel{width:min(560px,100%);display:flex;flex-direction:column;background:var(--surface,#fff);color:var(--ink,#191f28);border-radius:24px;box-shadow:0 2px 6px rgb(0 0 0 / .06),0 24px 64px rgb(0 0 0 / .2);overflow:hidden;font:14px/1.55 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif}.ds-panel-head{padding:22px 28px 0}.ds-panel-head h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-0.02em}.ds-panel-body{padding:10px 28px 8px;overflow-y:auto}.ds-msg{margin:0 0 14px;font-size:15px;line-height:1.6;color:var(--ink-2,#4e5968);white-space:pre-line;word-break:keep-all}.ds-msg::first-line{font-size:18px;font-weight:800;color:var(--ink,#191f28)}.ds-panel-foot{display:flex;flex-direction:row-reverse;gap:8px;padding:14px 28px 20px;border-top:1px solid var(--line,#e5e8eb)}.ds-panel-foot .ds-btn{height:44px;padding:0 18px}.ds-btn-primary{background:var(--accent,#1b64da);color:var(--accent-ink,#fff);font-weight:700}.ds-btn-primary:hover{background:var(--accent-hover,#1957c2)}"
+    },
+    {
+      "name": "Command Copy Row",
+      "kind": "custom",
+      "refersTo": "command-code",
+      "description": "커밋 명령과 복사 버튼.",
+      "html": "<div class=\"ds-cmd-box\"><div class=\"ds-cmd-row\"><code>git add .claude/settings.json &amp;&amp; git commit -m \"Claude Code 팀 설정\"</code><button class=\"ds-btn ds-btn-small\">복사</button></div></div>",
+      "css": ".ds-btn{font:600 14px/1 'Pretendard Variable','Segoe UI','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;letter-spacing:-0.01em;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--soft,#f2f4f6);color:var(--ink,#191f28);cursor:pointer;white-space:nowrap;transition:background-color .15s ease-out,color .15s ease-out}.ds-btn:hover{background:var(--line,#e5e8eb)}.ds-btn:focus-visible{outline:2px solid var(--accent,#1b64da);outline-offset:2px}.ds-btn:disabled{opacity:.45;cursor:not-allowed}.ds-btn-small{height:34px;padding:0 12px;font-size:13px}.ds-cmd-box{background:var(--soft-2,#f9fafb);border-radius:14px;padding:14px 16px}.ds-cmd-row{display:flex;align-items:center;gap:8px;min-width:0}.ds-cmd-row code{flex:1;min-width:0;font:12.5px/1.5 'Cascadia Mono',Consolas,'D2Coding',monospace;background:var(--surface,#fff);color:var(--ink,#191f28);border:1px solid var(--line,#e5e8eb);border-radius:10px;padding:8px 10px;white-space:pre-wrap;word-break:break-all}"
+    }
+  ],
+  "narrative": {
+    "northStar": "한눈에 읽히는 점검표",
+    "overview": "회색 바탕(`bg`) 위에 흰 카드가 놓이고, 카드 안에서 글자와 숫자가 일을 합니다. 화려한 장식 없이 큰 굵은 글자, 넉넉한 여백, 크게 둥근 모서리(24px)로 차분하고 친절하게 보이는 토스풍 도구 화면입니다. 사용자는 먼저 개발자, 그다음 비개발자이므로 모든 문장은 합니다체로 \"지금 상태 → 고치면 → 커밋하면\"을 순서대로 말합니다.\n\n색은 아껴 씁니다. 파란색 하나(`accent`)가 \"지금 할 행동\"과 \"현재 점수\"를 맡고, 빨강·주황·초록은 위험·주의·통과 상태를 뜻할 때만 나옵니다. 깊이는 그림자가 아니라 회색 바탕과 흰 면의 차이로 만듭니다. 그림자는 선택된 탭과 떠 있는 창(대화 상자·알림)에만 있습니다.\n\n밀도는 조작 도구(Operate) 수준입니다. 한 화면에 요약 카드 하나, 할 일 카드 하나가 세로로 쌓이고(간격 20px), 모든 줄은 오른쪽 끝의 같은 자리에 점수(+N점)를 둡니다. 밝은 모드와 어두운 모드(`prefers-color-scheme: dark`)를 같은 토큰 이름으로 모두 지원합니다.",
+    "keyCharacteristics": [
+      "회색 페이지(`bg`) + 흰 카드(`surface`, 24px 모서리), 테두리 없는 면 구분",
+      "파란 강조색 하나, 상태색 세 가지(fail / warn / ok)는 상태 표시 전용",
+      "Pretendard Variable, 굵기 800의 짧은 제목, 숫자는 tabular-nums",
+      "점수 막대: 지금 / 고치면 / 커밋하면(점선) 세 구간 + 80점 목표선",
+      "아이콘은 인라인 선(stroke) SVG만, 이모지·글리프 문자 없음",
+      "확인이 필요한 일은 가운데 모달, 결과 알림은 아래쪽 비모달 카드"
+    ],
+    "rules": [
+      {
+        "name": "The One Blue Rule",
+        "body": "파란색은 행동과 현재 점수의 색입니다. 장식, 제목, 구역 바탕에 쓰지 않습니다. 상태를 말할 때는 빨강·주황·초록만 씁니다.",
+        "section": "colors"
+      },
+      {
+        "name": "The Surface-Aware Gray Rule",
+        "body": "보조 글자 토큰은 놓이는 면으로 고릅니다. 회색 바탕(`bg`·`soft`) 위에는 `ink-2`, 흰 면(`surface`·`soft-2`) 위에는 `ink-3`. `ink-3`은 `bg` 위에서 4.5:1 경계(약 4.5:1)에 걸리므로 회색 바탕에 쓰지 않습니다. 모든 글자는 4.5:1 이상입니다.",
+        "section": "colors"
+      },
+      {
+        "name": "The Status-Only Color Rule",
+        "body": "빨강·주황·초록은 진단 결과의 심각도(위험·주의·통과)를 뜻할 때만 씁니다. 글자에는 `*-text`, 아이콘·채움에는 기본 토큰, 바탕에는 `*-bg`를 씁니다.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Score Rule",
+        "body": "점수·감점·경과 시간처럼 바뀌는 숫자는 모두 `font-variant-numeric: tabular-nums`로 자리를 고정합니다.",
+        "section": "typography"
+      },
+      {
+        "name": "The Keep-All Rule",
+        "body": "한국어 문장 블록에는 `word-break: keep-all`을 겁니다. 어절 중간에서 줄이 끊기지 않게 합니다. 경로·명령·파일 이름만 `break-all`/`overflow-wrap: anywhere`로 끊습니다.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Card Rule",
+        "body": "카드는 바탕색 차이만으로 구분합니다. 카드에 그림자나 테두리를 더하지 않습니다. 그림자는 탭 선택과 떠 있는 창에만 씁니다.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** 회색 페이지(`bg`) 위에 흰 카드(`surface`, 24px 모서리)를 20px 간격으로 쌓고, 카드에 그림자·테두리를 더하지 마세요(The Flat Card Rule).",
+      "**Do** 한 화면에 주 버튼(`accent` 면)은 하나만 두세요. 대화 상자에서는 행동 바 오른쪽 끝입니다.",
+      "**Do** 보조 글자는 면에 맞춰 고르세요: 회색 바탕 위 `ink-2`, 흰 면 위 `ink-3`. 모든 글자 대비는 4.5:1 이상입니다.",
+      "**Do** 아이콘은 `viewBox=\"0 0 24 24\"` 인라인 선 SVG(`fill: none; stroke: currentColor`, 굵기 2, 배지 안 2.6)로 넣고 `aria-hidden=\"true\"`를 주세요.",
+      "**Do** 줄에 보이는 점수는 \"고치면 되찾는 점수(+N점)\"로 쓰세요. 줄 점수의 합이 막대의 \"지금 → 고치면/커밋하면\" 차이와 맞아야 합니다.",
+      "**Do** 바뀌는 숫자에는 tabular-nums, 한국어 문장 블록에는 `word-break: keep-all`을 거세요.",
+      "**Do** 포커스는 2px `accent` 외곽선으로 보이게 하고, `prefers-reduced-motion: reduce`에서는 모든 전환을 끄세요.",
+      "**Do** 확인이 필요한 일은 가운데 모달로, 결과만 알리는 일은 아래쪽 비모달 카드로 보여 주세요."
+    ],
+    "donts": [
+      "**Don't** 이모지나 글리프 문자(✓, ✕, ▶ 등)를 아이콘으로 쓰지 마세요.",
+      "**Don't** 빨강·주황·초록을 상태(위험·주의·통과) 말고 다른 뜻으로 쓰지 마세요. 파란색을 장식이나 구역 바탕으로 쓰지 마세요.",
+      "**Don't** `ink-3`을 회색 페이지(`bg`) 위 글자로 쓰지 마세요.",
+      "**Don't** 점수 막대 폭 전환 말고 다른 연출 움직임(등장 애니메이션, 튀는 효과)을 더하지 마세요. 상태 전환(색 0.15s, 화살표 회전 0.2s)만 허용됩니다.",
+      "**Don't** 제목 위에 작은 머리말(eyebrow·kicker) 줄을 새로 만들지 마세요."
+    ]
+  }
+}

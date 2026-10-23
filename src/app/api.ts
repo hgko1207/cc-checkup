@@ -45,6 +45,7 @@ export interface FindingView {
   claudeLabel?: string; // Claude로 반영 | Claude로 만들기
   claudeTargets?: string[]; // Claude가 고칠 수 있는 파일 (실행 전 확인에 보여 줌)
   notApplicable?: boolean; // 이 폴더 종류에는 해당 없음
+  needsCommit?: boolean; // 커밋하면 풀리는 항목
 }
 
 export interface AreaView {

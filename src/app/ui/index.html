@@ -43,7 +43,14 @@
           <p id="side-kind" class="small"></p>
           <div class="claude-line">
             <span id="claude-status" class="small"></span>
-            <button id="claude-recheck" class="linkish small-link" type="button">다시 확인</button>
+            <button
+              id="claude-recheck"
+              class="linkish small-link"
+              type="button"
+              aria-label="Claude Code 설치·로그인 다시 확인"
+            >
+              다시 확인
+            </button>
           </div>
         </div>
       </aside>
@@ -152,6 +159,9 @@
                 <ul id="legend" class="legend"></ul>
                 <div class="hero-act">
                   <button id="fix-all" class="btn primary big" type="button" hidden></button>
+                  <button id="hero-copy" class="btn primary big" type="button" hidden>
+                    커밋 명령 복사
+                  </button>
                   <span id="fix-caption" class="caption"></span>
                 </div>
               </section>
@@ -181,7 +191,6 @@
               <section class="card" aria-labelledby="std-title">
                 <div class="std-head">
                   <div class="std-text">
-                    <span class="muted small-text">지금 적용 중인 기준</span>
                     <h2 id="std-title" class="std-name"><span id="standard"></span></h2>
                     <p id="std-desc" class="std-desc"></p>
                     <p id="std-path" class="path"></p>
@@ -252,20 +261,17 @@
         >
           <div class="panel-head">
             <h2 id="panel-title" tabindex="-1">진행 · 변경 확인</h2>
-            <div class="row-btns">
-              <div id="panel-btns" class="row-btns"></div>
-              <button id="panel-close" class="btn small ghost" type="button" aria-label="닫기">
-                <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
-            </div>
+            <!-- 닫을 수 있는지(Esc)만 나타내는 자리. 닫기는 아래 행동 바의 [취소]·[닫기]로 한다 -->
+            <button id="panel-close" type="button" aria-label="닫기" tabindex="-1"></button>
           </div>
-          <p id="panel-message" class="panel-message" aria-live="polite"></p>
-          <p id="panel-note" class="small muted"></p>
-          <ol id="log" class="log" role="log" hidden></ol>
-          <ul id="outside" class="outside" hidden></ul>
-          <div id="diffs"></div>
+          <div class="panel-body">
+            <p id="panel-message" class="panel-message" aria-live="polite"></p>
+            <ol id="log" class="log" role="log" hidden></ol>
+            <ul id="outside" class="outside" hidden></ul>
+            <div id="diffs"></div>
+            <p id="panel-note" class="panel-note"></p>
+          </div>
+          <div id="panel-btns" class="panel-foot"></div>
         </section>
       </main>
     </div>

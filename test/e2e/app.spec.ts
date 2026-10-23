@@ -110,7 +110,7 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   await expect(page.getByRole("button", { name: "다시 점검" })).toBeDisabled();
   // 미리 보기의 예상 점수가 적용 후 실제 점수와 같다
   const summary = (await page.locator("#panel-message").textContent()) ?? "";
-  const expected = Number(/예상 점수 \d+ → (\d+)점/.exec(summary)?.[1]);
+  const expected = Number(/고치면 \d+ → (\d+)점/.exec(summary)?.[1]);
   expect(expected).toBeGreaterThan(before);
   await page.locator("#panel-btns").getByRole("button", { name: "적용" }).click();
   await expect(page.locator("#panel-title")).toHaveText("적용했습니다");

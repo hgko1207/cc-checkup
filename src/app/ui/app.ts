@@ -69,6 +69,7 @@ const ICON_PATH = {
   warn: "M12 6v7M12 17.5v.01",
   ok: "M6 12.5l4 4 8-9",
   na: "M7 12h10",
+  commit: "M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6M3 12h6M15 12h6",
 };
 function icon(kind: keyof typeof ICON_PATH): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
@@ -96,7 +97,7 @@ let pendingReturn: { el: HTMLElement | null; key: string | null } | null = null;
 function scoreChange(before: number, after: number): string {
   if (after === before) return `점수 ${after}점 (변화 없음)`;
   const d = after - before;
-  return `점수 ${before} → ${after}점 (${d > 0 ? "+" : ""}${d})`;
+  return `점수 ${before} → ${after}점 (${d > 0 ? "+" : "−"}${Math.abs(d)})`;
 }
 
 function folderName(path: string): string {
@@ -137,8 +138,10 @@ function rememberFocus(): void {
   }
 }
 
+// 확인이 필요한 창은 화면 가운데(모달), 결과 알림은 closeOnly()가 아래쪽 카드(비모달)로 바꾼다
 function panel(title: string, message = "", tone: "" | "error" = "", compact = false): void {
   $("panel").classList.toggle("compact", compact);
+  $("panel").classList.remove("toast");
   rememberFocus();
   $("panel").hidden = false;
   setModal(true);
@@ -165,6 +168,7 @@ function panelButtons(...btns: HTMLButtonElement[]): void {
 // 결과·안내만 보여 주는 패널: 뒤 화면을 막지 않는다 (확인이 필요한 패널만 모달)
 function closeOnly(): void {
   panelButtons(button("닫기", closePanel));
+  $("panel").classList.add("toast");
   setModal(false);
   locked = false;
   render();
@@ -177,7 +181,10 @@ function closePanel(): void {
   locked = false;
   render();
   // 버튼이 다시 그려졌으면 같은 이름표의 새 버튼으로, 없으면 보고서 제목으로
-  if (returnFocus?.isConnected && !(returnFocus as HTMLButtonElement).disabled) returnFocus.focus();
+  const visible = (el: HTMLElement | null) =>
+    el?.isConnected && el.offsetParent !== null && !(el as HTMLButtonElement).disabled;
+  if (visible(returnFocus)) returnFocus?.focus();
+  else if (visible($("hero-copy"))) $("hero-copy").focus();
   else if (!focusKey(returnKey)) {
     if (busy) pendingReturn = { el: returnFocus, key: returnKey };
     $("path").focus();
@@ -217,9 +224,33 @@ function trapFocus(e: KeyboardEvent): void {
   }
 }
 
+// 커밋 안내("git add a b 후 커밋해야 …")에서 바로 실행할 명령을 만든다
+function commitCommand(hint: string): string | null {
+  const m = /^(git add .+?) 후 커밋/.exec(hint);
+  return m?.[1] ? `${m[1]} && git commit -m "Claude Code 팀 설정"` : null;
+}
+const commitCmds = new Map<string, string>(); // 폴더별 마지막 고치기의 커밋 명령
+
+function copyButton(text: string): HTMLButtonElement {
+  const b = button(
+    "명령 복사",
+    () => {
+      void navigator.clipboard.writeText(text).then(
+        () => {
+          b.textContent = "복사했습니다";
+          window.setTimeout(() => (b.textContent = "명령 복사"), 1600);
+        },
+        () => (b.textContent = "복사하지 못했습니다"),
+      );
+    },
+    "btn soft small",
+  );
+  return b;
+}
+
 function showError(e: unknown): void {
   locked = false;
-  panel("오류", (e as Error).message ?? String(e), "error");
+  panel("처리하지 못했습니다", (e as Error).message ?? String(e), "error");
   closeOnly();
   render();
 }
@@ -409,10 +440,18 @@ async function fix(nos: number[]): Promise<void> {
     const r = await api.fix(path, chosen, false);
     if (r.kind !== "preview") return;
     const newFiles = r.previews.filter((p) => p.isNew).length;
+    // 첫 줄은 크게(한 문장 요약), 다음 줄은 세부. 다 고를 때만 커밋 뒤 점수를 안다
+    const commitTo = chosen.length === all.length ? current?.committedScore : undefined;
+    m.className = "panel-message lead";
     m.textContent =
-      `${r.items.length}개 고치기 · 진단 항목 ${r.resolves}개 해결 · 파일 ${r.previews.length}개` +
+      `할 일 ${r.items.length}개를 고치면 ${before} → ${r.expectedScore}점` +
+      `\n문제 ${r.resolves}건 해결 · 파일 ${r.previews.length}개` +
       (newFiles > 0 ? ` (새 파일 ${newFiles})` : "") +
-      ` · 예상 점수 ${before} → ${r.expectedScore}점`;
+      (commitTo !== undefined
+        ? ` · 고친 뒤 커밋하면 ${commitTo}점${commitTo >= READY_SCORE ? "으로 준비됨" : ""}`
+        : r.expectedScore < READY_SCORE
+          ? ` · 준비됨(${READY_SCORE}점)까지는 다른 할 일이 더 필요합니다`
+          : "");
     files.replaceChildren(
       ...r.previews.map((p) =>
         fileBlock(
@@ -431,7 +470,7 @@ async function fix(nos: number[]): Promise<void> {
     panel(title);
     $("diffs").replaceChildren(...(all.length > 1 ? [picker()] : []), files);
     $("panel-note").textContent =
-      "적용 전 원본은 자동으로 백업되고, [마지막 반영 되돌리기]로 언제든 되돌릴 수 있습니다.";
+      "적용 전 원본은 자동으로 백업되고, ‘마지막 반영 되돌리기’로 언제든 되돌릴 수 있습니다.";
     panelButtons(applyBtn, button("취소", closePanel));
     await update();
     $("diffs").querySelector<HTMLElement>(".pick input, .file summary")?.focus();
@@ -444,8 +483,20 @@ async function fix(nos: number[]): Promise<void> {
       current = await api.diagnose(path);
       locked = false;
       if (done.kind === "applied") {
-        panel("적용했습니다", scoreChange(before, current.score));
-        $("panel-note").textContent = `${done.commitHint} · 원본 백업: ${done.backupDir}`;
+        const cmd = commitCommand(done.commitHint);
+        if (cmd) commitCmds.set(path, cmd);
+        const commitTo = current.committedScore;
+        panel(
+          "적용했습니다",
+          scoreChange(before, current.score) +
+            (commitTo !== undefined
+              ? `\n이제 커밋하면 ${commitTo}점${commitTo >= READY_SCORE ? ", 준비됨" : ""}`
+              : ""),
+        );
+        $("panel-message").classList.add("lead");
+        const note = $("panel-note");
+        note.textContent = "원본은 백업해 두었습니다. ‘마지막 반영 되돌리기’로 되돌릴 수 있습니다.";
+        note.title = done.backupDir;
         closeOnly();
       }
       state = await api.getState();
@@ -472,7 +523,7 @@ function claudeResult(r: ClaudeView, path: string, before: number): void {
   $("panel-close").hidden = r.status === "ready";
   $("panel-note").textContent =
     r.status === "ready"
-      ? "아직 원본이 백업돼 있습니다. [버리고 원래대로]를 누르면 원래 내용으로 돌립니다."
+      ? "아직 원본이 백업돼 있습니다. ‘버리고 원래대로’를 누르면 원래 내용으로 돌립니다."
       : "대상 파일은 원래대로 돌렸습니다.";
   const titles: Record<string, string> = {
     ready: "Claude가 고친 내용 확인",
@@ -506,13 +557,15 @@ function claudeResult(r: ClaudeView, path: string, before: number): void {
         state = await api.getState();
         panel(
           action === "keep" ? "적용했습니다" : "취소했습니다",
-          action === "keep" ? scoreChange(before, current.score) : done.message,
+          action === "keep"
+            ? scoreChange(before, current.score) +
+                (current.kind === "dev" ? "\n바뀐 파일을 커밋해야 팀원 모두에게 적용됩니다" : "")
+            : done.message,
         );
-        if (action === "keep")
-          $("panel-note").textContent =
-            current.kind === "dev"
-              ? "바뀐 파일을 git에 커밋해야 팀원 전원에게 적용됩니다. [마지막 반영 되돌리기]로 되돌릴 수 있습니다."
-              : "[마지막 반영 되돌리기]로 되돌릴 수 있습니다.";
+        if (action === "keep") {
+          $("panel-message").classList.add("lead");
+          $("panel-note").textContent = "‘마지막 반영 되돌리기’로 되돌릴 수 있습니다.";
+        }
         closeOnly();
         render();
       } catch (e) {
@@ -548,11 +601,11 @@ function confirmClaude(f: FindingView): void {
         "Claude 사용량이 듭니다. 작은 저장소 기준 1회 약 150~400원어치($0.1~0.3)이고, 요금제 한도에서 차감됩니다.",
       ),
       fact("안전", "명령 실행과 .env 읽기는 막혀 있고, 실행 전에 원본을 백업합니다."),
-      fact("결과", "바뀐 내용을 먼저 보여 드리고, [적용]을 눌러야 반영됩니다."),
+      fact("결과", "바뀐 내용을 먼저 보여 드리고, ‘적용’을 눌러야 반영됩니다."),
     ),
   );
   panelButtons(
-    button("실행", () => void runClaude(f, label), "btn primary"),
+    button("Claude 실행 · 약 150~400원", () => void runClaude(f, label), "btn primary"),
     button("취소", closePanel),
   );
   render();
@@ -614,14 +667,25 @@ async function undo(): Promise<void> {
     if (r.kind !== "preview") return;
     const changed = r.items.filter((i) => i.modifiedSince && !i.alreadyOriginal);
     locked = true;
+    const removed = r.items.filter((i) => !i.existedBefore && !i.alreadyOriginal).length;
+    const restored = r.items.filter((i) => i.existedBefore && !i.alreadyOriginal).length;
     panel(
       "마지막 반영 되돌리기",
-      `${new Date(r.createdAt).toLocaleString()} 반영을 되돌립니다.` +
+      [
+        removed ? `새로 만든 파일 ${removed}개 지우기` : "",
+        restored ? `파일 ${restored}개 원래대로` : "",
+      ]
+        .filter(Boolean)
+        .join(", ") +
+        `
+${new Date(r.createdAt).toLocaleString()} 반영을 되돌립니다. 점수도 그 전으로 돌아갑니다.` +
         (changed.length > 0
           ? " 반영 뒤 다시 바뀐 파일이 있어, 되돌리면 그 변경도 사라집니다."
           : ""),
       changed.length > 0 ? "error" : "",
+      true,
     );
+    $("panel-message").classList.add("lead");
     $("outside").hidden = false;
     $("outside").replaceChildren(
       ...r.items.map((i) =>
@@ -647,6 +711,7 @@ async function undo(): Promise<void> {
             try {
               const done = await api.undo(path, true);
               current = await api.diagnose(path);
+              state = await api.getState(); // 최근 폴더 점수도 새로
               locked = false;
               if (done.kind === "done") {
                 panel(
@@ -654,6 +719,7 @@ async function undo(): Promise<void> {
                   scoreChange(before, current.score),
                   done.ok ? "" : "error",
                 );
+                $("panel-message").classList.add("lead");
                 $("outside").hidden = false;
                 $("outside").replaceChildren(
                   ...done.statuses.map((s) =>
@@ -673,7 +739,7 @@ async function undo(): Promise<void> {
             }
           })();
         },
-        "btn primary",
+        "btn danger-fill",
       ),
       button("취소", closePanel),
     );
@@ -708,7 +774,9 @@ interface Todo {
   primary: FindingView;
   items: FindingView[]; // 이 할 일로 해결되는 진단 항목 (primary 포함)
   severity: "fail" | "warn";
-  penalty: number;
+  penalty: number; // 이 할 일의 진단 항목 감점 합
+  gain: number; // 고치면 오르는 점수 (커밋 전)
+  gainNote?: string; // 커밋하면 더 오르는 점수
 }
 
 function head(message: string): string {
@@ -724,6 +792,7 @@ function buildTodos(d: DiagnosisView): Todo[] {
   for (const f of problems) {
     if (f.fixNo === undefined && f.fixSharedWith !== undefined && owners.has(f.fixSharedWith))
       continue; // 다른 줄의 고치기에 함께 들어간다
+    if (f.needsCommit) continue; // 커밋 줄이 따로 보여 준다
     const no = f.fixNo;
     const items =
       no !== undefined ? problems.filter((x) => x.fixNo === no || x.fixSharedWith === no) : [f];
@@ -738,7 +807,16 @@ function buildTodos(d: DiagnosisView): Todo[] {
         (s, x) => s + (x.severity === "fail" ? d.weights.fail : d.weights.warn),
         0,
       ),
+      gain: 0,
     });
+    // settings.json을 새로 만드는 줄: 커밋하기 전까지 "커밋 여부"가 위험으로 남으므로 그만큼 덜 오른다
+    const t = todos[todos.length - 1];
+    if (t) {
+      const creates =
+        d.committedScore !== undefined && items.some((x) => x.id === "settings/missing");
+      t.gain = t.penalty - (creates ? d.weights.fail : 0);
+      if (creates) t.gainNote = `커밋 후 +${d.weights.fail}`;
+    }
   }
   const rank = (t: Todo) => (t.severity === "fail" ? 0 : 1);
   return todos.sort((a, b) => rank(a) - rank(b) || b.penalty - a.penalty);
@@ -788,6 +866,31 @@ function toggleLink(id: string, openLabel: string, closedLabel: string): HTMLEle
   return t;
 }
 
+// 오른쪽 고정 열: 고치면 오르는 점수와 접기 표시. 키보드·읽기 프로그램은 머리 버튼으로 다룬다
+function pointsTail(
+  gain: number,
+  note: string | undefined,
+  open: boolean | null,
+  toggle?: () => void,
+): HTMLElement {
+  const tail = h(
+    "div",
+    { class: "todo-tail" },
+    h(
+      "span",
+      { class: "todo-pts" },
+      `+${gain}점`,
+      note ? h("span", { class: "todo-pts-note" }, note) : null,
+    ),
+    open === null
+      ? h("span", { class: "chev-space" })
+      : svgIcon(open ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6", "ico chev"),
+  );
+  tail.setAttribute("aria-hidden", "true");
+  if (toggle) tail.addEventListener("click", toggle);
+  return tail;
+}
+
 function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
   const f = t.primary;
   const id = `todo:${t.key}`;
@@ -813,8 +916,7 @@ function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
         h("span", { class: "todo-title" }, head(f.message)),
         h("span", { class: "todo-sub" }, sub),
       ),
-      h("span", { class: `todo-pts ${t.severity}` }, `−${t.penalty}점`),
-      svgIcon(open ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6", "ico chev"),
+      h("span", { class: "sr-only" }, `, 고치면 +${t.gain}점`),
     ),
     id,
   );
@@ -828,6 +930,7 @@ function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
 
   const row = h("div", { class: "todo-row" }, headBtn);
   if (t.kind === "claude") row.append(h("div", { class: "todo-act" }, ...claudeButton(f)));
+  row.append(pointsTail(t.gain, t.gainNote, open, () => headBtn.click()));
 
   const box = h("div", { class: `todo${open ? " open" : ""}` }, row);
   if (!open) return box;
@@ -884,10 +987,10 @@ function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
   if (t.kind === "fix" && f.fixNo !== undefined) {
     const no = f.fixNo;
     const b = keyed(
-      button("이것만 고치기", () => void fix([no]), "btn soft"),
+      button("이 할 일만 고치기", () => void fix([no]), "btn soft"),
       `fix:${f.id}`,
     );
-    b.setAttribute("aria-label", `이것만 고치기: ${head(f.message)}`);
+    b.setAttribute("aria-label", `이 할 일만 고치기: ${head(f.message)}`);
     b.disabled = blocked;
     acts.append(b);
     if (f.claudeTask) acts.append(...claudeButton(f));
@@ -1079,22 +1182,74 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
     `바로 고칠 수 있는 ${n}개 고치기${fixTo !== undefined ? `, 약 ${fixTo}점` : ""}`,
   );
   fixAll.disabled = busy || locked || (state?.running ?? false);
+  // 바로 고칠 게 없고 커밋만 남았으면 주 버튼은 커밋 명령 복사
+  const { pending, cmd } = commitInfo(d);
+  const copy = $("hero-copy") as HTMLButtonElement;
+  copy.hidden = n > 0 || !pending || cmd === null;
+  copy.dataset.cmd = cmd ?? "";
   $("fix-caption").textContent =
     n > 0
       ? "바뀌는 내용을 먼저 보여 드립니다\n" +
         (commitTo !== undefined
           ? "고친 뒤 커밋할 파일을 알려 드립니다"
           : "적용한 뒤에도 되돌릴 수 있습니다")
-      : commitTo !== undefined
-        ? "git add .claude/settings.json 후 커밋하세요"
+      : pending
+        ? `터미널에서 커밋한 뒤 ‘다시 점검’을 누르면\n${commitTo ?? d.score + d.weights.fail}점이 됩니다`
         : "";
+}
+
+// 커밋: 점수가 80을 넘는 마지막 걸음이라 할 일 목록에 한 줄로 둔다 (명령 복사)
+// 커밋할 게 남았는지(이미 만든 settings.json이 커밋 전)와 복사할 명령
+function commitInfo(d: DiagnosisView): { pending: boolean; cmd: string | null } {
+  const pending = d.areas.flatMap((a) => a.findings).some((f) => f.needsCommit);
+  const cmd =
+    commitCmds.get(d.path) ??
+    (pending ? `git add .claude/settings.json && git commit -m "Claude Code 팀 설정"` : null);
+  return { pending, cmd };
+}
+
+function renderCommit(d: DiagnosisView): HTMLElement[] {
+  const { pending, cmd } = commitInfo(d);
+  if (!pending && d.committedScore === undefined) return [];
+  const row = h(
+    "div",
+    { class: "todo commit" },
+    h(
+      "div",
+      { class: "todo-row" },
+      h(
+        "div",
+        { class: "todo-head static" },
+        sevBadge("commit", "커밋"),
+        h(
+          "span",
+          { class: "todo-text" },
+          h("span", { class: "todo-title" }, "설정을 git에 커밋하기"),
+          h(
+            "span",
+            { class: "todo-sub" },
+            pending
+              ? "커밋해야 팀원 모두에게 같은 설정이 적용됩니다. 커밋한 뒤 ‘다시 점검’을 누르세요"
+              : "바로 고치기를 적용한 뒤 커밋합니다",
+          ),
+          h("span", { class: "sr-only" }, `, 커밋하면 +${d.weights.fail}점`),
+        ),
+      ),
+      pointsTail(d.weights.fail, undefined, null),
+    ),
+  );
+  if (cmd && pending)
+    row.append(h("div", { class: "cmd-row in-todo" }, h("code", {}, cmd), copyButton(cmd)));
+  return [h("h3", { class: "group-label" }, "커밋해서 팀에 적용합니다"), row];
 }
 
 function renderResults(d: DiagnosisView): void {
   const todos = buildTodos(d);
+  const commit = renderCommit(d);
+  const total = todos.length + (commit.length > 0 ? 1 : 0);
   renderHero(d, todos);
-  $("todo-title").textContent = todos.length > 0 ? `할 일 ${todos.length}개` : "할 일이 없습니다";
-  $("todo-hint").hidden = todos.length === 0;
+  $("todo-title").textContent = total > 0 ? `할 일 ${total}개` : "할 일이 없습니다";
+  $("todo-hint").hidden = todos.length === 0 || expanded.size > 0; // 한 번 펼쳐 보면 힌트는 뺀다
 
   const active = document.activeElement as HTMLElement | null;
   const activeKey = $("todos").contains(active) ? (active?.dataset.key ?? null) : null;
@@ -1109,7 +1264,7 @@ function renderResults(d: DiagnosisView): void {
     if (items.length === 0) continue;
     out.push(h("h3", { class: "group-label" }, g.label), ...items.map((t) => renderTodo(t, d)));
   }
-  $("todos").replaceChildren(...out);
+  $("todos").replaceChildren(...out, ...commit);
   if (activeKey && !$("todos").contains(document.activeElement)) focusKey(activeKey);
 
   const all = d.areas.flatMap((a) => a.findings);
@@ -1141,8 +1296,8 @@ function renderCriteria(d: DiagnosisView): void {
   $("standard").append(h("span", { class: "std-ver" }, si?.version ?? ""));
   $("std-desc").textContent =
     d.standardSource === "shared"
-      ? "앱의 기본 점검에 사내 표준 파일이 정한 항목을 더했습니다. 더한 항목에는 '사내' 표시가 있습니다."
-      : "앱에 들어 있는 기본 기준입니다. 팀 기준 파일(standard.json)을 고르면 필수 섹션·필수 파일·사내 플러그인을 더 볼 수 있습니다.";
+      ? "지금 이 기준으로 점검합니다. 앱의 기본 점검에 사내 표준 파일이 정한 항목을 더했습니다. 더한 항목에는 '사내' 표시가 있습니다."
+      : "지금 앱에 들어 있는 기본 기준으로 점검합니다. 팀 기준 파일(standard.json)을 고르면 필수 섹션·필수 파일·사내 플러그인을 더 볼 수 있습니다.";
   $("std-path").textContent = si?.path ?? "기본 내장";
   $("std-path").title = si?.path ?? "";
   $("reset-standard").hidden = !si?.file;
@@ -1190,12 +1345,15 @@ function renderCriteria(d: DiagnosisView): void {
         h(
           "div",
           { class: "crit-pen" },
+          // 열 머리는 화면용이라, 읽어 주는 프로그램에는 칸마다 열 이름을 붙인다
+          h("span", { class: "sr-only" }, "안 지키면 "),
           h("b", { class: x.penalty.includes("위험") ? "fail" : "warn" }, x.penalty),
           x.penaltyNote ? h("span", {}, x.penaltyNote) : null,
         ),
         h(
           "div",
           { class: `crit-status ${tone}` },
+          h("span", { class: "sr-only" }, "이 폴더 "),
           h("b", {}, CRIT_STATUS[x.status]),
           x.note ? h("span", {}, x.note) : null,
         ),
@@ -1383,6 +1541,18 @@ $("undo").addEventListener("click", () => void undo());
 $("save-report").addEventListener("click", () => void saveReport());
 $("fix-all").addEventListener("click", () => current && void fix(current.fixes.map((f) => f.no)));
 $("panel-close").addEventListener("click", closePanel);
+$("hero-copy").addEventListener("click", (e) => {
+  const b = e.currentTarget as HTMLButtonElement;
+  const cmd = b.dataset.cmd;
+  if (!cmd) return;
+  void navigator.clipboard.writeText(cmd).then(
+    () => {
+      b.textContent = "복사했습니다";
+      window.setTimeout(() => (b.textContent = "커밋 명령 복사"), 1600);
+    },
+    () => (b.textContent = "복사하지 못했습니다"),
+  );
+});
 // Esc로 패널 닫기 (Claude 실행 중에는 닫기 버튼이 없으므로 닫지 않는다)
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("panel").hidden && !$("panel-close").hidden) closePanel();
@@ -1403,7 +1573,7 @@ $("reset-standard").addEventListener("click", () => {
   locked = true;
   panel(
     "기본 표준으로 되돌릴까요?",
-    "사내 표준 파일 대신 앱에 들어 있는 기본 표준으로 진단합니다. 표준 파일은 지우지 않고, [표준 파일 바꾸기]로 다시 고를 수 있습니다.",
+    "사내 표준 파일 대신 앱에 들어 있는 기본 표준으로 진단합니다. 표준 파일은 지우지 않고, ‘표준 파일 바꾸기’로 다시 고를 수 있습니다.",
     "",
     true,
   );
