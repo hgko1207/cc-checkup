@@ -565,6 +565,7 @@ describe("앱에서 커밋하기", () => {
     const pv = await core.push(s.repo, false);
     if (pv.kind !== "preview") throw new Error(pv.kind);
     expect(pv.newBranch).toBe(true);
+    expect(pv.commits.filter((c) => c.mine)).toHaveLength(1);
     expect(pv.target).toBe(`origin/${after.pushPending?.branch}`);
     expect(await core.push(s.repo, true)).toEqual({ kind: "done", target: pv.target });
     expect((await core.diagnose(s.repo)).pushPending).toBeUndefined();

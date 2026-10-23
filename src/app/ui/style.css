@@ -1717,3 +1717,111 @@ input[type="radio"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* 결과 알림(toast): 제목 줄 오른쪽 × 로 닫고, 아래 행동 바는 없다 */
+.panel.toast .panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 0 24px;
+}
+.panel.toast #panel-close {
+  display: inline-flex;
+  width: 34px;
+  padding: 0;
+}
+.panel.toast .panel-body {
+  padding: 6px 24px 18px;
+}
+.panel.toast .panel-foot {
+  padding: 0 24px 18px;
+  border-top: 0;
+  justify-content: flex-start;
+}
+
+/* 줄 전체 hover (Claude 버튼·점수 열 포함) */
+.todo:not(.open) .todo-row:hover {
+  background: var(--soft-2);
+  border-radius: 14px;
+}
+.todo:not(.open) .todo-row:hover .todo-head {
+  background: transparent;
+}
+
+/* 상태가 바뀌어도 본문이 좌우로 밀리지 않게 */
+.main {
+  scrollbar-gutter: stable;
+}
+
+.kbd {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: var(--surface);
+}
+.card-sub {
+  margin: 22px 0 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+.side-foot .shortcuts {
+  margin-bottom: 8px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+
+/* 창 전체가 밀리지 않게: 스크롤은 .main 안에서만 (sr-only 같은 absolute 요소의 기준) */
+html,
+body {
+  overflow: hidden;
+}
+.main {
+  position: relative;
+  overscroll-behavior: contain;
+}
+/* 결과 알림이 떠 있는 동안 목록 끝이 가려지지 않게 */
+body.has-toast .wrap {
+  padding-bottom: 220px;
+}
+/* 확인창 Ctrl+Enter 표시는 행동 바 왼쪽 */
+.panel-foot .kbd {
+  margin-right: auto;
+  align-self: center;
+}
+/* 오류: 첫 줄만 빨강, 나머지는 보통 글자 */
+.panel-message.error {
+  color: var(--ink-2);
+}
+.panel-message.error::first-line {
+  color: var(--fail-text);
+  font-weight: 700;
+}
+
+body.has-toast .main {
+  scroll-padding-bottom: 240px;
+}
+.pick input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* 파랑은 주 버튼만: 준비됨 타일은 상태색 */
+.rule-tile.goal {
+  background: var(--ok-bg);
+}
+.rule-tile.goal b {
+  color: var(--ok);
+}
+
+/* 기본 브랜치에 바로 보낼 때 본문(PR 경고)을 경고 색으로 */
+.panel-message.caution {
+  color: var(--warn-text);
+}
+.glossary {
+  grid-template-columns: minmax(64px, max-content) minmax(0, 1fr);
+  column-gap: 12px;
+}

@@ -988,7 +988,7 @@ export class AppCore {
     const up = await git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], path);
     let target: string;
     let remote: string | null = null;
-    let ahead: number | null = null;
+    let ahead: number | null;
     if (up.code === 0) {
       target = (up.stdout ?? "").trim();
       const n = await git(["rev-list", "--count", "@{u}..HEAD"], path);
@@ -1010,10 +1010,22 @@ export class AppCore {
               : "원격 저장소가 여러 개라 어디로 보낼지 정할 수 없습니다. 터미널에서 push하세요",
         };
       target = `${remote}/${branch}`;
+      const n = await git(["rev-list", "--count", "HEAD", "--not", "--remotes"], path);
+      ahead = n.code === 0 ? Number((n.stdout ?? "").trim()) : null;
     }
     if (!apply) {
       this.pushPreview = { key, branch, target };
-      return { kind: "preview", branch, target, ahead, newBranch: remote !== null };
+      const range = remote === null ? ["@{u}..HEAD"] : ["HEAD", "--not", "--remotes"];
+      const log = await git(["log", "--format=%h%x09%s", "-n", "20", ...range], path);
+      const commits = (log.stdout ?? "")
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .map((line) => {
+          const [sha = "", ...rest] = line.split("\t");
+          const subject = rest.join("\t");
+          return { sha, subject, mine: subject === COMMIT_MESSAGE };
+        });
+      return { kind: "preview", branch, target, ahead, newBranch: remote !== null, commits };
     }
     const p = this.pushPreview;
     if (p?.key !== key || p.branch !== branch || p.target !== target)
