@@ -121,6 +121,8 @@
                 role="tab"
                 type="button"
                 aria-controls="view-results"
+                title="Ctrl+1"
+                aria-keyshortcuts="Control+1"
               >
                 점검 결과
               </button>
@@ -130,6 +132,8 @@
                 role="tab"
                 type="button"
                 aria-controls="view-criteria"
+                title="Ctrl+2"
+                aria-keyshortcuts="Control+2"
               >
                 점검 기준
               </button>
@@ -158,9 +162,23 @@
                 </div>
                 <ul id="legend" class="legend"></ul>
                 <div class="hero-act">
-                  <button id="fix-all" class="btn primary big" type="button" hidden></button>
-                  <button id="hero-copy" class="btn primary big" type="button" hidden>
-                    커밋 명령 복사
+                  <button
+                    id="fix-all"
+                    class="btn primary big"
+                    type="button"
+                    title="Ctrl+Enter"
+                    aria-keyshortcuts="Control+Enter"
+                    hidden
+                  ></button>
+                  <button
+                    id="hero-commit"
+                    class="btn primary big"
+                    type="button"
+                    title="Ctrl+Enter"
+                    aria-keyshortcuts="Control+Enter"
+                    hidden
+                  >
+                    변경 커밋하기
                   </button>
                   <span id="fix-caption" class="caption"></span>
                 </div>
@@ -245,6 +263,11 @@
                   <span>항목과 통과 기준</span><span>안 지키면</span><span>이 폴더</span>
                 </div>
                 <div id="criteria"></div>
+              </section>
+
+              <section class="card" aria-labelledby="glossary-title">
+                <h2 id="glossary-title" class="card-title">자주 나오는 말</h2>
+                <div id="glossary"></div>
               </section>
             </div>
           </div>

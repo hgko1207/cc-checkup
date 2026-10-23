@@ -1626,3 +1626,39 @@ body {
     padding-left: 20px;
   }
 }
+
+/* Claude 묶음 제목 옆 "모두 처리" */
+.group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 16px;
+}
+
+/* 용어 풀이 */
+.glossary {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(96px, max-content) minmax(0, 1fr);
+  gap: 8px 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: keep-all;
+}
+.glossary dt {
+  font-weight: 700;
+}
+.glossary dd {
+  margin: 0;
+  color: var(--ink-2);
+  max-width: 68ch;
+}
+.card > .glossary,
+#glossary {
+  margin-top: 14px;
+}
+.outside code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+}

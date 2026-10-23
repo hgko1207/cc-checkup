@@ -51,6 +51,7 @@ test("렌더러는 Node에 접근할 수 없고 정해진 함수만 보인다", 
   expect(probe.api).toEqual(
     [
       "claude",
+      "commit",
       "diagnose",
       "fix",
       "getState",
@@ -103,7 +104,8 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   await expect(page.locator("#panel")).toBeHidden();
   await expect(fixAll).toBeFocused();
 
-  await fixAll.click();
+  // Ctrl+Enter: 확인창이 없으면 맨 위 주 버튼(바로 고치기)
+  await page.keyboard.press("Control+Enter");
   await expect(page.locator("#panel-title")).toHaveText("바뀔 내용 확인");
   await expect(page.locator(".file-path").first()).toContainText(".claude/settings.json");
   // 미리 보는 동안 다른 고치기 버튼은 꺼진다
@@ -128,14 +130,15 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   expect(await exists(join(repo, ".claude"))).toBe(false);
   await expect.poll(async () => Number(await page.locator("#score").textContent())).toBe(before);
 
-  // 점검 기준 탭: 적용 중인 표준과 보는 항목 전체
-  await page.getByRole("tab", { name: "점검 기준" }).click();
+  // 점검 기준 탭(Ctrl+2): 적용 중인 표준과 보는 항목 전체, 용어 풀이
+  await page.keyboard.press("Control+2");
   await expect(page.getByRole("tab", { name: "점검 기준" })).toHaveAttribute(
     "aria-selected",
     "true",
   );
   await expect(page.locator("#crit-title")).toContainText("점검 항목");
   await expect(page.locator("#criteria")).toContainText("팀 공용 설정 파일");
+  await expect(page.locator("#glossary")).toContainText("권한 우회 모드");
 
   // 폴더 종류: CLAUDE.md만 있는 폴더는 문서 폴더로 판별, 개발 저장소로 바꾸면 검증 명령을 본다
   await expect(page.locator("#kind-docs")).toBeChecked();

@@ -178,6 +178,10 @@ async function start(): Promise<void> {
     wrap((p: unknown, apply: unknown) => core.undo(p, apply)),
   );
   ipcMain.handle(
+    CHANNELS.commit,
+    wrap((p: unknown, apply: unknown) => core.commit(p, apply)),
+  );
+  ipcMain.handle(
     CHANNELS.saveReport,
     wrap((p: unknown) => core.saveReport(p)),
   );

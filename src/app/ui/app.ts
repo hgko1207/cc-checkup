@@ -162,6 +162,12 @@ function panel(title: string, message = "", tone: "" | "error" = "", compact = f
 }
 
 function panelButtons(...btns: HTMLButtonElement[]): void {
+  // 확인창의 주 버튼은 Ctrl+Enter로도 누른다
+  for (const b of btns)
+    if (b.classList.contains("primary")) {
+      b.title = "Ctrl+Enter";
+      b.setAttribute("aria-keyshortcuts", "Control+Enter");
+    }
   $("panel-btns").replaceChildren(...btns);
 }
 
@@ -184,7 +190,7 @@ function closePanel(): void {
   const visible = (el: HTMLElement | null) =>
     el?.isConnected && el.offsetParent !== null && !(el as HTMLButtonElement).disabled;
   if (visible(returnFocus)) returnFocus?.focus();
-  else if (visible($("hero-copy"))) $("hero-copy").focus();
+  else if (visible($("hero-commit"))) $("hero-commit").focus();
   else if (!focusKey(returnKey)) {
     if (busy) pendingReturn = { el: returnFocus, key: returnKey };
     $("path").focus();
@@ -246,6 +252,71 @@ function copyButton(text: string): HTMLButtonElement {
     "btn soft small",
   );
   return b;
+}
+
+// 앱에서 커밋하기: 커밋할 파일 확인 → 커밋 → 다시 점검. 앱이 만든 파일만, push는 하지 않는다
+async function commitFlow(): Promise<void> {
+  if (!current) return;
+  rememberFocus();
+  const path = current.path;
+  const before = current.score;
+  setBusy(true);
+  try {
+    const r = await api.commit(path, false);
+    if (r.kind === "none") {
+      panel("커밋할 것이 없습니다", r.reason);
+      closeOnly();
+      return;
+    }
+    if (r.kind !== "preview") return;
+    locked = true;
+    panel(
+      "변경 커밋하기",
+      `파일 ${r.files.length}개를 커밋합니다\n커밋한 뒤 원격 저장소에 push해야 팀원이 받습니다. push는 직접 하세요.`,
+      "",
+      true,
+    );
+    $("panel-message").classList.add("lead");
+    $("outside").hidden = false;
+    $("outside").replaceChildren(...r.files.map((f) => h("li", {}, h("code", {}, f))));
+    $("panel-note").textContent =
+      `커밋 메시지: ${r.message} · 앱이 만든 파일만 커밋하고, 따로 스테이징해 둔 변경은 그대로 둡니다.`;
+    panelButtons(
+      button(
+        "커밋하기",
+        () => {
+          void (async () => {
+            setBusy(true);
+            try {
+              await api.commit(path, true);
+              commitCmds.delete(path);
+              current = await api.diagnose(path);
+              state = await api.getState();
+              locked = false;
+              panel(
+                "커밋했습니다",
+                scoreChange(before, current.score) +
+                  (current.score >= READY_SCORE ? "\n준비됨: 팀 기준을 통과했습니다" : ""),
+              );
+              $("panel-message").classList.add("lead");
+              $("panel-note").textContent = "팀원에게 보내려면 터미널에서 git push 하세요.";
+              closeOnly();
+            } catch (e) {
+              showError(e);
+            } finally {
+              setBusy(false);
+            }
+          })();
+        },
+        "btn primary",
+      ),
+      button("취소", closePanel),
+    );
+  } catch (e) {
+    showError(e);
+  } finally {
+    setBusy(false);
+  }
 }
 
 function showError(e: unknown): void {
@@ -568,7 +639,9 @@ function claudeResult(r: ClaudeView, path: string, before: number): void {
         }
         closeOnly();
         render();
+        window.setTimeout(() => void continueQueue(), 0);
       } catch (e) {
+        claudeQueue = [];
         showError(e);
       }
     })();
@@ -605,17 +678,96 @@ function confirmClaude(f: FindingView): void {
     ),
   );
   panelButtons(
-    button("Claude 실행 · 약 150~400원", () => void runClaude(f, label), "btn primary"),
+    button(
+      "Claude 실행 · 약 150~400원",
+      () => {
+        claudeQueue = [];
+        queueTotal = 1;
+        queueDone = 0;
+        void runClaude(f, label);
+      },
+      "btn primary",
+    ),
     button("취소", closePanel),
   );
   render();
+}
+
+// Claude로 모두 처리: 하나씩 실행하고, 결과마다 적용·버리기를 고른 뒤 다음으로 넘어간다
+let claudeQueue: { task: string; label: string }[] = [];
+let queueTotal = 1;
+let queueDone = 0;
+
+function confirmClaudeAll(list: FindingView[]): void {
+  if (!current || list.length === 0) return;
+  rememberFocus();
+  locked = true;
+  const n = list.length;
+  panel(
+    `Claude로 ${n}개 처리: 실행 전 확인`,
+    "Claude Code가 이 폴더를 읽고 아래 파일만 고칩니다. 하나씩 실행하고, 결과마다 적용할지 고른 뒤 다음으로 넘어갑니다.",
+    "",
+    true,
+  );
+  const targets = [...new Set(list.flatMap((f) => f.claudeTargets ?? []))].join(", ");
+  const fact = (k: string, v: string) => h("li", {}, h("b", {}, k), " ", v);
+  $("diffs").replaceChildren(
+    h(
+      "ul",
+      { class: "facts" },
+      fact("고칠 파일", targets || "표준이 정한 파일"),
+      fact("걸리는 시간", `건당 보통 1분 안팎, 모두 ${n}건. 10분이 넘는 건은 자동으로 멈춥니다.`),
+      fact(
+        "사용량",
+        `작은 저장소 기준 모두 약 ${150 * n}~${400 * n}원어치이고, 요금제 한도에서 차감됩니다.`,
+      ),
+      fact("안전", "명령 실행과 .env 읽기는 막혀 있고, 실행마다 원본을 백업합니다."),
+      fact("중간에 멈추기", "실행 중 ‘중단’을 누르거나 오류가 나면 남은 작업은 실행하지 않습니다."),
+    ),
+  );
+  panelButtons(
+    button(
+      `Claude 실행 · 약 ${150 * n}~${400 * n}원`,
+      () => {
+        const [first, ...rest] = list;
+        if (!first?.claudeTask) return;
+        claudeQueue = rest
+          .filter((f) => f.claudeTask)
+          .map((f) => ({ task: f.claudeTask as string, label: f.claudeLabel ?? "Claude로 반영" }));
+        queueTotal = n;
+        queueDone = 0;
+        void runClaude(first, first.claudeLabel ?? "Claude로 반영");
+      },
+      "btn primary",
+    ),
+    button("취소", closePanel),
+  );
+  render();
+}
+
+// 다음 작업: 앞 작업 뒤 다시 진단한 결과에서 아직 남은 같은 작업을 찾는다 (이미 풀렸으면 건너뜀)
+async function continueQueue(): Promise<void> {
+  while (claudeQueue.length > 0 && current) {
+    const next = claudeQueue.shift();
+    queueDone++;
+    const f = current.areas
+      .flatMap((a) => a.findings)
+      .find((x) => x.claudeTask === next?.task && x.severity !== "ok");
+    if (f && next) {
+      await runClaude(f, next.label);
+      return;
+    }
+  }
 }
 
 async function runClaude(f: FindingView, label: string): Promise<void> {
   if (!current || !f.claudeTask) return;
   const path = current.path;
   const before = current.score;
-  panel(`${label}: 실행 중`, "Claude가 폴더를 읽고 대상 파일만 고치고 있습니다.");
+  panel(
+    `${label}: 실행 중${queueTotal > 1 ? ` (${queueDone + 1}/${queueTotal})` : ""}`,
+    "Claude가 폴더를 읽고 대상 파일만 고치고 있습니다.",
+  );
   $("log").hidden = false;
   panelButtons(
     button("중단", () => void api.claude({ type: "stop" }).catch(showError), "btn danger"),
@@ -634,8 +786,18 @@ async function runClaude(f: FindingView, label: string): Promise<void> {
     state = await api.getState();
     locked = r.status === "ready";
     claudeResult(r, path, before);
-    if (r.status !== "ready") current = await api.diagnose(path);
+    if (r.status !== "ready") {
+      current = await api.diagnose(path);
+      // 바뀐 게 없으면 다음 작업으로, 중단·오류면 남은 작업은 하지 않는다
+      if (r.status === "unchanged") window.setTimeout(() => void continueQueue(), 0);
+      else if (claudeQueue.length > 0) {
+        $("panel-note").textContent +=
+          ` 남은 Claude 작업 ${claudeQueue.length}개는 실행하지 않았습니다.`;
+        claudeQueue = [];
+      }
+    }
   } catch (e) {
+    claudeQueue = [];
     showError(e);
   } finally {
     stopElapsed();
@@ -866,6 +1028,62 @@ function toggleLink(id: string, openLabel: string, closedLabel: string): HTMLEle
   return t;
 }
 
+// 용어 풀이: 할 일을 펼치면 문장에 나온 말만, [점검 기준] 탭에는 전부
+const GLOSSARY: { term: string; test: RegExp; text: string }[] = [
+  {
+    term: ".env",
+    test: /\.env/,
+    text: "API 키·비밀번호 같은 비밀 값을 담는 설정 파일입니다. Claude가 읽으면 대화와 요청에 그대로 들어갑니다.",
+  },
+  {
+    term: "settings.json",
+    test: /settings\.json/,
+    text: "Claude Code의 권한 규칙을 담는 파일입니다. 저장소의 .claude/settings.json은 팀 공용, settings.local.json은 내 PC 전용입니다.",
+  },
+  {
+    term: "권한 우회 모드",
+    test: /권한 우회|bypass/i,
+    text: "Claude가 묻지 않고 모든 파일 수정·명령 실행을 하는 모드입니다(--dangerously-skip-permissions). 팀 설정으로 켜지 못하게 막을 수 있습니다.",
+  },
+  {
+    term: "훅",
+    test: /훅|hook/i,
+    text: "Claude가 명령을 실행하기 직전에 자동으로 도는 검사 스크립트입니다. 강제 푸시처럼 되돌리기 어려운 명령이면 멈춥니다.",
+  },
+  {
+    term: "CLAUDE.md",
+    test: /CLAUDE\.md/,
+    text: "Claude Code가 대화를 시작할 때마다 읽는 팀 지침 파일입니다. 빌드·테스트 방법과 팀 규칙을 적습니다.",
+  },
+  {
+    term: "플러그인",
+    test: /플러그인|plugin/i,
+    text: "팀 공용 스킬(계획·검증 등)과 훅을 묶어 나눠 쓰는 Claude Code 확장입니다.",
+  },
+  {
+    term: "커밋·push",
+    test: /커밋|commit|push/i,
+    text: "커밋은 바뀐 파일을 git 기록에 남기는 것, push는 그 기록을 원격 저장소로 보내 팀원이 받게 하는 것입니다.",
+  },
+  {
+    term: "DESIGN.md",
+    test: /DESIGN\.md/,
+    text: "화면의 색·글꼴·간격 기준을 적은 문서입니다. Claude가 화면을 고칠 때 이 기준을 따릅니다.",
+  },
+];
+
+function termsIn(text: string): typeof GLOSSARY {
+  return GLOSSARY.filter((g) => g.test.test(text));
+}
+
+function glossaryList(items: typeof GLOSSARY): HTMLElement {
+  return h(
+    "dl",
+    { class: "glossary" },
+    ...items.flatMap((g) => [h("dt", {}, g.term), h("dd", {}, g.text)]),
+  );
+}
+
 // 오른쪽 고정 열: 고치면 오르는 점수와 접기 표시. 키보드·읽기 프로그램은 머리 버튼으로 다룬다
 function pointsTail(
   gain: number,
@@ -968,6 +1186,9 @@ function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
   if (det?.fix) body.append(h("div", { class: "kv" }, h("b", {}, "고치면"), h("p", {}, det.fix)));
   if (det?.limit)
     body.append(h("div", { class: "kv" }, h("b", {}, "남는 한계"), h("p", {}, det.limit)));
+  const words = termsIn([f.message, sub, det?.why ?? "", det?.fix ?? ""].join(" ")).slice(0, 3);
+  if (words.length > 0)
+    body.append(h("div", { class: "kv" }, h("b", {}, "용어"), glossaryList(words)));
   if (t.kind === "manual" && f.judgment)
     body.append(h("div", { class: "kv" }, h("b", {}, "할 일"), h("p", {}, f.judgment)));
   if (f.example) {
@@ -1184,17 +1405,17 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
   fixAll.disabled = busy || locked || (state?.running ?? false);
   // 바로 고칠 게 없고 커밋만 남았으면 주 버튼은 커밋 명령 복사
   const { pending, cmd } = commitInfo(d);
-  const copy = $("hero-copy") as HTMLButtonElement;
-  copy.hidden = n > 0 || !pending || cmd === null;
-  copy.dataset.cmd = cmd ?? "";
+  const commitBtn = $("hero-commit") as HTMLButtonElement;
+  commitBtn.hidden = n > 0 || !pending || cmd === null;
+  commitBtn.disabled = busy || locked || (state?.running ?? false);
   $("fix-caption").textContent =
     n > 0
       ? "바뀌는 내용을 먼저 보여 드립니다\n" +
         (commitTo !== undefined
-          ? "고친 뒤 커밋할 파일을 알려 드립니다"
+          ? "고친 뒤 바로 커밋할 수 있습니다"
           : "적용한 뒤에도 되돌릴 수 있습니다")
       : pending
-        ? `터미널에서 커밋한 뒤 ‘다시 점검’을 누르면\n${commitTo ?? d.score + d.weights.fail}점이 됩니다`
+        ? `앱이 만든 파일만 커밋합니다\n커밋하면 ${commitTo ?? d.score + d.weights.fail}점이 됩니다`
         : "";
 }
 
@@ -1229,7 +1450,7 @@ function renderCommit(d: DiagnosisView): HTMLElement[] {
             "span",
             { class: "todo-sub" },
             pending
-              ? "커밋해야 팀원 모두에게 같은 설정이 적용됩니다. 커밋한 뒤 ‘다시 점검’을 누르세요"
+              ? "커밋하고 push하면 팀원 모두에게 같은 설정이 적용됩니다"
               : "바로 고치기를 적용한 뒤 커밋합니다",
           ),
           h("span", { class: "sr-only" }, `, 커밋하면 +${d.weights.fail}점`),
@@ -1239,7 +1460,18 @@ function renderCommit(d: DiagnosisView): HTMLElement[] {
     ),
   );
   if (cmd && pending)
-    row.append(h("div", { class: "cmd-row in-todo" }, h("code", {}, cmd), copyButton(cmd)));
+    row.append(
+      h(
+        "div",
+        { class: "cmd-row in-todo" },
+        h("code", {}, cmd),
+        keyed(
+          button("커밋하기", () => void commitFlow(), "btn soft small"),
+          "commit:row",
+        ),
+        copyButton(cmd),
+      ),
+    );
   return [h("h3", { class: "group-label" }, "커밋해서 팀에 적용합니다"), row];
 }
 
@@ -1262,7 +1494,21 @@ function renderResults(d: DiagnosisView): void {
   for (const g of groups) {
     const items = todos.filter((t) => t.kind === g.kind);
     if (items.length === 0) continue;
-    out.push(h("h3", { class: "group-label" }, g.label), ...items.map((t) => renderTodo(t, d)));
+    let label: HTMLElement = h("h3", { class: "group-label" }, g.label);
+    // Claude 작업이 둘 이상이면 한 번에 처리하는 버튼 (제목 옆, 제목 밖)
+    if (g.kind === "claude" && items.length > 1) {
+      const all = keyed(
+        button(
+          `모두 처리 (${items.length}개)`,
+          () => confirmClaudeAll(items.map((t) => t.primary)),
+          "btn soft small",
+        ),
+        "claude:all",
+      );
+      all.disabled = busy || locked || (state?.running ?? false) || claudeBlocked() !== null;
+      label = h("div", { class: "group-head" }, label, all);
+    }
+    out.push(label, ...items.map((t) => renderTodo(t, d)));
   }
   $("todos").replaceChildren(...out, ...commit);
   if (activeKey && !$("todos").contains(document.activeElement)) focusKey(activeKey);
@@ -1361,6 +1607,7 @@ function renderCriteria(d: DiagnosisView): void {
     );
   }
   $("criteria").replaceChildren(...out);
+  if ($("glossary").childElementCount === 0) $("glossary").append(glossaryList(GLOSSARY));
 }
 
 function render(): void {
@@ -1480,6 +1727,24 @@ document.addEventListener("keydown", (e) => {
   } else if ((e.key === "F5" || (e.ctrlKey && e.key.toLowerCase() === "r")) && current) {
     e.preventDefault();
     if (enabled("rerun")) void load(current.path);
+  } else if (e.ctrlKey && e.key === "Enter") {
+    // Ctrl+Enter: 열린 확인창의 주 버튼, 확인창이 없으면 점검 결과의 주 버튼(바로 고치기·커밋하기)
+    const modal = !$("panel").hidden && !$("scrim").hidden;
+    const usable = (el: HTMLElement | null) =>
+      el !== null && el.offsetParent !== null && !(el as HTMLButtonElement).disabled;
+    const target = modal
+      ? $("panel-btns").querySelector<HTMLElement>(".btn.primary")
+      : current && tab === "results"
+        ? ([$("fix-all"), $("hero-commit")].find(usable) ?? null)
+        : null;
+    if (usable(target)) {
+      e.preventDefault();
+      target?.click();
+    }
+  } else if (e.ctrlKey && (e.key === "1" || e.key === "2") && current && $("scrim").hidden) {
+    // Ctrl+1·2: 탭 옮기기
+    e.preventDefault();
+    setTab(e.key === "1" ? "results" : "criteria", true);
   }
 });
 $("empty-open").addEventListener("click", () => void openFolder());
@@ -1541,18 +1806,7 @@ $("undo").addEventListener("click", () => void undo());
 $("save-report").addEventListener("click", () => void saveReport());
 $("fix-all").addEventListener("click", () => current && void fix(current.fixes.map((f) => f.no)));
 $("panel-close").addEventListener("click", closePanel);
-$("hero-copy").addEventListener("click", (e) => {
-  const b = e.currentTarget as HTMLButtonElement;
-  const cmd = b.dataset.cmd;
-  if (!cmd) return;
-  void navigator.clipboard.writeText(cmd).then(
-    () => {
-      b.textContent = "복사했습니다";
-      window.setTimeout(() => (b.textContent = "커밋 명령 복사"), 1600);
-    },
-    () => (b.textContent = "복사하지 못했습니다"),
-  );
-});
+$("hero-commit").addEventListener("click", () => void commitFlow());
 // Esc로 패널 닫기 (Claude 실행 중에는 닫기 버튼이 없으므로 닫지 않는다)
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("panel").hidden && !$("panel-close").hidden) closePanel();
