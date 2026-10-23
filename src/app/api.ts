@@ -53,13 +53,29 @@ export interface AreaView {
   findings: FindingView[];
 }
 
+// [점검 기준] 화면의 한 줄: 이 표준·폴더 종류에서 보는 항목과 이 폴더의 결과
+export interface CriterionView {
+  id: string;
+  group: string; // 보안 | 팀 공유 | CLAUDE.md | 필수 파일 | 플러그인
+  title: string;
+  rule: string; // 통과 기준
+  penalty: string; // 지키지 않으면 (예: "위험 −15")
+  penaltyNote?: string; // 다른 경우의 감점 (예: ".env가 아직 없으면 주의 −5")
+  company: boolean; // 사내 표준 파일이 더한 항목
+  status: Severity | "na" | "pending"; // 해당 없음 | 아직 확인 전
+  note?: string; // 해당 없음·확인 전 이유
+}
+
 export interface DiagnosisView {
   path: string;
   score: number;
   standard: string;
   standardName: string; // "이름 버전"
+  standardSource: "default" | "shared"; // 기본 내장 | 사내 표준 파일
   weights: { fail: number; warn: number }; // 위험·주의 한 건의 감점
   expectedScore?: number; // 바로 고칠 수 있는 것을 모두 고쳤을 때 예상 점수
+  committedScore?: number; // 고친 뒤 settings.json까지 커밋했을 때 (커밋으로 점수가 오를 때만)
+  criteria: CriterionView[];
   kind: Kind;
   kindAuto: boolean; // 자동 판별 결과를 쓰는 중
   kindReason: string; // 자동 판별 이유

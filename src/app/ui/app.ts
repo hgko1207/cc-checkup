@@ -60,16 +60,6 @@ let elapsedTimer: number | undefined;
 const expanded = new Set<string>(); // 펼친 [자세히]·[예시 보기] (항목 id:종류)
 let loading = false; // 진단 중 (점수 자리에 "점검 중…")
 
-// 통과 항목 숨기기는 이 PC에만 기억한다 (저장소를 쓸 수 없으면 기억하지 않음)
-function readHideOk(): boolean {
-  try {
-    return localStorage.getItem("hideOk") === "1";
-  } catch {
-    return false;
-  }
-}
-let hideOk = readHideOk();
-
 const READY_SCORE = 80; // 이 점수 이상이면 "준비됨"
 
 // 상태 아이콘 (직접 그린 SVG, 굵기 하나)
@@ -441,7 +431,7 @@ async function fix(nos: number[]): Promise<void> {
     panel(title);
     $("diffs").replaceChildren(...(all.length > 1 ? [picker()] : []), files);
     $("panel-note").textContent =
-      "적용 전 원본은 자동으로 백업되고, [↶ 마지막 반영 되돌리기]로 언제든 되돌릴 수 있습니다.";
+      "적용 전 원본은 자동으로 백업되고, [마지막 반영 되돌리기]로 언제든 되돌릴 수 있습니다.";
     panelButtons(applyBtn, button("취소", closePanel));
     await update();
     $("diffs").querySelector<HTMLElement>(".pick input, .file summary")?.focus();
@@ -521,8 +511,8 @@ function claudeResult(r: ClaudeView, path: string, before: number): void {
         if (action === "keep")
           $("panel-note").textContent =
             current.kind === "dev"
-              ? "바뀐 파일을 git에 커밋해야 팀원 전원에게 적용됩니다. [↶ 마지막 반영 되돌리기]로 되돌릴 수 있습니다."
-              : "[↶ 마지막 반영 되돌리기]로 되돌릴 수 있습니다.";
+              ? "바뀐 파일을 git에 커밋해야 팀원 전원에게 적용됩니다. [마지막 반영 되돌리기]로 되돌릴 수 있습니다."
+              : "[마지막 반영 되돌리기]로 되돌릴 수 있습니다.";
         closeOnly();
         render();
       } catch (e) {
@@ -709,106 +699,212 @@ async function saveReport(): Promise<void> {
 // ---- 그리기 ----
 
 const SEVERITY = { fail: "위험", warn: "주의", ok: "통과" };
+const KIND_NAME = { dev: "개발 저장소", docs: "문서·기획 폴더" };
 
-function renderFinding(f: FindingView): HTMLElement {
-  const acts = h("div", { class: "acts" });
+// 할 일 한 줄: 같은 고치기로 풀리는 진단 항목은 한 줄로 묶는다
+interface Todo {
+  key: string;
+  kind: "fix" | "claude" | "manual";
+  primary: FindingView;
+  items: FindingView[]; // 이 할 일로 해결되는 진단 항목 (primary 포함)
+  severity: "fail" | "warn";
+  penalty: number;
+}
+
+function head(message: string): string {
+  return message.split(" / ")[0] ?? message;
+}
+
+function buildTodos(d: DiagnosisView): Todo[] {
+  const problems = d.areas
+    .flatMap((a) => a.findings)
+    .filter((f) => f.severity !== "ok" && !f.notApplicable);
+  const owners = new Set(problems.filter((f) => f.fixNo !== undefined).map((f) => f.fixNo));
+  const todos: Todo[] = [];
+  for (const f of problems) {
+    if (f.fixNo === undefined && f.fixSharedWith !== undefined && owners.has(f.fixSharedWith))
+      continue; // 다른 줄의 고치기에 함께 들어간다
+    const no = f.fixNo;
+    const items =
+      no !== undefined ? problems.filter((x) => x.fixNo === no || x.fixSharedWith === no) : [f];
+    const severity = items.some((x) => x.severity === "fail") ? "fail" : "warn";
+    todos.push({
+      key: no !== undefined ? `fix:${no}` : `item:${f.id}:${todos.length}`,
+      kind: no !== undefined ? "fix" : f.claudeTask ? "claude" : "manual",
+      primary: f,
+      items,
+      severity,
+      penalty: items.reduce(
+        (s, x) => s + (x.severity === "fail" ? d.weights.fail : d.weights.warn),
+        0,
+      ),
+    });
+  }
+  const rank = (t: Todo) => (t.severity === "fail" ? 0 : 1);
+  return todos.sort((a, b) => rank(a) - rank(b) || b.penalty - a.penalty);
+}
+
+function svgIcon(d: string, cls = "ico"): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("class", cls);
+  const path = document.createElementNS(SVG_NS, "path");
+  path.setAttribute("d", d);
+  svg.append(path);
+  return svg;
+}
+
+function sevBadge(sev: keyof typeof ICON_PATH, label: string): HTMLElement {
+  return h("span", { class: `badge ${sev}` }, h("span", { class: "sr-only" }, label), icon(sev));
+}
+
+function claudeButton(f: FindingView): HTMLElement[] {
   const blocked = busy || locked || (state?.running ?? false);
-  if (f.fixNo !== undefined) {
+  const label = f.claudeLabel ?? "Claude로 반영";
+  const b = keyed(
+    button(label, () => confirmClaude(f), "btn soft small"),
+    `claude:${f.id}`,
+  );
+  b.setAttribute("aria-label", `${label}: ${head(f.message)}`);
+  const why = claudeBlocked();
+  b.disabled = blocked || why !== null;
+  // 꺼진 이유는 마우스를 올리지 않아도 보이게 버튼 아래에 적는다
+  return why && !blocked ? [b, h("span", { class: "why-off" }, why)] : [b];
+}
+
+function toggleLink(id: string, openLabel: string, closedLabel: string): HTMLElement {
+  const open = expanded.has(id);
+  const t = keyed(
+    h("button", { class: "linkish", type: "button" }, open ? openLabel : closedLabel),
+    id,
+  );
+  t.setAttribute("aria-expanded", String(open));
+  t.addEventListener("click", () => {
+    if (expanded.has(id)) expanded.delete(id);
+    else expanded.add(id);
+    render();
+  });
+  return t;
+}
+
+function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
+  const f = t.primary;
+  const id = `todo:${t.key}`;
+  const open = expanded.has(id);
+  const blocked = busy || locked || (state?.running ?? false);
+  const fixTitle = d.fixes.find((x) => x.no === f.fixNo)?.title;
+  const sub =
+    t.kind === "fix"
+      ? `고치면: ${fixTitle ?? ""}${t.items.length > 1 ? ` · 문제 ${t.items.length}건` : ""}`
+      : t.kind === "claude"
+        ? `Claude가 폴더를 읽고 씁니다 · 대상: ${f.claudeTargets?.join(", ") ?? "표준이 정한 파일"}`
+        : (f.judgment ?? "직접 판단이 필요합니다");
+
+  const bodyId = `body-${t.key.replace(/[^a-z0-9-]/gi, "-")}`;
+  const headBtn = keyed(
+    h(
+      "button",
+      { class: "todo-head", type: "button" },
+      sevBadge(t.severity, SEVERITY[t.severity]),
+      h(
+        "span",
+        { class: "todo-text" },
+        h("span", { class: "todo-title" }, head(f.message)),
+        h("span", { class: "todo-sub" }, sub),
+      ),
+      h("span", { class: `todo-pts ${t.severity}` }, `−${t.penalty}점`),
+      svgIcon(open ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6", "ico chev"),
+    ),
+    id,
+  );
+  headBtn.setAttribute("aria-expanded", String(open));
+  headBtn.setAttribute("aria-controls", bodyId);
+  headBtn.addEventListener("click", () => {
+    if (expanded.has(id)) expanded.delete(id);
+    else expanded.add(id);
+    render();
+  });
+
+  const row = h("div", { class: "todo-row" }, headBtn);
+  if (t.kind === "claude") row.append(h("div", { class: "todo-act" }, ...claudeButton(f)));
+
+  const box = h("div", { class: `todo${open ? " open" : ""}` }, row);
+  if (!open) return box;
+
+  const det = f.detail;
+  const body = h("div", { class: "todo-body" });
+  body.id = bodyId;
+  if (det?.why)
+    body.append(h("div", { class: "kv" }, h("b", {}, "왜 문제인가요"), h("p", {}, det.why)));
+  const extra = f.message.split(" / ").slice(1);
+  if (t.items.length > 1 || extra.length > 0) {
+    const list = h("ul", { class: "covered" });
+    for (const x of t.items) {
+      const pts = x.severity === "fail" ? d.weights.fail : d.weights.warn;
+      list.append(
+        h(
+          "li",
+          {},
+          h("span", {}, head(x.message)),
+          h("span", { class: `covered-pts ${x.severity}` }, `${SEVERITY[x.severity]} −${pts}`),
+        ),
+      );
+      for (const r of x.message.split(" / ").slice(1))
+        list.append(h("li", { class: "covered-sub" }, r));
+    }
+    body.append(
+      h(
+        "div",
+        { class: "kv" },
+        h("b", {}, t.items.length > 1 ? "함께 해결되는 문제" : "자세히"),
+        list,
+      ),
+    );
+  }
+  if (det?.fix) body.append(h("div", { class: "kv" }, h("b", {}, "고치면"), h("p", {}, det.fix)));
+  if (det?.limit)
+    body.append(h("div", { class: "kv" }, h("b", {}, "남는 한계"), h("p", {}, det.limit)));
+  if (t.kind === "manual" && f.judgment)
+    body.append(h("div", { class: "kv" }, h("b", {}, "할 일"), h("p", {}, f.judgment)));
+  if (f.example) {
+    const exId = `${f.id}:example`;
+    body.append(h("div", {}, toggleLink(exId, "예시 접기", "예시 보기")));
+    if (expanded.has(exId))
+      body.append(
+        h(
+          "div",
+          { class: "example" },
+          h("div", { class: "example-label" }, "예시"),
+          h("pre", {}, f.example),
+        ),
+      );
+  }
+  const acts = h("div", { class: "todo-acts" });
+  if (t.kind === "fix" && f.fixNo !== undefined) {
     const no = f.fixNo;
     const b = keyed(
-      button(f.fixLabel ?? "바로 고치기", () => void fix([no]), "btn small"),
+      button("이것만 고치기", () => void fix([no]), "btn soft"),
       `fix:${f.id}`,
     );
-    b.setAttribute("aria-label", `${f.fixLabel ?? "바로 고치기"}: ${f.message}`);
+    b.setAttribute("aria-label", `이것만 고치기: ${head(f.message)}`);
     b.disabled = blocked;
     acts.append(b);
+    if (f.claudeTask) acts.append(...claudeButton(f));
   }
-  if (f.claudeTask) {
-    const label = f.claudeLabel ?? "Claude로 반영";
-    const b = keyed(
-      button(label, () => confirmClaude(f), "btn small"),
-      `claude:${f.id}`,
-    );
-    b.setAttribute("aria-label", `${label}: ${f.message}`);
-    const why = claudeBlocked();
-    b.disabled = blocked || why !== null;
-    acts.append(b);
-    // 꺼진 이유는 마우스를 올리지 않아도 보이게 버튼 아래에 적는다
-    if (why && !blocked) acts.append(h("div", { class: "why-off" }, why));
-  }
+  if (acts.childElementCount > 0) body.append(acts);
+  box.append(body);
+  return box;
+}
 
-  // [자세히]·[예시 보기]: 누르면 아래에 펼친다. 다시 그려도 펼친 상태를 기억한다
-  // 진단 문장이 " / "로 이어져 있으면 첫 문장만 크게, 나머지는 보조 줄로
-  const [head, ...rest] = f.message.split(" / ");
-  const body = h(
-    "div",
-    {},
-    h("div", { class: "msg" }, head ?? f.message),
-    ...rest.map((r) => h("div", { class: "sub" }, r)),
-  );
-  // 버튼이 할 일을 대신 말해 주면 안내 문장은 생략한다
-  if (f.fixSharedWith !== undefined)
-    body.append(h("div", { class: "sub" }, "위에 있는 [바로 고치기]에 함께 포함됩니다"));
-  if (f.judgment && f.fixNo === undefined && f.fixSharedWith === undefined && !f.claudeTask)
-    body.append(h("div", { class: "judgment" }, f.judgment));
-  const toggles = h("div", {});
-  const more = h("div", {});
-  const toggle = (key: string, label: string, make: () => HTMLElement) => {
-    const id = `${f.id}:${key}`;
-    const open = expanded.has(id);
-    const t = keyed(
-      h(
-        "button",
-        { class: "linkish", type: "button" },
-        open ? (label === "자세히" ? "설명 접기" : "예시 접기") : label,
-      ),
-      id,
-    );
-    t.setAttribute("aria-expanded", String(expanded.has(id)));
-    t.addEventListener("click", () => {
-      if (expanded.has(id)) expanded.delete(id);
-      else expanded.add(id);
-      render();
-    });
-    toggles.append(t);
-    if (expanded.has(id)) more.append(make());
-  };
-  const d = f.detail;
-  if (d && f.severity !== "ok")
-    toggle("detail", "자세히", () =>
-      h(
-        "div",
-        { class: "more" },
-        h("p", {}, h("b", {}, "왜 문제인가 "), d.why),
-        d.fix ? h("p", {}, h("b", {}, "고치면 "), d.fix) : null,
-        d.limit ? h("p", {}, h("b", {}, "남는 한계 "), d.limit) : null,
-      ),
-    );
-  const example = f.example;
-  if (example)
-    toggle("example", "예시 보기", () =>
-      h(
-        "div",
-        { class: "example" },
-        h("div", { class: "example-label" }, "예시"),
-        h("pre", {}, example),
-      ),
-    );
-  if (toggles.childElementCount > 0) body.append(toggles, more);
-
-  // 이 폴더 종류에 해당하지 않는 항목은 회색 "해당 없음" (통과로 세지 않음)
+function passedItem(f: FindingView): HTMLElement {
   const na = f.notApplicable === true;
   return h(
     "div",
-    { class: `finding ${na ? "na" : f.severity}` },
-    h(
-      "span",
-      { class: `badge ${na ? "na" : f.severity}` },
-      h("span", { class: "sr-only" }, na ? "해당 없음" : SEVERITY[f.severity]),
-      na ? icon("na") : icon(f.severity),
-    ),
-    body,
-    acts,
+    { class: `passed-item${na ? " na" : ""}` },
+    sevBadge(na ? "na" : "ok", na ? "해당 없음" : "통과"),
+    h("span", {}, head(f.message)),
+    na ? h("span", { class: "tag" }, "해당 없음") : null,
   );
 }
 
@@ -822,60 +918,299 @@ function claudeBlocked(): string | null {
 
 function claudeStatusLine(): HTMLElement {
   const c = state?.claude;
-  if (!c) return h("span", {}, "확인 중");
+  if (!c) return h("span", {}, "Claude Code 확인 중");
   if (!c.ok)
-    return h(
-      "span",
-      { class: "error" },
-      `✗ ${c.error ?? "찾지 못함"} — "Claude로 반영" 버튼이 꺼집니다`,
-    );
-  const version = `설치됨 ${c.version ?? ""}`.trim();
+    return h("span", { class: "dot-line bad" }, `Claude Code 없음 · ${c.error ?? "찾지 못함"}`);
+  // "2.1.83 (Claude Code)"처럼 이름이 붙어 오면 뗀다
+  const version = `Claude Code ${(c.version ?? "").replace(/\s*\(Claude Code\)/, "")}`.trim();
   if (c.loggedIn === false)
     return h(
       "span",
-      { class: "error" },
-      `✓ ${version} · ✗ 로그인 필요 — 터미널에서 claude를 실행해 /login 한 뒤 [다시 확인]`,
+      { class: "dot-line bad" },
+      `${version} · 로그인 필요 (터미널에서 claude 실행 후 /login)`,
     );
   if (c.loggedIn)
     return h(
       "span",
-      { class: "ok-text" },
-      `✓ ${version} · 로그인됨${c.account ? ` (${c.account}${c.plan ? ` · ${c.plan}` : ""})` : ""}`,
+      {
+        class: "dot-line good",
+        title: c.account ? `${c.account}${c.plan ? ` · ${c.plan}` : ""}` : "",
+      },
+      `${version} · 로그인됨`,
     );
-  return h("span", { class: "ok-text" }, `✓ ${version} (로그인 여부는 확인할 수 없는 버전)`);
+  return h("span", { class: "dot-line good" }, `${version} (로그인 확인 불가 버전)`);
+}
+
+function renderRecent(): void {
+  if (!state) return;
+  $("recent").replaceChildren(
+    ...(state.recent.length === 0
+      ? [h("li", { class: "small muted" }, "아직 없음")]
+      : state.recent.map((r) => {
+          const score = r.score !== undefined ? `${r.score}점` : "";
+          const tone =
+            r.score === undefined
+              ? ""
+              : r.score >= READY_SCORE
+                ? " good"
+                : r.score < 50
+                  ? " bad"
+                  : "";
+          const b = keyed(
+            h(
+              "button",
+              {
+                type: "button",
+                title: r.path,
+                class: current?.path === r.path ? "current" : undefined,
+              },
+              h(
+                "span",
+                { class: "recent-text" },
+                h("span", { class: "name" }, folderName(r.path)),
+                h("span", { class: "where" }, r.path),
+              ),
+              h("span", { class: `pts${tone}` }, score),
+            ),
+            `recent:${r.path}`,
+          );
+          if (current?.path === r.path) b.setAttribute("aria-current", "true");
+          b.setAttribute(
+            "aria-label",
+            `${folderName(r.path)} ${score}${r.kind ? " (폴더 종류 직접 지정)" : ""} — ${r.path}`,
+          );
+          b.addEventListener("click", () => void openFolder(r.path));
+          return h("li", {}, b);
+        })),
+  );
+}
+
+let tab: "results" | "criteria" = "results";
+let showPassed = (() => {
+  try {
+    return localStorage.getItem("showPassed") === "1";
+  } catch {
+    return false;
+  }
+})();
+
+function setTab(t: typeof tab, focus = false): void {
+  tab = t;
+  render();
+  if (focus) $(t === "results" ? "tab-results" : "tab-criteria").focus();
+}
+
+function renderTabs(): void {
+  for (const [t, id, view] of [
+    ["results", "tab-results", "view-results"],
+    ["criteria", "tab-criteria", "view-criteria"],
+  ] as const) {
+    const on = tab === t;
+    const b = $(id);
+    b.setAttribute("aria-selected", String(on));
+    b.tabIndex = on ? 0 : -1;
+    $(view).hidden = !on;
+  }
+}
+
+function renderHero(d: DiagnosisView, todos: Todo[]): void {
+  const ready = d.score >= READY_SCORE;
+  const n = d.fixes.length;
+  const fixTo =
+    d.expectedScore !== undefined && d.expectedScore > d.score ? d.expectedScore : undefined;
+  const commitTo = d.committedScore;
+  const pill = $("status-pill");
+  pill.textContent = ready ? "준비됨" : "아직 준비 전";
+  pill.className = `pill ${ready ? "good" : "warn"}`;
+  $("std-line").textContent =
+    `${d.standardName} 기준` + (d.kindAuto ? "" : ` · ${KIND_NAME[d.kind]}로 직접 지정`);
+
+  let headline: string;
+  if (ready)
+    headline =
+      todos.length === 0
+        ? "모든 항목을 통과했습니다"
+        : `팀 기준을 통과했습니다\n남은 할 일 ${todos.length}개로 더 올릴 수 있습니다`;
+  else if (n > 0 && fixTo !== undefined && fixTo >= READY_SCORE)
+    headline = `${n}개를 고치면\n팀 기준을 통과합니다`;
+  else if (commitTo !== undefined && commitTo >= READY_SCORE)
+    headline =
+      n > 0
+        ? `${n}개 고치고 커밋하면\n팀 기준을 통과합니다`
+        : "설정을 커밋하면\n팀 기준을 통과합니다";
+  else if (n > 0) headline = `${n}개를 고치면\n${commitTo ?? fixTo ?? d.score}점까지 오릅니다`;
+  else headline = `할 일 ${todos.length}개가 남았습니다`;
+  $("headline").textContent = headline;
+
+  const score = $("score");
+  score.textContent = String(d.score);
+  score.parentElement?.classList.toggle("stale", loading);
+  const { fail, warn } = d.counts;
+  const parts = [
+    fail ? `위험 ${fail}건 × ${d.weights.fail}` : "",
+    warn ? `주의 ${warn}건 × ${d.weights.warn}` : "",
+  ].filter(Boolean);
+  const lost = fail * d.weights.fail + warn * d.weights.warn;
+  $("breakdown").textContent = loading
+    ? "점검 중…"
+    : parts.length > 0
+      ? `100점에서 ${parts.join(" + ")} = −${lost}점`
+      : "감점 없음";
+
+  const pct = (v: number | undefined) => `${Math.max(0, Math.min(100, v ?? 0))}%`;
+  $("bar-now").style.width = pct(d.score);
+  $("bar-fix").style.width = pct(fixTo ?? d.score);
+  $("bar-commit").style.width = pct(commitTo ?? fixTo ?? d.score);
+  const legend = [
+    h("li", {}, h("i", { class: "sw now" }), `지금 ${d.score}점`),
+    fixTo !== undefined ? h("li", {}, h("i", { class: "sw fix" }), `고치면 ${fixTo}점`) : null,
+    commitTo !== undefined
+      ? h("li", {}, h("i", { class: "sw commit" }), `커밋하면 ${commitTo}점`)
+      : null,
+    h("li", {}, h("i", { class: "sw goal" }), `${READY_SCORE}점부터 준비됨`),
+  ];
+  $("legend").replaceChildren(...legend.filter((x): x is HTMLLIElement => x !== null));
+
+  const fixAll = $("fix-all") as HTMLButtonElement;
+  fixAll.hidden = n === 0;
+  fixAll.textContent = `${n}개 바로 고치기`;
+  fixAll.setAttribute(
+    "aria-label",
+    `바로 고칠 수 있는 ${n}개 고치기${fixTo !== undefined ? `, 약 ${fixTo}점` : ""}`,
+  );
+  fixAll.disabled = busy || locked || (state?.running ?? false);
+  $("fix-caption").textContent =
+    n > 0
+      ? "바뀌는 내용을 먼저 보여 드립니다\n" +
+        (commitTo !== undefined
+          ? "고친 뒤 커밋할 파일을 알려 드립니다"
+          : "적용한 뒤에도 되돌릴 수 있습니다")
+      : commitTo !== undefined
+        ? "git add .claude/settings.json 후 커밋하세요"
+        : "";
+}
+
+function renderResults(d: DiagnosisView): void {
+  const todos = buildTodos(d);
+  renderHero(d, todos);
+  $("todo-title").textContent = todos.length > 0 ? `할 일 ${todos.length}개` : "할 일이 없습니다";
+  $("todo-hint").hidden = todos.length === 0;
+
+  const active = document.activeElement as HTMLElement | null;
+  const activeKey = $("todos").contains(active) ? (active?.dataset.key ?? null) : null;
+  const groups: { kind: Todo["kind"]; label: string }[] = [
+    { kind: "fix", label: "바로 고칠 수 있습니다" },
+    { kind: "claude", label: "Claude가 써 줍니다 · 건당 약 1분, 150~400원" },
+    { kind: "manual", label: "직접 해야 합니다" },
+  ];
+  const out: HTMLElement[] = [];
+  for (const g of groups) {
+    const items = todos.filter((t) => t.kind === g.kind);
+    if (items.length === 0) continue;
+    out.push(h("h3", { class: "group-label" }, g.label), ...items.map((t) => renderTodo(t, d)));
+  }
+  $("todos").replaceChildren(...out);
+  if (activeKey && !$("todos").contains(document.activeElement)) focusKey(activeKey);
+
+  const all = d.areas.flatMap((a) => a.findings);
+  const passed = all.filter((f) => f.severity === "ok" || f.notApplicable);
+  const ok = passed.filter((f) => !f.notApplicable).length;
+  const na = passed.length - ok;
+  const toggle = $("passed-toggle");
+  toggle.hidden = passed.length === 0;
+  toggle.setAttribute("aria-expanded", String(showPassed));
+  toggle.classList.toggle("open", showPassed);
+  $("passed-label").textContent = showPassed
+    ? "통과한 항목 접기"
+    : `통과한 항목 ${ok}개 보기${na > 0 ? ` · 해당 없음 ${na}개` : ""}`;
+  $("passed").hidden = !showPassed;
+  $("passed").replaceChildren(...passed.map(passedItem));
+}
+
+const CRIT_STATUS = {
+  ok: "통과",
+  warn: "안 됨",
+  fail: "안 됨",
+  na: "해당 없음",
+  pending: "확인 전",
+};
+
+function renderCriteria(d: DiagnosisView): void {
+  const si = state?.standardInfo;
+  $("standard").textContent = si ? `${si.name} ` : d.standardName;
+  $("standard").append(h("span", { class: "std-ver" }, si?.version ?? ""));
+  $("std-desc").textContent =
+    d.standardSource === "shared"
+      ? "앱의 기본 점검에 사내 표준 파일이 정한 항목을 더했습니다. 더한 항목에는 '사내' 표시가 있습니다."
+      : "앱에 들어 있는 기본 기준입니다. 팀 기준 파일(standard.json)을 고르면 필수 섹션·필수 파일·사내 플러그인을 더 볼 수 있습니다.";
+  $("std-path").textContent = si?.path ?? "기본 내장";
+  $("std-path").title = si?.path ?? "";
+  $("reset-standard").hidden = !si?.file;
+  $("w-fail").textContent = `−${d.weights.fail}점`;
+  $("w-warn").textContent = `−${d.weights.warn}점`;
+
+  const c = d.criteria;
+  $("crit-title").textContent = `점검 항목 ${c.length}개`;
+  const count = (s: string[]) => c.filter((x) => s.includes(x.status)).length;
+  const sum = [
+    [`통과 ${count(["ok"])}`, "good"],
+    [`안 됨 ${count(["fail", "warn"])}`, "bad"],
+    [`확인 전 ${count(["pending"])}`, ""],
+    [`해당 없음 ${count(["na"])}`, ""],
+  ].filter(([t]) => !String(t).endsWith(" 0"));
+  $("crit-sum").replaceChildren(
+    "이 폴더: ",
+    ...sum.flatMap(([t, cls], i) => [i > 0 ? " · " : "", h("b", { class: cls }, t)]),
+  );
+
+  const out: HTMLElement[] = [];
+  let group = "";
+  for (const x of c) {
+    if (x.group !== group) {
+      group = x.group;
+      out.push(h("h3", { class: "crit-group" }, group));
+    }
+    const tone =
+      x.status === "ok" ? "good" : x.status === "fail" || x.status === "warn" ? x.status : "muted";
+    out.push(
+      h(
+        "div",
+        { class: "crit-row" },
+        h(
+          "div",
+          { class: "crit-main" },
+          h(
+            "div",
+            { class: "crit-title" },
+            x.title,
+            x.company ? h("span", { class: "tag accent" }, "사내") : null,
+          ),
+          h("div", { class: "crit-rule" }, x.rule),
+        ),
+        h(
+          "div",
+          { class: "crit-pen" },
+          h("b", { class: x.penalty.includes("위험") ? "fail" : "warn" }, x.penalty),
+          x.penaltyNote ? h("span", {}, x.penaltyNote) : null,
+        ),
+        h(
+          "div",
+          { class: `crit-status ${tone}` },
+          h("b", {}, CRIT_STATUS[x.status]),
+          x.note ? h("span", {}, x.note) : null,
+        ),
+      ),
+    );
+  }
+  $("criteria").replaceChildren(...out);
 }
 
 function render(): void {
   if (state) {
-    $("recent").replaceChildren(
-      ...(state.recent.length === 0
-        ? [h("li", { class: "small muted" }, "아직 없음")]
-        : state.recent.map((r) => {
-            const score = r.score !== undefined ? `${r.score}점` : "";
-            const b = keyed(
-              h(
-                "button",
-                { type: "button", title: r.path },
-                h(
-                  "span",
-                  { class: "recent-text" },
-                  h("span", { class: "name" }, folderName(r.path)),
-                  h("span", { class: "where" }, r.path),
-                ),
-                h("span", { class: "pts" }, score + (r.kind ? " · 직접 지정" : "")),
-              ),
-              `recent:${r.path}`,
-            );
-            b.setAttribute("aria-label", `${folderName(r.path)} ${score} — ${r.path}`);
-            b.addEventListener("click", () => void openFolder(r.path));
-            return h("li", {}, b);
-          })),
-    );
-    // 사내 표준: 이름·버전과 파일 이름만, 전체 경로는 마우스를 올리면
+    renderRecent();
     const si = state.standardInfo;
-    const std = $("standard");
-    std.textContent = `${si.name} ${si.version}${si.file ? ` · ${si.file}` : " · 기본 내장"}`;
-    std.title = si.path ?? "";
+    $("empty-standard").textContent =
+      `적용 기준: ${si.name} ${si.version}${si.file ? "" : " (기본 내장)"}`;
     $("open-guide").hidden = !si.guideUrl;
     const se = $("standard-error");
     se.hidden = !state.standardError;
@@ -891,7 +1226,14 @@ function render(): void {
 
   const running = busy || (state?.running ?? false);
   const blocked = running || locked;
-  for (const id of ["open", "empty-open", "pick-standard", "reset-standard", "claude-recheck"])
+  for (const id of [
+    "open",
+    "empty-open",
+    "empty-pick-standard",
+    "pick-standard",
+    "reset-standard",
+    "claude-recheck",
+  ])
     ($(id) as HTMLButtonElement).disabled = blocked;
 
   const dev = $("kind-dev") as HTMLInputElement;
@@ -903,7 +1245,6 @@ function render(): void {
     docs.checked = current?.kind === "docs";
   }
   // 직접 고른 종류여도 자동 판별 결과와 이유를 계속 보여 준다 (점수가 종류에 따라 달라지므로)
-  const KIND_NAME = { dev: "개발 저장소", docs: "문서·기획 폴더" };
   const kn = $("kind-note");
   kn.textContent = !current
     ? "폴더를 열면 자동으로 판별합니다"
@@ -912,127 +1253,36 @@ function render(): void {
       : `직접 지정: ${KIND_NAME[current.kind]} 기준으로 봅니다. 자동 판별은 ${KIND_NAME[current.kindGuess]}입니다 (${current.kindReason})`;
   kn.className = `small ${current && !current.kindAuto ? "warn-text" : "muted"}`;
   $("kind-auto").hidden = !current || current.kindAuto;
+  $("side-kind").textContent = current
+    ? `${KIND_NAME[current.kind]} (${current.kindAuto ? "자동 판별" : "직접 지정"})`
+    : "";
 
   $("empty").hidden = current !== null;
   $("report").hidden = current === null;
   if (!current) return;
   $("path").textContent = folderName(current.path);
   $("path-full").textContent = current.path;
+  $("path-full").title = current.path;
   const n = $("notice");
   n.hidden = !notice;
   n.textContent = notice;
   ($("show-folder") as HTMLButtonElement).disabled = blocked;
-  const score = $("score");
-  score.textContent = String(current.score);
-  score.className = `score ${current.score >= READY_SCORE ? "good" : current.score >= 50 ? "mid" : "bad"}${loading ? " stale" : ""}`;
-  $("goal").textContent = loading
-    ? "점검 중…"
-    : (current.score >= READY_SCORE ? "준비됨" : `${READY_SCORE}점 이상이면 준비됨`) +
-      (current.kindAuto ? "" : " · 직접 지정한 폴더 종류 기준");
-  $("counts").textContent =
-    `위험 ${current.counts.fail} · 주의 ${current.counts.warn} · 통과 ${current.counts.ok}`;
-  const how = $("score-how");
-  how.setAttribute("aria-expanded", String(expanded.has("score:how")));
-  const howText = $("score-how-text");
-  howText.hidden = !expanded.has("score:how");
-  howText.textContent = `100점에서 위험 1건마다 ${current.weights.fail}점, 주의 1건마다 ${current.weights.warn}점을 뺍니다 (감점은 사내 표준 파일에서 정합니다). ${READY_SCORE}점 이상이면 팀이 같은 기준으로 안전하게 쓸 준비가 된 것으로 봅니다. 폴더 종류(개발 저장소·문서 폴더)에 따라 보는 항목이 다릅니다.`;
-  $("std-line").textContent = `사내 표준: ${current.standardName}`;
   const blockedNote = $("blocked");
   blockedNote.hidden = !current.blocked;
   blockedNote.textContent = current.blocked
     ? `.claude/settings.json을 쓸 수 없어 설정 고치기를 막았습니다: ${current.blocked}`
     : "";
-
-  // 다음 할 일: 바로 고칠 수 있는 것을 한 번에 (진한 버튼은 이것 하나)
-  const fixAll = $("fix-all") as HTMLButtonElement;
-  fixAll.hidden = current.fixes.length === 0;
-  fixAll.textContent =
-    `바로 고칠 수 있는 ${current.fixes.length}개 고치기` +
-    (current.expectedScore !== undefined && current.expectedScore > current.score
-      ? ` → 약 ${current.expectedScore}점`
-      : "");
-  fixAll.disabled = blocked;
   const undoBtn = $("undo") as HTMLButtonElement;
-  undoBtn.disabled = blocked || !current.canUndo;
-  undoBtn.title = current.canUndo ? "" : "이 폴더에서 되돌릴 반영 기록이 없습니다";
+  undoBtn.hidden = !current.canUndo;
+  undoBtn.disabled = blocked;
   const rerun = $("rerun") as HTMLButtonElement;
   rerun.disabled = blocked;
   rerun.textContent = loading ? "점검 중…" : "다시 점검";
   ($("save-report") as HTMLButtonElement).disabled = blocked;
 
-  // 통과 항목 숨기기: 영역에 문제가 없으면 "모두 통과 (N개)" 한 줄만
-  ($("hide-ok") as HTMLInputElement).checked = hideOk;
-  const active = document.activeElement as HTMLElement | null;
-  const activeKey = $("areas").contains(active) ? (active?.dataset.key ?? null) : null;
-  // 영역 제목 옆에 영역 상태, 이 폴더 종류에서 보지 않는 영역은 한 줄로 남긴다
-  const AREAS: { area: string; title: string }[] = [
-    { area: "security", title: "보안" },
-    { area: "team", title: "팀 표준 (CLAUDE.md)" },
-    { area: "docs", title: "문서·구조" },
-    { area: "plugins", title: "스킬·플러그인" },
-  ];
-  $("areas").replaceChildren(
-    ...AREAS.map(({ area, title }) => {
-      const a = current?.areas.find((x) => x.area === area);
-      if (!a)
-        return h(
-          "section",
-          { class: "area" },
-          areaHead(title, "해당 없음", "na"),
-          h(
-            "div",
-            { class: "passed-note muted-note" },
-            current?.kind === "docs"
-              ? "문서·기획 폴더에서는 보는 항목이 없습니다"
-              : "사내 표준에 이 영역의 항목이 없습니다",
-          ),
-        );
-      const fail = a.findings.filter((f) => f.severity === "fail" && !f.notApplicable).length;
-      const warn = a.findings.filter((f) => f.severity === "warn" && !f.notApplicable).length;
-      const status =
-        fail + warn === 0
-          ? "모두 통과"
-          : [fail ? `위험 ${fail}` : "", warn ? `주의 ${warn}` : ""].filter(Boolean).join(" · ");
-      const tone = fail ? "fail" : warn ? "warn" : "ok";
-      const shown = hideOk ? a.findings.filter((f) => f.severity !== "ok") : a.findings;
-      const passed = a.findings.length - shown.length;
-      return h(
-        "section",
-        { class: "area" },
-        areaHead(a.title, status, tone),
-        ...shown.map(renderFinding),
-        hideOk && passed > 0 ? passedNote(shown.length === 0, passed) : null,
-      );
-    }),
-  );
-  if (activeKey && !$("areas").contains(document.activeElement)) focusKey(activeKey);
-}
-
-function areaHead(title: string, status: string, tone: string): HTMLElement {
-  return h("h2", {}, title, h("span", { class: `area-status ${tone}` }, status));
-}
-
-// 숨긴 통과 항목: 누르면 숨기기를 끈다
-function passedNote(allPassed: boolean, n: number): HTMLElement {
-  const b = h(
-    "button",
-    { class: "linkish", type: "button" },
-    allPassed ? `모두 통과 (${n}개) · 보기` : `통과 ${n}개 숨김 · 보기`,
-  );
-  b.addEventListener("click", () => {
-    setHideOk(false);
-  });
-  return h("div", { class: "passed-note" }, b);
-}
-
-function setHideOk(v: boolean): void {
-  hideOk = v;
-  try {
-    localStorage.setItem("hideOk", v ? "1" : "0");
-  } catch {
-    // 기억하지 못해도 이번 실행에는 적용된다
-  }
-  render();
+  renderTabs();
+  renderResults(current);
+  renderCriteria(current);
 }
 
 // ---- 시작 ----
@@ -1042,12 +1292,26 @@ $("show-folder").addEventListener("click", () => {
   if (current) void api.showFolder(current.path).catch(showError);
 });
 $("open-guide").addEventListener("click", () => void api.openGuide().catch(showError));
-$("hide-ok").addEventListener("change", (e) => setHideOk((e.target as HTMLInputElement).checked));
-$("score-how").addEventListener("click", () => {
-  if (expanded.has("score:how")) expanded.delete("score:how");
-  else expanded.add("score:how");
+// 통과 항목 펼치기는 이 PC에만 기억한다 (저장소를 쓸 수 없으면 기억하지 않음)
+$("passed-toggle").addEventListener("click", () => {
+  showPassed = !showPassed;
+  try {
+    localStorage.setItem("showPassed", showPassed ? "1" : "0");
+  } catch {
+    // 기억하지 못해도 이번 실행에는 적용된다
+  }
   render();
 });
+$("tab-results").addEventListener("click", () => setTab("results"));
+$("tab-criteria").addEventListener("click", () => setTab("criteria"));
+// 탭은 좌우 화살표로 옮긴다 (WAI-ARIA 탭 패턴)
+for (const id of ["tab-results", "tab-criteria"])
+  $(id).addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Home" || e.key === "End") {
+      e.preventDefault();
+      setTab(tab === "results" ? "criteria" : "results", true);
+    }
+  });
 document.addEventListener("keydown", trapFocus);
 // 단축키: Ctrl+O 폴더 열기, F5·Ctrl+R 다시 점검 (버튼이 꺼져 있으면 무시)
 document.addEventListener("keydown", (e) => {
@@ -1123,7 +1387,7 @@ $("panel-close").addEventListener("click", closePanel);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("panel").hidden && !$("panel-close").hidden) closePanel();
 });
-$("pick-standard").addEventListener("click", () => {
+function pickStandard(): void {
   void api
     .pickStandard()
     .then(async (s) => {
@@ -1132,12 +1396,14 @@ $("pick-standard").addEventListener("click", () => {
       else render();
     })
     .catch(showError);
-});
+}
+$("pick-standard").addEventListener("click", pickStandard);
+$("empty-pick-standard").addEventListener("click", pickStandard);
 $("reset-standard").addEventListener("click", () => {
   locked = true;
   panel(
     "기본 표준으로 되돌릴까요?",
-    "사내 표준 파일 대신 앱에 들어 있는 기본 표준으로 진단합니다. 표준 파일은 지우지 않고, [표준 파일 선택]으로 다시 고를 수 있습니다.",
+    "사내 표준 파일 대신 앱에 들어 있는 기본 표준으로 진단합니다. 표준 파일은 지우지 않고, [표준 파일 바꾸기]로 다시 고를 수 있습니다.",
     "",
     true,
   );

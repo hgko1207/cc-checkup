@@ -27,6 +27,8 @@ export interface Finding {
   hookFix?: boolean;
   // 이 폴더 종류에는 해당하지 않아 점수에 넣지 않는 항목 (화면에 "해당 없음"으로)
   notApplicable?: boolean;
+  // 커밋하면 풀리는 항목 (settings.json이 git에 커밋되지 않음)
+  needsCommit?: boolean;
 }
 
 // settings.json의 줄바꿈·들여쓰기·BOM (고쳐 쓸 때 그대로 유지)
