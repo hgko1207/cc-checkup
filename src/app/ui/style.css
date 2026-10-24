@@ -1770,9 +1770,21 @@ input[type="radio"]:focus-visible {
   font-weight: 800;
 }
 .side-foot .shortcuts {
+  display: block;
   margin-bottom: 8px;
-  line-height: 1.6;
-  word-break: keep-all;
+}
+
+/* 다시 계산하는 동안의 옛 미리 보기 */
+.stale {
+  opacity: 0.45;
+  transition: opacity 0.15s;
+}
+
+.panel-foot .kbd-note {
+  align-self: center;
+  margin-right: auto;
+  color: var(--ink-3);
+  font-size: 13px;
 }
 
 /* 창 전체가 밀리지 않게: 스크롤은 .main 안에서만 (sr-only 같은 absolute 요소의 기준) */
@@ -1824,4 +1836,96 @@ body.has-toast .main {
 .glossary {
   grid-template-columns: minmax(64px, max-content) minmax(0, 1fr);
   column-gap: 12px;
+}
+
+/* 팀에 적용하기 단계: 고치기 → 커밋 → 팀원에게 보내기 */
+.steps {
+  display: grid;
+  gap: 10px;
+}
+.step-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--soft-2);
+  word-break: keep-all;
+}
+.step-no {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--line);
+  color: var(--ink-2);
+}
+.step-no svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.step-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+.step-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.step.now {
+  background: var(--accent-soft);
+}
+.step.now .step-no {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.step.now .step-title {
+  color: var(--accent-text);
+}
+.step.now .step-sub {
+  color: var(--ink-2);
+}
+.step.done .step-no {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
+.step.done .step-title {
+  color: var(--ink-2);
+}
+.dev-line {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+.manual .outside {
+  margin-top: 8px;
+}
+@media (max-width: 1000px) {
+  .step-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

@@ -60,7 +60,7 @@ let elapsedTimer: number | undefined;
 const expanded = new Set<string>(); // 펼친 [자세히]·[예시 보기] (항목 id:종류)
 let loading = false; // 진단 중 (점수 자리에 "점검 중…")
 
-const READY_SCORE = 80; // 이 점수 이상이면 "준비됨"
+const READY_SCORE = 80; // 목표 점수 (이 점수 이상이고 팀원에게 보냈으면 "준비됨")
 
 // 상태 아이콘 (직접 그린 SVG, 굵기 하나)
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -145,6 +145,7 @@ function panel(title: string, message = "", tone: "" | "error" = "", compact = f
   $("panel").classList.toggle("compact", compact);
   $("panel").classList.remove("toast");
   $("panel").setAttribute("role", "dialog");
+  panelOpenedAt = Date.now();
   document.body.classList.remove("has-toast");
   rememberFocus();
   $("panel").hidden = false;
@@ -176,7 +177,12 @@ function panelButtons(...btns: HTMLButtonElement[]): void {
   const quick = btns.find(
     (b) => b.classList.contains("primary") && !b.classList.contains("deliberate"),
   );
-  const hint = quick ? h("kbd", { class: "kbd" }, "Ctrl+Enter") : null;
+  const deliberate = btns.some((b) => b.classList.contains("deliberate"));
+  const hint = quick
+    ? h("kbd", { class: "kbd" }, "Ctrl+Enter")
+    : deliberate
+      ? h("span", { class: "kbd-note" }, "직접 눌러 주세요")
+      : null;
   hint?.setAttribute("aria-hidden", "true");
   $("panel-btns").replaceChildren(...(hint ? [hint] : []), ...[...btns].reverse());
 }
@@ -187,8 +193,16 @@ function syncPanelBusy(): void {
     if (b.classList.contains("allow-busy")) continue;
     if (b.dataset.label === undefined) b.dataset.label = b.textContent ?? "";
     b.disabled = busy;
-    if (b.classList.contains("primary")) b.textContent = busy ? "처리 중…" : b.dataset.label;
+    if (b.classList.contains("primary") || b.classList.contains("danger-fill"))
+      b.textContent = busy ? "처리 중…" : b.dataset.label;
   }
+  for (const el of $("diffs").querySelectorAll<HTMLInputElement | HTMLButtonElement>(
+    ".pick input, .pick button",
+  ))
+    el.disabled = busy;
+  $("panel").setAttribute("aria-busy", String(busy));
+  const a = document.activeElement as HTMLButtonElement | null;
+  if (busy && !$("panel").hidden && a?.disabled && $("panel").contains(a)) $("panel-title").focus();
 }
 
 const usableEl = (el: HTMLElement | null) =>
@@ -220,9 +234,14 @@ function focusNext(): void {
   const back = focusNextLater;
   focusNextLater = null;
   const next = nextPrimary();
-  if (next) next.focus();
-  else if (usableEl(back)) back?.focus();
+  if (next) {
+    next.focus({ preventScroll: true });
+    next.closest(".card")?.scrollIntoView({ block: "nearest" });
+  } else if (usableEl(back)) back?.focus();
+  else $("path").focus(); // 다음에 누를 것이 없으면(모두 끝남) 보고서 제목으로
 }
+
+let panelOpenedAt = 0; // 창이 열린 시각 (열자마자 들어온 Ctrl+Enter를 무시하려고)
 
 function closePanel(): void {
   stopElapsed();
@@ -322,17 +341,30 @@ async function commitFlow(): Promise<void> {
     if (r.kind !== "preview") return;
     locked = true;
     panel(
-      "변경 커밋하기",
-      `파일 ${r.files.length}개를 커밋합니다\n커밋한 뒤 ‘팀원에게 보내기’로 push해야 팀원이 받습니다. 커밋하면 앱의 되돌리기는 쓸 수 없습니다.`,
+      "2단계 · 커밋",
+      `앱이 만든 파일 ${r.files.length}개를 커밋합니다\n이 PC의 git 기록에 남기는 단계입니다. 다음 단계에서 팀원에게 보냅니다. 커밋한 뒤에는 앱의 되돌리기를 쓸 수 없습니다.`,
       "",
       true,
     );
     $("panel-message").classList.add("lead");
-    $("outside").hidden = false;
-    $("outside").replaceChildren(...r.files.map((f) => h("li", {}, h("code", {}, f))));
-    $("diffs").replaceChildren(manualCommand("git revert HEAD", "커밋한 뒤 되돌리려면"));
-    $("panel-note").textContent =
-      `커밋 메시지: ${r.message} · 앱이 만든 파일만 커밋하고, 커밋하려고 따로 골라 둔 변경은 그대로 둡니다.`;
+    // 파일·메시지·되돌리는 법은 개발자용으로 접어 둔다
+    $("diffs").replaceChildren(
+      ...[termsFold(`커밋 스테이징 ${$("panel-message").textContent ?? ""}`)].filter(
+        (x) => x !== null,
+      ),
+      h(
+        "details",
+        { class: "manual" },
+        h("summary", {}, "자세히 (개발자용)"),
+        h("ul", { class: "outside" }, ...r.files.map((f) => h("li", {}, h("code", {}, f)))),
+        h("p", { class: "dev-line" }, `커밋 메시지: ${r.message}`),
+        h(
+          "p",
+          { class: "dev-line" },
+          "따로 스테이징해 둔 변경은 이 커밋에 넣지 않습니다. 커밋한 뒤 되돌리려면: git revert HEAD",
+        ),
+      ),
+    );
     panelButtons(
       button(
         "커밋하기",
@@ -349,13 +381,13 @@ async function commitFlow(): Promise<void> {
               panel(
                 "커밋했습니다",
                 scoreChange(before, current.score) +
-                  (current.pushPending ? "\n다음: ‘팀원에게 보내기’로 push하세요" : ""),
+                  (current.pushPending ? "\n다음: 3단계 ‘팀원에게 보내기’" : ""),
               );
               $("panel-message").classList.add("lead");
-              $("panel-note").textContent = "되돌리기는 커밋 전까지만 쓸 수 있습니다.";
+              $("panel-note").textContent = "커밋한 뒤에는 앱에서 되돌릴 수 없습니다.";
               closeOnly();
             } catch (e) {
-              showError(e, () => void commitFlow());
+              showError(e, () => void commitFlow(), "커밋하지 못했습니다");
             } finally {
               setBusy(false);
             }
@@ -366,7 +398,7 @@ async function commitFlow(): Promise<void> {
       button("취소", closePanel),
     );
   } catch (e) {
-    showError(e, () => void commitFlow());
+    showError(e, () => void commitFlow(), "커밋하지 못했습니다");
   } finally {
     setBusy(false);
   }
@@ -374,13 +406,31 @@ async function commitFlow(): Promise<void> {
 
 // 오류 알림: 문장이 해결법을 이미 말하면 그대로, 원인을 모르는 오류에만 일반 안내를 붙인다.
 // retry가 있으면 같은 동작을 다시 부르는 [다시 시도]
-function showError(e: unknown, retry?: () => void): void {
+function showError(e: unknown, retry?: () => void, title = "처리하지 못했습니다"): void {
   locked = false;
-  const message = (e as Error).message ?? String(e);
-  panel("처리하지 못했습니다", message, "error");
-  if (/원인 모름|처리하지 못했습니다:/.test(message))
+  // 제목이 이미 "…하지 못했습니다"라 본문 앞의 같은 말은 뺀다
+  const full = ((e as Error).message ?? String(e)).replace(/^처리하지 못했습니다: /, "");
+  // 형식: 쉬운 문장 [\n개발자: 해결 안내] [\n원문: git 출력]. 뒤의 둘은 개발자용으로 접는다
+  const [head = full, raw] = full.split("\n원문: ");
+  const [message = head, devHint] = head.split("\n개발자: ");
+  panel(title, message, "error");
+  if (raw || devHint)
+    $("diffs").replaceChildren(
+      h(
+        "details",
+        { class: "manual" },
+        h("summary", {}, "자세히 (개발자용)"),
+        devHint ? h("p", { class: "dev-line" }, devHint) : null,
+        raw ? h("p", { class: "dev-line" }, "git 출력: ", h("code", {}, raw)) : null,
+      ),
+    );
+  // 본문이 이미 담당자 안내를 하면(개발자·원문 형식) 짧게, [다시 시도]와 다른 방법은 말하지 않는다
+  if (raw || devHint)
     $("panel-note").textContent =
-      "‘다시 점검’을 누른 뒤 다시 시도하세요. 계속되면 ‘리포트 저장’으로 결과를 남겨 사내 도입 담당자에게 알려 주세요.";
+      "계속되면 ‘리포트 저장’으로 결과를 남겨 팀 담당자에게 전해 주세요.";
+  else if (/원인 모름|처리하지 못했습니다:/.test(full))
+    $("panel-note").textContent =
+      "‘다시 점검’을 누른 뒤 다시 시도하세요. 계속되면 ‘리포트 저장’으로 결과를 남겨 팀 담당자에게 전해 주세요.";
   closeOnly();
   if (retry)
     panelButtons(
@@ -505,7 +555,7 @@ async function load(path: string, kind?: Kind | "auto"): Promise<void> {
     state = await api.getState();
   } catch (e) {
     failed = true;
-    showError(e, () => void load(path, kind));
+    showError(e, () => void load(path, kind), "점검하지 못했습니다");
   } finally {
     loading = false;
     setBusy(false);
@@ -550,24 +600,43 @@ async function fix(nos: number[]): Promise<void> {
   rememberFocus();
   const path = current.path;
   const before = current.score;
-  const all = current.fixes.filter((f) => nos.includes(f.no));
+  // 고칠 항목은 할 일 목록과 같은 순서로
+  const order = buildTodos(current)
+    .filter((t) => t.kind === "fix")
+    .map((t) => t.primary.fixNo);
+  const rank = (no: number) => (order.includes(no) ? order.indexOf(no) : order.length + no);
+  const all = current.fixes
+    .filter((f) => nos.includes(f.no))
+    .sort((a, b) => rank(a.no) - rank(b.no));
   let chosen = [...nos];
   locked = true;
   const applyBtn = button("적용", () => void apply(), "btn primary");
   const files = h("div", {});
+  let seq = 0; // 체크를 빠르게 바꿀 때 늦게 온 미리 보기 응답은 버린다
 
   // 고를 항목: 체크를 바꾸면 패널 전체를 다시 그리지 않고 요약·파일만 바꾼다 (포커스·스크롤 유지)
   const picker = (): HTMLElement => {
-    const box = h("fieldset", { class: "pick" }, h("legend", {}, "고칠 항목"));
+    const boxes: HTMLInputElement[] = [];
+    const toggleAll = h("button", { class: "linkish small-link", type: "button" }, "모두 해제");
+    const box = h("fieldset", { class: "pick" }, h("legend", {}, "고칠 항목 ", toggleAll));
+    const sync = () => {
+      chosen = all
+        .filter((_, i) => boxes[i]?.checked)
+        .map((f) => f.no)
+        .sort((a, b) => a - b);
+      toggleAll.textContent = chosen.length === all.length ? "모두 해제" : "모두 선택";
+      void update().catch(showError);
+    };
+    toggleAll.addEventListener("click", () => {
+      const on = chosen.length !== all.length;
+      for (const b of boxes) b.checked = on;
+      sync();
+    });
     for (const item of all) {
       const cb = h("input", { type: "checkbox" });
       cb.checked = chosen.includes(item.no);
-      cb.addEventListener("change", () => {
-        chosen = cb.checked
-          ? [...chosen, item.no].sort((a, b) => a - b)
-          : chosen.filter((n) => n !== item.no);
-        void update().catch(showError);
-      });
+      cb.addEventListener("change", sync);
+      boxes.push(cb);
       box.append(h("label", { class: "pick-item" }, cb, item.title));
     }
     return box;
@@ -575,14 +644,24 @@ async function fix(nos: number[]): Promise<void> {
 
   const update = async (): Promise<void> => {
     const m = $("panel-message");
+    const mine = ++seq;
+    applyBtn.disabled = true; // 새 미리 보기가 올 때까지는 적용하지 않는다
+    applyBtn.textContent = applyBtn.dataset.label = "적용";
     if (chosen.length === 0) {
+      m.className = "panel-message";
       m.textContent = "고칠 항목을 하나 이상 고르세요.";
       files.replaceChildren();
-      applyBtn.disabled = true;
       return;
     }
+    if (files.childElementCount > 0) {
+      m.className = "panel-message";
+      m.textContent = "바뀔 내용을 다시 계산하는 중…";
+      files.classList.add("stale");
+    }
     const r = await api.fix(path, chosen, false);
+    if (mine !== seq || chosen.length === 0) return; // 그사이 체크가 또 바뀌었다
     if (r.kind !== "preview") return;
+    files.classList.remove("stale");
     const newFiles = r.previews.filter((p) => p.isNew).length;
     // 첫 줄은 크게(한 문장 요약), 다음 줄은 세부. 다 고를 때만 커밋 뒤 점수를 안다
     const commitTo = chosen.length === all.length ? current?.committedScore : undefined;
@@ -597,9 +676,9 @@ async function fix(nos: number[]): Promise<void> {
       `\n문제 ${r.resolves}건 해결 · 파일 ${r.previews.length}개` +
       (newFiles > 0 ? ` (새 파일 ${newFiles})` : "") +
       (afterCommit !== undefined
-        ? ` · 고친 뒤 커밋하면 ${afterCommit}점${afterCommit >= READY_SCORE ? "으로 준비됨" : ""}`
+        ? ` · 고친 뒤 커밋하면 ${afterCommit}점`
         : r.expectedScore < READY_SCORE
-          ? ` · 준비됨(${READY_SCORE}점)까지는 다른 할 일이 더 필요합니다`
+          ? ` · 목표 ${READY_SCORE}점까지는 다른 할 일이 더 필요합니다`
           : "");
     files.replaceChildren(
       ...r.previews.map((p) =>
@@ -615,7 +694,10 @@ async function fix(nos: number[]): Promise<void> {
     applyBtn.disabled = false;
   };
 
-  const title = all.length === 1 ? `바뀔 내용 확인: ${all[0]?.title ?? ""}` : "바뀔 내용 확인";
+  // 요약 카드에 단계(고치기→커밋→보내기)가 보일 때만 제목에 단계 이름을 붙인다
+  const stepName = $("steps").hidden ? "" : "1단계 · 고치기: ";
+  const title =
+    all.length === 1 ? `${stepName}${all[0]?.title ?? ""}` : `${stepName}바뀔 내용 확인`;
   const show = async (): Promise<void> => {
     panel(title);
     $("diffs").replaceChildren(...(all.length > 1 ? [picker()] : []), files);
@@ -623,7 +705,7 @@ async function fix(nos: number[]): Promise<void> {
       "적용 전 원본은 자동으로 백업되고, 커밋하기 전까지는 ‘마지막으로 고친 것 되돌리기’로 되돌릴 수 있습니다.";
     panelButtons(applyBtn, button("취소", closePanel));
     await update();
-    $("diffs").querySelector<HTMLElement>(".pick input, .file summary")?.focus();
+    $("diffs").querySelector<HTMLElement>(".pick legend button, .file summary")?.focus();
   };
 
   const apply = async (): Promise<void> => {
@@ -643,7 +725,7 @@ async function fix(nos: number[]): Promise<void> {
             (current.fixes.length > 0
               ? `\n다음: 남은 ${current.fixes.length}개를 고치거나, ‘변경 커밋하기’로 지금까지 고친 것을 커밋하세요`
               : commitTo !== undefined
-                ? `\n다음: ‘변경 커밋하기’ (커밋하면 ${commitTo}점${commitTo >= READY_SCORE ? ", 준비됨" : ""})`
+                ? `\n다음: ‘변경 커밋하기’ (커밋하면 ${commitTo}점)`
                 : ""),
         );
         $("panel-message").classList.add("lead");
@@ -655,7 +737,7 @@ async function fix(nos: number[]): Promise<void> {
       }
       state = await api.getState();
     } catch (e) {
-      showError(e, () => void fix(nos));
+      showError(e, () => void fix(nos), "고치지 못했습니다");
     } finally {
       setBusy(false);
     }
@@ -751,24 +833,23 @@ function confirmClaude(f: FindingView): void {
     true,
   );
   $("panel-message").classList.add("lead");
-  const targets = f.claudeTargets?.join(", ") ?? "표준이 정한 파일";
   const fact = (k: string, v: string) => h("li", {}, h("b", {}, k), " ", v);
   $("diffs").replaceChildren(
     h(
       "ul",
       { class: "facts" },
-      fact("고칠 파일", targets),
+      fact(
+        "시간·사용량",
+        "보통 1분 · 약 $0.1~0.3어치 (구독 요금제는 한도에서 차감, API 키는 청구. 이 앱이 받는 돈은 없음)",
+      ),
+      fact(
+        "안전",
+        "명령 실행과 .env 읽기는 막혀 있고, 원본을 백업합니다. 바뀐 내용을 보고 ‘적용’해야 반영됩니다.",
+      ),
       fact(
         "점수",
         `적용하면 ${current.score} → ${Math.min(100, current.score + (f.severity === "fail" ? current.weights.fail : current.weights.warn))}점`,
       ),
-      fact("걸리는 시간", "보통 1분 안팎. 10분이 넘으면 자동으로 멈추고 원래대로 돌립니다."),
-      fact(
-        "사용량",
-        "작은 저장소 기준 1회 약 $0.1~0.3어치입니다. 구독 요금제면 사용 한도에서 차감되고, API 키로 쓰면 그만큼 청구됩니다. 이 앱이 따로 받는 돈은 없습니다.",
-      ),
-      fact("안전", "명령 실행과 .env 읽기는 막혀 있고, 실행 전에 원본을 백업합니다."),
-      fact("결과", "바뀐 내용을 먼저 보여 드리고, ‘적용’을 눌러야 반영됩니다."),
     ),
   );
   panelButtons(
@@ -808,22 +889,20 @@ function confirmClaudeAll(list: FindingView[]): void {
     (s, f) => s + (f.severity === "fail" ? current!.weights.fail : current!.weights.warn),
     0,
   );
-  const targets = [...new Set(list.flatMap((f) => f.claudeTargets ?? []))].join(", ");
   const fact = (k: string, v: string) => h("li", {}, h("b", {}, k), " ", v);
   $("diffs").replaceChildren(
     h(
       "ul",
       { class: "facts" },
-      fact("고칠 파일", targets || "표준이 정한 파일"),
-      fact("점수", `모두 적용하면 ${current.score} → ${Math.min(100, current.score + gain)}점`),
-      fact("걸리는 시간", `건당 보통 1분 안팎, 모두 ${n}건. 10분이 넘는 건은 자동으로 멈춥니다.`),
       fact(
-        "사용량",
-        `작은 저장소 기준 모두 약 $${(0.1 * n).toFixed(1)}~${(0.3 * n).toFixed(1)}어치입니다. 구독 요금제면 사용 한도에서 차감되고, API 키로 쓰면 그만큼 청구됩니다. 이 앱이 따로 받는 돈은 없습니다.`,
+        "시간·사용량",
+        `${n}건, 건당 보통 1분 · 모두 약 $${(0.1 * n).toFixed(1)}~${(0.3 * n).toFixed(1)}어치 (구독 요금제는 한도에서 차감, API 키는 청구)`,
       ),
-      fact("안전", "명령 실행과 .env 읽기는 막혀 있고, 실행마다 원본을 백업합니다."),
-      fact("결과", "건마다 바뀐 내용을 먼저 보여 드리고, ‘적용’을 눌러야 반영됩니다."),
-      fact("중간에 멈추기", "실행 중 ‘중단’을 누르거나 오류가 나면 남은 작업은 실행하지 않습니다."),
+      fact(
+        "안전",
+        "명령 실행과 .env 읽기는 막혀 있고, 건마다 원본을 백업합니다. 중단하거나 오류가 나면 남은 건은 하지 않습니다.",
+      ),
+      fact("점수", `모두 적용하면 ${current.score} → ${Math.min(100, current.score + gain)}점`),
     ),
   );
   panelButtons(
@@ -1019,7 +1098,7 @@ async function undo(): Promise<void> {
             }
           })();
         },
-        "btn danger-fill",
+        "btn danger-fill deliberate",
       ),
       button("취소", closePanel),
     );
@@ -1179,6 +1258,16 @@ const GLOSSARY: { term: string; test: RegExp; text: string }[] = [
     text: "팀 공용 스킬(계획·검증 등)과 훅을 묶어 나눠 쓰는 Claude Code 확장입니다.",
   },
   {
+    term: "PR (검토 요청)",
+    test: /\bPR\b|검토 요청/,
+    text: "바로 올리지 않고, 팀원이 바뀐 내용을 보고 승인한 뒤 합치는 방식입니다.",
+  },
+  {
+    term: "스테이징",
+    test: /스테이징|staging/i,
+    text: "커밋에 넣으려고 git에 미리 골라 둔 변경입니다. 앱은 직접 만든 파일만 커밋하고, 따로 골라 둔 변경은 건드리지 않습니다.",
+  },
+  {
     term: "커밋·push",
     test: /커밋|commit|push/i,
     text: "커밋은 바뀐 파일을 git 기록에 남기는 것, push는 그 기록을 원격 저장소로 보내 팀원이 받게 하는 것입니다.",
@@ -1189,6 +1278,14 @@ const GLOSSARY: { term: string; test: RegExp; text: string }[] = [
     text: "화면의 색·글꼴·간격 기준을 적은 문서입니다. Claude가 화면을 고칠 때 이 기준을 따릅니다.",
   },
 ];
+
+// 확인창 본문에 나온 낯선 말 풀이 (접어 둔다)
+function termsFold(text: string): HTMLElement | null {
+  const items = termsIn(text);
+  return items.length > 0
+    ? h("details", { class: "manual" }, h("summary", {}, "용어 풀이"), glossaryList(items))
+    : null;
+}
 
 function termsIn(text: string): typeof GLOSSARY {
   return GLOSSARY.filter((g) => g.test.test(text));
@@ -1311,7 +1408,7 @@ function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
         h(
           "p",
           {},
-          `지금 고치면 +${t.gain}점입니다. 나머지 +${t.penalty - t.gain}점은 커밋하면 오릅니다(아래 ‘설정을 git에 커밋하기’ 줄).`,
+          `지금 고치면 +${t.gain}점입니다. 나머지 +${t.penalty - t.gain}점은 요약 카드의 2단계 ‘커밋’을 하면 오릅니다.`,
         ),
       ),
     );
@@ -1484,26 +1581,38 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
   const commitTo = d.committedScore;
   // 앱이 한 커밋이 아직 원격에 없으면 "준비됨"이라 하지 않는다 (고칠 것이 남았어도). 결론 문장은 남은 고치기가 없을 때만 보내기로
   const unpushed = d.pushPending !== undefined;
+  const { pending, cmd } = commitInfo(d);
   const pill = $("status-pill");
-  pill.textContent = unpushed ? "커밋됨 · 아직 안 보냄" : ready ? "준비됨" : "아직 준비 전";
-  pill.className = `pill ${ready && !unpushed ? "good" : "warn"}`;
+  pill.textContent = unpushed
+    ? "커밋됨 · 아직 안 보냄"
+    : pending && ready
+      ? "커밋 전"
+      : ready
+        ? "준비됨"
+        : "아직 준비 전";
+  pill.className = `pill ${ready && !unpushed && !pending ? "good" : "warn"}`;
   $("std-line").textContent =
     `${d.standardName} 기준` + (d.kindAuto ? "" : ` · ${KIND_NAME[d.kind]}로 직접 지정`);
 
   let headline: string;
   if (unpushed && n === 0) headline = "팀원에게 보내면\n같은 설정이 모두에게 적용됩니다";
+  else if (pending && n === 0)
+    headline = ready
+      ? "커밋하고 팀원에게 보내면\n같은 설정이 모두에게 적용됩니다"
+      : "설정을 커밋하면\n팀 기준을 통과합니다";
   else if (ready)
     headline =
       todos.length === 0
         ? "모든 항목을 통과했습니다"
         : `팀 기준을 통과했습니다\n남은 할 일 ${todos.length}개로 더 올릴 수 있습니다`;
-  else if (n > 0 && fixTo !== undefined && fixTo >= READY_SCORE)
-    headline = `${n}개를 고치면\n팀 기준을 통과합니다`;
+  // 커밋이 남는 폴더는 고친 뒤 "커밋 전"이 되므로 처음부터 커밋까지 말한다
   else if (commitTo !== undefined && commitTo >= READY_SCORE)
     headline =
       n > 0
         ? `${n}개 고치고 커밋하면\n팀 기준을 통과합니다`
         : "설정을 커밋하면\n팀 기준을 통과합니다";
+  else if (n > 0 && fixTo !== undefined && fixTo >= READY_SCORE)
+    headline = `${n}개를 고치면\n팀 기준을 통과합니다`;
   else if (n > 0) headline = `${n}개를 고치면\n${commitTo ?? fixTo ?? d.score}점까지 오릅니다`;
   else headline = `할 일 ${todos.length}개가 남았습니다`;
   $("headline").textContent = headline;
@@ -1533,7 +1642,7 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
     commitTo !== undefined
       ? h("li", {}, h("i", { class: "sw commit" }), `커밋하면 ${commitTo}점`)
       : null,
-    h("li", {}, h("i", { class: "sw goal" }), `${READY_SCORE}점부터 준비됨`),
+    h("li", {}, h("i", { class: "sw goal" }), `목표 ${READY_SCORE}점`),
   ];
   $("legend").replaceChildren(...legend.filter((x): x is HTMLLIElement => x !== null));
 
@@ -1545,8 +1654,7 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
     `바로 고칠 수 있는 ${n}개 고치기${fixTo !== undefined ? `, 약 ${fixTo}점` : ""}`,
   );
   fixAll.disabled = busy || locked || (state?.running ?? false);
-  // 바로 고칠 게 없고 커밋만 남았으면 주 버튼은 커밋 명령 복사
-  const { pending, cmd } = commitInfo(d);
+  // 바로 고칠 게 없고 커밋만 남았으면 주 버튼은 커밋
   const commitBtn = $("hero-commit") as HTMLButtonElement;
   commitBtn.hidden = !pending || cmd === null;
   commitBtn.className = `btn big ${n > 0 ? "soft" : "primary"}`;
@@ -1557,7 +1665,6 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
   pushBtn.disabled = commitBtn.disabled;
   const push = d.pushPending;
   const anyPrimary = !fixAll.hidden || !commitBtn.hidden || !pushBtn.hidden;
-  $("hero-kbd").hidden = !anyPrimary;
   $("fix-caption").textContent =
     n > 0
       ? "바뀌는 내용을 먼저 보여 드립니다\n" +
@@ -1567,8 +1674,13 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
       : pending
         ? `앱이 만든 파일만 커밋합니다\n커밋하면 ${commitTo ?? d.score + d.weights.fail}점이 됩니다`
         : unpushed && push
-          ? `${push.branch} → 팀 저장소(${push.target ?? "새 브랜치"})\n보내기 전에 보낼 커밋을 한 번 더 보여 드립니다`
+          ? "보내기 전에 한 번 더 확인합니다"
           : "";
+  const cap = $("fix-caption");
+  if (anyPrimary && cap.textContent) {
+    const [first = "", ...rest] = (cap.textContent ?? "").split("\n");
+    cap.textContent = [`${first} · Ctrl+Enter`, ...rest].join("\n");
+  }
   // 누를 것도 안내도 없으면(모두 끝남) 행동 줄을 숨긴다
   ($("fix-caption").parentElement as HTMLElement).hidden =
     !anyPrimary && $("fix-caption").textContent === "";
@@ -1586,73 +1698,106 @@ function commitInfo(d: DiagnosisView): { pending: boolean; cmd: string | null } 
   return { pending, cmd };
 }
 
-// "직접 하려면": 터미널에서 직접 할 명령을 접어 둔다 (기본 동작은 맨 위 주 버튼 하나)
-function manualCommand(cmd: string, label = "직접 하려면"): HTMLElement {
-  const d = h(
-    "details",
-    { class: "manual" },
-    h("summary", {}, label),
-    h("div", { class: "cmd-row" }, h("code", {}, cmd), copyButton(cmd)),
-  );
-  return d;
-}
+// 팀에 적용하기: 고치기 → 커밋 → 팀원에게 보내기를 요약 카드에 단계로 보여 준다 (git 저장소에서 커밋이 필요한 폴더만).
+// 실행은 단계에 맞는 주 버튼 하나가 맡고, 터미널 명령은 "자세히 (개발자용)" 안에 둔다
+const pushedPaths = new Set<string>(); // 이번 실행에서 앱이 보낸(push) 폴더
 
-function renderCommit(d: DiagnosisView): HTMLElement[] {
+function renderSteps(d: DiagnosisView): void {
   const { pending, cmd } = commitInfo(d);
   const push = d.pushPending;
-  if (!pending && !push && d.committedScore === undefined) return [];
-  let title: string;
-  let sub: string;
-  let manual: string | null;
-  let group: string;
-  if (push && !pending) {
-    group = "팀원에게 보내 적용합니다";
-    title = "팀원에게 보내기 (git push)";
-    sub = `${push.branch} → 팀 저장소(${push.target ?? "새 브랜치"}) · 위 ‘팀원에게 보내기’로 보냅니다`;
-    manual = push.target ? "git push" : `git push -u origin ${push.branch}`;
-    sub += " · 커밋은 앱에서 되돌릴 수 없습니다(git revert HEAD)";
-  } else {
-    group = "커밋해서 팀에 적용합니다";
-    title = "설정을 git에 커밋하기";
-    sub = pending
-      ? "위 ‘변경 커밋하기’로 커밋합니다. 커밋하고 팀원에게 보내면 모두에게 같은 설정이 적용됩니다"
-      : "바로 고치기를 적용한 뒤 커밋합니다";
-    manual = pending ? cmd : null;
+  const n = d.fixes.length;
+  const claudeLeft = buildTodos(d).filter((t) => t.kind === "claude").length;
+  const committed = committedPaths.has(d.path);
+  const pushed = pushedPaths.has(d.path) && !push && !pending;
+  const show = pending || push !== undefined || committed || d.committedScore !== undefined;
+  const box = $("steps");
+  box.hidden = !show;
+  if (!show) {
+    box.replaceChildren();
+    return;
   }
-  const row = h(
-    "div",
-    { class: "todo commit" },
+  type StepState = "done" | "now" | "next";
+  const fixState: StepState = n > 0 ? "now" : "done";
+  const commitState: StepState = pending
+    ? n > 0
+      ? "next"
+      : "now"
+    : push || committed || pushed
+      ? "done"
+      : "next";
+  const pushState: StepState = pushed ? "done" : push && !pending && n === 0 ? "now" : "next";
+  const label = { done: "끝남", now: "지금", next: "다음" };
+  const step = (no: number, title: string, sub: string, s: StepState) =>
     h(
-      "div",
-      { class: "todo-row" },
+      "li",
+      { class: `step ${s}` },
+      h("span", { class: "step-no" }, s === "done" ? icon("ok") : String(no)),
       h(
-        "div",
-        { class: "todo-head static" },
-        sevBadge("commit", push && !pending ? "보내기" : "커밋"),
-        h(
-          "span",
-          { class: "todo-text" },
-          h("span", { class: "todo-title" }, title),
-          h("span", { class: "todo-sub" }, sub),
-          push && !pending
-            ? null
-            : h("span", { class: "sr-only" }, `, 커밋하면 +${d.weights.fail}점`),
-        ),
+        "span",
+        { class: "step-text" },
+        h("span", { class: "step-title" }, title),
+        h("span", { class: "step-sub" }, sub),
       ),
-      pointsTail(push && !pending ? null : d.weights.fail, undefined, null),
+      h("span", { class: "sr-only" }, ` (${label[s]})`),
+    );
+  const list = h(
+    "ol",
+    { class: "step-list" },
+    step(
+      1,
+      "고치기",
+      n > 0
+        ? `${n}개 남음`
+        : claudeLeft > 0
+          ? `바로 고칠 것은 끝남 · Claude 할 일 ${claudeLeft}개 남음`
+          : "설정 파일을 고쳤습니다",
+      fixState,
+    ),
+    step(
+      2,
+      "커밋",
+      commitState === "done"
+        ? "git 기록에 남겼습니다"
+        : `이 PC의 git 기록에 남깁니다 · +${d.weights.fail}점`,
+      commitState,
+    ),
+    step(
+      3,
+      "팀원에게 보내기",
+      pushState === "done" ? "팀 저장소에 올렸습니다" : "팀 저장소에 올려 팀원이 받게 합니다",
+      pushState,
     ),
   );
-  if (manual) row.append(h("div", { class: "in-todo" }, manualCommand(manual)));
-  return [h("h3", { class: "group-label" }, group), row];
+  // 개발자용: 실제 git 명령 (복사해서 직접 해도 된다)
+  const cmds: HTMLElement[] = [];
+  if (pending && cmd)
+    cmds.push(h("div", { class: "cmd-row" }, h("code", {}, cmd), copyButton(cmd)));
+  if (push && !pending) {
+    const p = push.target ? "git push" : `git push -u origin ${push.branch}`;
+    cmds.push(
+      h(
+        "p",
+        { class: "dev-line" },
+        `${push.branch} → 팀 저장소(${push.target ?? "origin, 새 브랜치"})`,
+      ),
+      h("div", { class: "cmd-row" }, h("code", {}, p), copyButton(p)),
+    );
+  }
+  if ((committed || push) && !pushed)
+    cmds.push(h("p", { class: "dev-line" }, "커밋한 뒤 되돌리려면: git revert HEAD"));
+  const dev =
+    cmds.length > 0
+      ? h("details", { class: "manual" }, h("summary", {}, "자세히 (개발자용)"), ...cmds)
+      : null;
+  box.replaceChildren(list, ...(dev ? [dev] : []));
 }
 
 // 보낼 커밋 요약: 앱이 만든 커밋과 그 밖의 커밋을 나눠 말한다
 function pushSummary(commits: { mine: boolean }[], ahead: number | null): string {
   const n = ahead ?? commits.length;
   const mine = commits.filter((c) => c.mine).length;
-  if (n === 0) return "";
-  if (mine === n) return `앱이 만든 커밋 ${n}개를 보냅니다. `;
-  return `커밋 ${n}개를 보냅니다(앱이 만든 커밋 ${mine}개 + 그 밖의 커밋 ${n - mine}개). 아래 목록을 확인하세요. `;
+  if (n === 0 || mine === n) return "앱이 커밋한 변경을 팀 저장소에 올립니다";
+  return `앱이 커밋한 변경과 다른 커밋 ${n - mine}개를 함께 올립니다`;
 }
 
 // 팀원에게 보내기: 어디로 보낼지 확인 → push → 다시 점검
@@ -1672,61 +1817,73 @@ async function pushFlow(): Promise<void> {
     if (r.kind !== "preview") return;
     locked = true;
     panel(
-      "팀원에게 보내기",
-      `${r.branch} 브랜치를 팀 저장소(${r.target})에 보냅니다` +
-        `\n${pushSummary(r.commits, r.ahead)}` +
-        "이 브랜치에 바로 올리는 팀만 보내세요. PR로 올린다면 취소하세요. " +
-        (r.newBranch ? "팀 저장소에 같은 이름의 브랜치를 새로 만듭니다. " : "") +
-        "보낸 뒤에는 앱에서 되돌릴 수 없습니다.",
+      "3단계 · 팀원에게 보내기",
+      `${pushSummary(r.commits, r.ahead)}\n` +
+        "팀이 PR(검토 요청)로 올린다면 보내지 말고 취소하세요. 모르면 팀 담당자에게 먼저 물어보세요. 보낸 뒤에는 앱에서 되돌릴 수 없습니다.",
       "",
       true,
     );
     $("panel-message").classList.add("lead");
-    $("outside").hidden = r.commits.length === 0;
-    $("outside").replaceChildren(
-      ...r.commits.map((c) =>
+    // 브랜치·대상·커밋 목록은 개발자용으로 접어 둔다 (다른 커밋이 섞이면 첫 줄이 이미 말한다)
+    $("diffs").replaceChildren(
+      ...[termsFold(`push ${$("panel-message").textContent ?? ""}`)].filter((x) => x !== null),
+      h(
+        "details",
+        { class: "manual" },
+        h("summary", {}, "자세히 (개발자용)"),
         h(
-          "li",
-          {},
-          h("code", {}, c.sha),
-          ` ${c.subject}`,
-          c.mine ? h("span", { class: "tag accent" }, "앱이 만든 커밋") : null,
+          "p",
+          { class: "dev-line" },
+          `${r.branch} → ${r.target}` + (r.newBranch ? " (팀 저장소에 새 브랜치를 만듭니다)" : ""),
+        ),
+        h(
+          "ul",
+          { class: "outside" },
+          ...r.commits.map((c) =>
+            h(
+              "li",
+              {},
+              h("code", {}, c.sha),
+              ` ${c.subject}`,
+              c.mine ? h("span", { class: "tag accent" }, "앱이 만든 커밋") : null,
+            ),
+          ),
         ),
       ),
     );
-    $("panel-note").textContent =
-      "보내기(push): 커밋을 팀 저장소로 올려 팀원이 받게 하는 것입니다. 로그인이 필요하면 git 로그인 창이 뜰 수 있습니다. 잘 모르겠으면 취소하고 ‘리포트 저장’으로 담당자에게 보내세요.";
+    $("panel-note").textContent = "로그인이 필요하면 git 로그인 창이 뜰 수 있습니다.";
     if (/^(main|master)$/.test(r.branch)) $("panel-message").classList.add("caution");
     panelButtons(
       button(
-        "보내기 (push)",
+        "팀원에게 보내기",
         () => {
           void (async () => {
             setBusy(true);
             try {
-              const done = await api.push(path, true);
+              await api.push(path, true);
+              pushedPaths.add(path);
               current = await api.diagnose(path);
               state = await api.getState();
               locked = false;
               panel(
                 "보냈습니다",
-                `팀 저장소(${done.kind === "done" ? done.target : "origin"})에 보냈습니다\n다음: 팀원은 git pull로 받으면 같은 설정이 적용됩니다`,
+                "팀 저장소에 올렸습니다\n팀원이 최신 내용을 받으면 모두에게 같은 설정이 적용됩니다",
               );
               $("panel-message").classList.add("lead");
               closeOnly();
             } catch (e) {
-              showError(e, () => void pushFlow());
+              showError(e, () => void pushFlow(), "보내지 못했습니다");
             } finally {
               setBusy(false);
             }
           })();
         },
-        "btn danger-fill deliberate",
+        "btn primary deliberate",
       ),
       button("취소", closePanel),
     );
   } catch (e) {
-    showError(e, () => void pushFlow());
+    showError(e, () => void pushFlow(), "보내지 못했습니다");
   } finally {
     setBusy(false);
   }
@@ -1734,11 +1891,17 @@ async function pushFlow(): Promise<void> {
 
 function renderResults(d: DiagnosisView): void {
   const todos = buildTodos(d);
-  const commit = renderCommit(d);
-  const commitDue = d.pushPending !== undefined || commitInfo(d).pending;
-  const total = todos.length + (commit.length > 0 && commitDue ? 1 : 0);
+  const total = todos.length;
   renderHero(d, todos);
-  $("todo-title").textContent = total > 0 ? `할 일 ${total}개` : "할 일이 없습니다";
+  renderSteps(d);
+  $("todo-title").textContent =
+    total > 0
+      ? `할 일 ${total}개`
+      : commitInfo(d).pending
+        ? "남은 단계: 커밋"
+        : d.pushPending
+          ? "남은 단계: 팀원에게 보내기"
+          : "할 일이 없습니다";
   if (expanded.size > 0) hintSeen = true;
   $("todo-hint").hidden = todos.length === 0 || hintSeen; // 한 번 펼쳐 보면 힌트는 뺀다
 
@@ -1758,7 +1921,7 @@ function renderResults(d: DiagnosisView): void {
     if (g.kind === "claude" && items.length > 1) {
       const all = keyed(
         button(
-          `모두 처리 (${items.length}개)`,
+          `Claude로 모두 처리 (${items.length}개)`,
           () => confirmClaudeAll(items.map((t) => t.primary)),
           "btn soft small",
         ),
@@ -1769,7 +1932,7 @@ function renderResults(d: DiagnosisView): void {
     }
     out.push(label, ...items.map((t) => renderTodo(t, d)));
   }
-  $("todos").replaceChildren(...out, ...commit);
+  $("todos").replaceChildren(...out);
   if (activeKey && !$("todos").contains(document.activeElement)) focusKey(activeKey);
 
   const all = d.areas.flatMap((a) => a.findings);
@@ -1890,6 +2053,7 @@ function render(): void {
     $("update-open").hidden = !u?.downloadUrl;
   }
 
+  $("side-help").hidden = !current;
   const running = busy || (state?.running ?? false);
   const blocked = running || locked;
   for (const id of [
@@ -1988,7 +2152,14 @@ document.addEventListener("keydown", (e) => {
   } else if ((e.key === "F5" || (e.ctrlKey && e.key.toLowerCase() === "r")) && current) {
     e.preventDefault();
     if (enabled("rerun")) void load(current.path);
-  } else if (e.ctrlKey && e.key === "Enter" && !busy) {
+  } else if (
+    e.ctrlKey &&
+    e.key === "Enter" &&
+    !busy &&
+    !e.repeat &&
+    ($("panel").hidden || Date.now() - panelOpenedAt > 400)
+  ) {
+    // 창이 막 열린 직후(0.4초)의 Ctrl+Enter는 무시한다: 두 번 눌러 미리 보기를 건너뛰지 않게
     // Ctrl+Enter: 열린 확인창의 주 버튼, 확인창이 없으면 점검 결과의 주 버튼(바로 고치기·커밋하기)
     const modal = !$("panel").hidden && !$("scrim").hidden;
     const usable = (el: HTMLElement | null) =>
@@ -2008,12 +2179,27 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     if (!u.hidden && !u.disabled) void undo();
     else if (u.hidden && !busy) {
+      const afterCommit = current.pushPending !== undefined || committedPaths.has(current.path);
       panel(
         "되돌릴 수 없습니다",
-        current.pushPending || committedPaths.has(current.path)
-          ? "커밋한 뒤에는 앱에서 되돌릴 수 없습니다. git으로 되돌리세요"
-          : "이 폴더에서 되돌릴 고치기 기록이 없습니다",
+        afterCommit
+          ? "커밋한 뒤에는 앱에서 되돌릴 수 없습니다. 되돌려야 하면 팀 담당자에게 물어보세요."
+          : "이 폴더에서 되돌릴 고치기 기록이 없습니다.",
       );
+      if (afterCommit)
+        $("diffs").replaceChildren(
+          h(
+            "details",
+            { class: "manual" },
+            h("summary", {}, "자세히 (개발자용)"),
+            h(
+              "div",
+              { class: "cmd-row" },
+              h("code", {}, "git revert HEAD"),
+              copyButton("git revert HEAD"),
+            ),
+          ),
+        );
       closeOnly();
     }
   } else if (e.ctrlKey && (e.key === "1" || e.key === "2") && current && $("scrim").hidden) {
@@ -2023,6 +2209,12 @@ document.addEventListener("keydown", (e) => {
   }
 });
 $("empty-open").addEventListener("click", () => void openFolder());
+$("side-help").addEventListener("click", () => {
+  if (!current) return;
+  setTab("criteria");
+  $("glossary-title").scrollIntoView({ block: "start" });
+  $("glossary-title").focus();
+});
 for (const id of ["kind-dev", "kind-docs"])
   $(id).addEventListener("change", (e) => {
     const kind = (e.target as HTMLInputElement).value as Kind;

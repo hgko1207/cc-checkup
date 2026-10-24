@@ -383,9 +383,9 @@ describe("오류 문장·사내 가이드·표준 표시", () => {
     const err = (code: string) => Object.assign(new Error("x"), { code, path: "C:/r/a.json" });
     expect(friendlyError(err("EACCES"))).toContain("쓸 권한이 없습니다 (C:/r/a.json)");
     expect(friendlyError(err("EBUSY"))).toContain("다른 프로그램이 파일을 쓰고 있습니다");
-    expect(friendlyError(err("ENOENT"))).toContain("[폴더 열기]로 다시 고르세요");
+    expect(friendlyError(err("ENOENT"))).toContain("‘폴더 열기’로 다시 고르세요");
     expect(friendlyError(new InputError("입력 오류"))).toBe("입력 오류");
-    expect(friendlyError(new Error("boom"))).toContain("[다시 점검]");
+    expect(friendlyError(new Error("boom"))).toContain("‘다시 점검’");
   });
 
   it("표준 이름·버전·파일 이름과 가이드 주소를 알려 주고 가이드를 연다", async () => {

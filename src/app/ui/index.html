@@ -40,10 +40,9 @@
         </nav>
 
         <div class="side-foot">
-          <p class="small shortcuts">
-            단축키: Ctrl+O 폴더 열기 · F5 다시 점검 · Ctrl+Enter 다음 단계 · Ctrl+1·2 탭 · Ctrl+Z
-            되돌리기 · 용어·단축키 전체는 점검 기준 탭
-          </p>
+          <button id="side-help" class="linkish small-link shortcuts" type="button" hidden>
+            용어·단축키 보기
+          </button>
           <p id="side-kind" class="small"></p>
           <div class="claude-line">
             <span id="claude-status" class="small"></span>
@@ -166,6 +165,7 @@
                   <span class="bar-goal"></span>
                 </div>
                 <ul id="legend" class="legend"></ul>
+                <div id="steps" class="steps" hidden></div>
                 <div class="hero-act">
                   <button
                     id="fix-all"
@@ -195,7 +195,6 @@
                   >
                     팀원에게 보내기
                   </button>
-                  <kbd id="hero-kbd" class="kbd" aria-hidden="true">Ctrl+Enter</kbd>
                   <span id="fix-caption" class="caption"></span>
                 </div>
               </section>
@@ -244,7 +243,7 @@
                   <div class="rule-tile"><span>시작 점수</span><b>100점</b></div>
                   <div class="rule-tile fail"><span>위험 1건마다</span><b id="w-fail"></b></div>
                   <div class="rule-tile warn"><span>주의 1건마다</span><b id="w-warn"></b></div>
-                  <div class="rule-tile goal"><span>준비됨</span><b>80점부터</b></div>
+                  <div class="rule-tile goal"><span>목표</span><b>80점</b></div>
                 </div>
               </section>
 
@@ -282,7 +281,7 @@
               </section>
 
               <section class="card" aria-labelledby="glossary-title">
-                <h2 id="glossary-title" class="card-title">자주 나오는 말</h2>
+                <h2 id="glossary-title" class="card-title" tabindex="-1">자주 나오는 말</h2>
                 <div id="glossary"></div>
                 <h3 class="card-sub">단축키</h3>
                 <dl class="glossary">
