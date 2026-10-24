@@ -90,7 +90,7 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   // Esc로 패널을 닫으면 포커스가 누른 버튼으로 돌아온다
   const fixAll = page.getByRole("button", { name: /바로 고칠 수 있는 \d+개 고치기/ });
   await fixAll.click();
-  await expect(page.locator("#panel-title")).toHaveText("바뀔 내용 확인");
+  await expect(page.locator("#panel-title")).toHaveText(/바뀔 내용 확인$/);
   // 모달: 뒤 화면은 inert, Shift+Tab·Tab을 여러 번 눌러도 패널 밖으로 나가지 않는다
   expect(await page.evaluate(() => (document.querySelector(".side") as HTMLElement).inert)).toBe(
     true,
@@ -105,10 +105,13 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   await expect(page.locator("#panel")).toBeHidden();
   await expect(fixAll).toBeFocused();
 
-  // Ctrl+Enter: 확인창이 없으면 맨 위 주 버튼(바로 고치기)
+  // Ctrl+Enter: 확인창이 없으면 맨 위 주 버튼(바로 고치기). 빠르게 두 번 눌러도 미리 보기에서 멈춘다
   await page.keyboard.press("Control+Enter");
-  await expect(page.locator("#panel-title")).toHaveText("바뀔 내용 확인");
+  await page.keyboard.press("Control+Enter");
+  await expect(page.locator("#panel")).toBeVisible();
+  await expect(page.locator("#panel-title")).toHaveText(/바뀔 내용 확인$/);
   await expect(page.locator(".file-path").first()).toContainText(".claude/settings.json");
+  expect(await exists(join(repo, ".claude", "settings.json"))).toBe(false);
   // 미리 보는 동안 다른 고치기 버튼은 꺼진다
   await expect(page.getByRole("button", { name: "다시 점검" })).toBeDisabled();
   // 미리 보기의 예상 점수가 적용 후 실제 점수와 같다

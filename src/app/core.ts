@@ -76,8 +76,8 @@ function firstLine(text: string): string {
 // git 실패를 사람 말로: 이름·이메일 설정이 없을 때가 가장 흔하다
 function gitError(what: string, stderr: string): string {
   if (/tell me who you are|user\.email|user\.name/i.test(stderr))
-    return "git 사용자 이름·이메일이 설정돼 있지 않습니다. 터미널에서 git config --global user.name, user.email을 설정한 뒤 다시 시도하세요";
-  return `${what}에 실패했습니다: ${firstLine(stderr) || "원인 모름"}. 터미널에서 직접 커밋해 보세요`;
+    return `이 PC에 git 사용자 이름·이메일이 설정돼 있지 않아 커밋하지 못했습니다. 모르면 팀 담당자에게 물어보세요.\n개발자: 터미널에서 git config --global user.name, user.email을 설정한 뒤 다시 시도하세요.\n원문: ${firstLine(stderr)}`;
+  return `${what}에 실패했습니다. 모르면 팀 담당자에게 물어보세요.\n개발자: 터미널에서 직접 커밋해 보세요.\n원문: ${firstLine(stderr) || "원인 모름"}`;
 }
 // push 실패를 사람 말로: 로그인·권한, 원격에 새 커밋이 있는 경우가 흔하다
 function pushError(stderr: string): string {
@@ -86,10 +86,10 @@ function pushError(stderr: string): string {
       stderr,
     )
   )
-    return "원격 저장소에 로그인돼 있지 않거나 권한이 없습니다. 터미널에서 git push로 로그인한 뒤 다시 시도하세요";
+    return `팀 저장소에 로그인돼 있지 않거나 올릴 권한이 없습니다. 모르면 팀 담당자에게 물어보세요.\n개발자: 터미널에서 git push로 로그인한 뒤 다시 시도하세요.\n원문: ${firstLine(stderr)}`;
   if (/rejected|non-fast-forward|fetch first/i.test(stderr))
-    return "원격에 새 커밋이 있어 push가 거절됐습니다. 터미널에서 git pull로 받은 뒤 다시 시도하세요";
-  return `push에 실패했습니다: ${firstLine(stderr) || "원인 모름"}. 터미널에서 직접 push해 보세요`;
+    return `다른 사람이 먼저 올린 변경이 있어 보내지 못했습니다. 모르면 팀 담당자에게 물어보세요.\n개발자: 터미널에서 git pull로 받은 뒤 다시 시도하세요.\n원문: ${firstLine(stderr)}`;
+  return `팀 저장소에 올리지 못했습니다. 모르면 팀 담당자에게 물어보세요.\n개발자: 터미널에서 직접 git push 해 보세요.\n원문: ${firstLine(stderr) || "원인 모름"}`;
 }
 
 export interface CoreDeps {
@@ -126,11 +126,11 @@ export function friendlyError(e: unknown): string {
     case "EBUSY":
       return `다른 프로그램이 파일을 쓰고 있습니다${where}. 편집기나 동기화 프로그램을 닫고 다시 시도하세요.`;
     case "ENOENT":
-      return `파일이나 폴더를 찾지 못했습니다${where}. 폴더가 옮겨졌다면 [폴더 열기]로 다시 고르세요.`;
+      return `파일이나 폴더를 찾지 못했습니다${where}. 폴더가 옮겨졌다면 ‘폴더 열기’로 다시 고르세요.`;
     case "ENOSPC":
       return "디스크 공간이 부족합니다. 공간을 확보한 뒤 다시 시도하세요.";
     default:
-      return `처리하지 못했습니다: ${err.message ?? String(e)}. [다시 점검]을 누른 뒤 다시 시도하세요.`;
+      return `처리하지 못했습니다: ${err.message ?? String(e)}. ‘다시 점검’을 누른 뒤 다시 시도하세요.`;
   }
 }
 
@@ -556,7 +556,7 @@ export class AppCore {
     const path = str(v, "폴더");
     const found = this.allowed.get(this.key(path));
     if (found === undefined)
-      throw new InputError("허용되지 않은 폴더입니다. [폴더 열기]로 선택하세요");
+      throw new InputError("허용되지 않은 폴더입니다. ‘폴더 열기’로 선택하세요");
     return found;
   }
 
