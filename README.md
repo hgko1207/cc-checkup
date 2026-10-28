@@ -32,6 +32,8 @@
 
 ## 설치형 앱 (Windows·macOS, 사내 배포용)
 
+**받기:** [Releases](https://github.com/hgko1207/cc-checkup/releases/latest)에서 Windows는 `cc-checkup-setup-<버전>.exe`, macOS는 `.dmg`를 받는다. 코드 서명이 없어 처음 실행할 때 Windows는 "추가 정보 → 실행", macOS는 우클릭 → 열기로 연다.
+
 프로그램을 띄워 폴더를 고르면 사내 표준 대비 점수와 영역별(보안·팀 표준·문서·구조·스킬·플러그인) 결과를 보여 준다.
 
 - **폴더 종류**: 개발 저장소 / 문서·기획 폴더를 자동으로 판별하고 이유를 보여 준다. 바꾸면 그 폴더에 기억한다. 문서 폴더는 표준 파일의 `docs` 기준(폴더 목적·구조·문서 작성 규칙·하지 말 것)으로 진단한다.
@@ -54,7 +56,7 @@ npm run dist:win     # release\cc-checkup-setup-1.0.0.exe → 사내 배포 경�
 npm run dist:mac     # macOS에서만: release/*.dmg, *.zip
 ```
 
-- GitHub Actions: `v0.2.0` 같은 태그를 올리거나 Actions 화면에서 `release`를 실행하면 Windows·macOS 설치 파일을 만들어 Artifacts로 남긴다. PR마다 `ci`가 테스트와 앱 E2E를 돌린다. (비공개 저장소는 Actions 사용 시간이 과금되고 macOS는 Windows보다 비싸다.)
+- GitHub Actions: `v0.2.0` 같은 태그를 올리거나 Actions 화면에서 `release`를 실행하면 Windows·macOS 설치 파일을 만들어 Artifacts로 남긴다. PR마다 `ci`가 테스트와 앱 E2E를 돌린다.
 - **코드 서명**: 인증서가 없으면 서명 없이 만들어 처음 실행할 때 Windows SmartScreen·macOS Gatekeeper 경고가 뜬다. 인증서를 저장소 Secrets(`CSC_LINK`, `CSC_KEY_PASSWORD`, macOS는 `MAC_CSC_LINK`·`MAC_CSC_KEY_PASSWORD`·공증용 `APPLE_ID`·`APPLE_APP_SPECIFIC_PASSWORD`·`APPLE_TEAM_ID`)에 넣으면 자동으로 서명한다. 로컬 빌드도 같은 이름의 환경 변수를 쓴다.
 - 새 버전을 배포하면 사내 표준 파일의 `app.latestVersion`과 `app.downloadUrl`을 올려 사용자에게 알린다.
 - 아이콘: `build/icon.png` (`npx electron scripts/make-icon.cjs`로 다시 만든다. VS Code 터미널이면 `ELECTRON_RUN_AS_NODE`를 지우고 실행).
@@ -65,7 +67,7 @@ npm run dist:mac     # macOS에서만: release/*.dmg, *.zip
 
 ## 처음 실행하기
 
-**준비물:** Node.js 20 이상(`node -v`로 확인), git. Windows·macOS·Linux 모두 된다. 저장소는 비공개라 접근 권한이 있는 GitHub 계정으로 로그인돼 있어야 clone할 수 있다(`gh auth login`). 권한이 없는 사람에게는 아래 "다른 PC·동료에게 전달할 때"처럼 `.tgz` 파일을 준다.
+**준비물:** Node.js 20 이상(`node -v`로 확인), git. Windows·macOS·Linux 모두 된다. 앱만 쓸 사람은 빌드할 필요 없이 [Releases](https://github.com/hgko1207/cc-checkup/releases/latest)에서 설치 파일을 받는다.
 
 **1. 받아서 빌드** (한 번만)
 
