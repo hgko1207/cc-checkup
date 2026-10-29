@@ -663,8 +663,9 @@ async function fix(nos: number[]): Promise<void> {
     if (r.kind !== "preview") return;
     files.classList.remove("stale");
     const newFiles = r.previews.filter((p) => p.isNew).length;
-    // 첫 줄은 크게(한 문장 요약), 다음 줄은 세부. 다 고를 때만 커밋 뒤 점수를 안다
-    const commitTo = chosen.length === all.length ? current?.committedScore : undefined;
+    // 첫 줄은 크게(한 문장 요약), 다음 줄은 세부. 고칠 수 있는 것을 전부 고를 때만 커밋 뒤 점수를 안다
+    // (all은 이번에 연 항목뿐이라 한 건만 열면 all과 같아진다)
+    const commitTo = chosen.length === current?.fixes.length ? current.committedScore : undefined;
     const afterCommit =
       commitTo ??
       (current?.committedScore !== undefined && current.weights

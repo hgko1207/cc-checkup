@@ -13,6 +13,115 @@
 
 ## 다음 작업 (구현 예정)
 
+> 2026-10-28 앱 전면 개편 (critique 22/40, `.impeccable/critique/2026-10-28T14-46-29Z__src-app-ui-index-html.md`).
+> 사용자 결정: 폴더마다 '혼자 / 팀' 모드(자동 추천) · 무료 조언 + 추천 세팅 묶음(사용량 비용 없음) · 구조 전면 개편 + 새 시각 방향 · 범위는 점수 버그·오탐, 홈·가이드, 할 일 카드, 가운뎃점·용어 통일.
+> 순서: 1 → 2 → 3은 엔진(화면과 무관, 따로 검증), 4에서 시각 방향을 고른 뒤 5 → 8 화면. 각 작업은 따로 커밋·검증한다.
+
+### [x] 1. 단건 미리 보기 점수 버그 (2026-10-29, 고치기 전 코드에서 새 E2E가 기대 90 · 실제 100으로 실패하는 것 확인)
+
+- 목표: 할 일 한 건만 미리 보기를 열면 "고친 뒤 커밋하면" 점수가 그 한 건을 고친 점수 + 커밋 가중치(예: 75 → 90)로 나온다. 전부 골랐을 때만 `committedScore`를 쓴다.
+- 맥락: `fix()`의 `all`은 이번에 연 항목만 담아서, 한 건만 열면 `chosen.length === all.length`가 참이 되고 "전부 고친 뒤" 점수(100)가 나온다.
+- 변경할 파일: `src/app/ui/app.ts` — `fix()`의 `commitTo` 조건을 `chosen.length === current.fixes.length`로
+- 참조: 같은 함수의 `afterCommit` 계산
+- 검증: `npm run typecheck`, `npm run test:e2e` (`test/e2e/app.spec.ts`에 "한 건만 미리 보기 → 커밋 뒤 점수" 확인 추가)
+- 안 하는 것: 점수 공식 변경
+- 멈춤 조건: 커밋 점수를 정확히 내려면 core에서 계산해야 하는 경우(UI 셈으로 부족하면) 알린다
+
+### [ ] 2. 사용 방식 '혼자 / 팀' (엔진)
+
+- 목표: `diagnose(dir, { usage })`가 `"solo" | "team" | "auto"`를 받는다. 혼자 모드에서는 `settings/committed`(커밋 여부·개인 설정에만 있는 보호)를 만들지 않고, 사내 표준을 골라도 사내 표준이 더한 항목(플러그인·사내 필수 섹션·필수 파일)을 해당 없음으로 둔다. 같은 폴더를 혼자 모드로 재면 점수에서 커밋 감점(15)이 빠진다.
+- 맥락: 개인 저장소는 커밋·보내기 단계 없이도 "끝"에 도달해야 한다(critique P0).
+- 자동 추천: `git log --format=%ae`의 서로 다른 작성자가 2명 이상이거나 settings.json이 이미 커밋돼 있으면 팀, 아니면 혼자. 이유 문장을 `KindGuess`처럼 돌려준다 (예: "커밋한 사람이 1명이라 혼자 쓰는 저장소로 봅니다").
+- 변경할 파일:
+  - `src/usage.ts`(새 파일) — `detectUsage(dir, runGit)`: 추천과 이유
+  - `src/diagnose.ts` — `usage` 옵션, `Diagnosis.usage`·`usageGuess`
+  - `src/checks/git.ts` — 혼자 모드면 건너뜀
+  - `src/types.ts` — `CheckContext.usage`
+  - `src/standard.ts` — 혼자 모드에서 사내 항목을 해당 없음으로 (기존 `standardFor`와 같은 자리)
+  - `src/app/core.ts` — `recent.json`에 폴더별 `usage` 기억(`kind`와 같은 방식), `toView`에 `usage`·`usageAuto`·`usageReason`, 혼자 모드면 `committedScore` 없음
+  - `src/app/api.ts`, `src/app/main.ts` — `diagnose(path, kind?, usage?)`
+- 참조: 폴더 종류 자동 판별 `src/kind.ts`, `core.ts`의 `remember(path, score, kind)`와 `kindAuto`
+- 검증: `npm run typecheck`, `npm run lint`, `npm run test` — `test/usage.test.ts`(작성자 1명·2명·git 아님), `test/git.test.ts`(혼자 모드면 committed 없음), `test/app-core.test.ts`(usage 기억·되돌리기)
+- 안 하는 것: CLI 옵션(`--usage`)은 이번에 넣지 않는다 (CLI는 지금처럼 팀 기준). 혼자 모드에서도 고치기는 지금처럼 `.claude/settings.json`에 쓴다
+- 멈춤 조건: 작성자 수로 추천하는 게 테스트 저장소에서 자주 틀리면 추천 규칙을 다시 묻는다
+
+### [ ] 3. 설정 세 곳 읽기 (오탐)
+
+- 목표: `.env` 차단·권한 우회 모드·위험 허용 판정이 저장소 설정(`.claude/settings.json`) 말고도 개인 설정(`.claude/settings.local.json`)과 내 PC 전체 설정(`~/.claude/settings.json`)을 본다.
+  - 혼자 모드: 세 곳 중 어디서든 막혀 있으면 통과, 메시지에 어디서 막혔는지 적음 (예: "내 PC 전체 설정에서 막혀 있습니다")
+  - 팀 모드: 지금처럼 저장소 설정만 통과로 치되, 다른 곳에서 막혀 있으면 "내 PC에서는 막혀 있지만 팀원에게는 적용되지 않습니다"로 알림 (감점은 그대로)
+- 맥락: 내 PC 전체 설정에 .env 차단을 둔 사람도 "위험"을 받는 거짓 경보 (critique P1)
+- 변경할 파일:
+  - `src/checks/settings.ts` — `readSettings`가 세 곳을 읽어 `{ project, local, user }`로, 판정 함수가 범위를 받음
+  - `src/types.ts` — `CheckContext.settings` 모양
+  - `src/diagnose.ts` — 홈 폴더 경로를 옵션으로 받음(테스트에서 바꿀 수 있게, 기본 `os.homedir()`)
+  - `src/fix.ts` — 쓰기 대상은 그대로 project 설정만 (읽는 곳만 늘어남)
+- 참조: `src/checks/git.ts`의 `readJsonSettings(settings.local.json)`·`protectiveRules`
+- 검증: `npm run test` — `test/settings.test.ts`에 user·local에만 차단이 있는 경우를 혼자/팀으로 각각 추가, 기존 테스트 전부 통과
+- 안 하는 것: 관리형 정책 설정(managed-settings) 읽기, 사용자 설정에 쓰기
+- 멈춤 조건: `CheckContext.settings` 모양 변경이 `fix.ts`의 쓰기 경로(diff → 백업)에 닿아 위험해지면 멈추고 알린다
+
+### [ ] 4. 제품 기록과 새 시각 방향 고르기 (코드 변경 없음)
+
+- 목표: impeccable `init`으로 제품 기록을 만들고(위 결정 반영: 혼자·팀 두 사용자, 무료 조언 + 추천 세팅, 컨설팅은 앱 밖 유료 서비스), `new-work`로 새 시각 방향 후보 2~3개를 보여 준 뒤 사용자가 하나를 고른다.
+- 변경할 파일: 제품 기록 파일(아래 멈춤 조건), `DESIGN.md`는 5~8을 마친 뒤 새로 씀
+- 검증: 사용자가 방향 하나를 고름
+- 멈춤 조건: 제품 문서가 이미 `docs/PRODUCT.md`에 있다. impeccable은 루트 `PRODUCT.md`를 읽는다. 루트에 새로 만들지, `docs/PRODUCT.md`를 고쳐 쓸지 사용자에게 묻는다
+
+### [ ] 5. 홈 화면·이동·도움말
+
+- 목표:
+  - 브랜드("Claude 세팅 점검")를 누르면 홈으로 간다(지금은 폴더를 연 뒤 돌아갈 길이 없음).
+  - 홈에는 최근 폴더 점수 목록(혼자/팀 표시), 이 도구 사용법 3단계(폴더 열기 → 위험 확인 → 미리 보고 고치기), 폴더 열기 주 버튼을 둔다.
+  - 머리글에 14px 이상의 "도움말" 버튼을 두고, 빈 화면에서도 보이게 한다. 용어·단축키는 기준 탭 바닥이 아니라 도움말 창에 둔다. 단축키 목록은 표로 만든다.
+  - 머리글 "리포트 저장"·"다시 점검"은 면이 있는 버튼 + 아이콘으로 바꾸고, 조건부로 나타나는 "되돌리기" 자리를 비워 둔다.
+  - 최근 폴더를 목록에서 지울 수 있다.
+- 변경할 파일: `src/app/ui/index.html`, `src/app/ui/app.ts`, `src/app/ui/style.css`, `src/app/core.ts`(최근 폴더 지우기), `src/app/api.ts`, `src/app/main.ts`, `src/app/preload.cts`
+- 참조: 지금 빈 화면(`index.html`의 "점검할 폴더를 여세요"), 최근 폴더 렌더링
+- 검증: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run test:e2e` — e2e에 "폴더 연 뒤 브랜드 → 홈" 추가, 바뀐 문구에 맞춰 선택자 수정(테스트를 지우지 않음)
+- 안 하는 것: 여러 폴더 비교 대시보드, 점수 기록 그래프
+
+### [ ] 6. 결과 화면: 모드 선택·요약 카드·할 일 카드 다시 쓰기
+
+- 목표:
+  - 요약 카드 맨 위에서 "혼자 / 팀"을 고를 수 있고, 자동 추천 이유를 보여 준다. 혼자 모드에서는 2 커밋 · 3 팀원에게 보내기 단계, "커밋하면" 막대 구간, 팀 말투("팀 기준을 통과합니다")가 나오지 않는다.
+  - 결론 문장은 위험 중심으로 쓴다 (예: "Claude가 비밀 파일과 위험 명령에 손대지 못하게 하려면 3개를 고치면 됩니다").
+  - 할 일 줄 제목은 원인이 아니라 위험으로 쓴다 (예: ".claude/settings.json이 없어…" → "Claude가 .env(API 키)를 읽을 수 있습니다").
+  - 펼친 본문은 첫 줄 "할 일: …" + [바뀔 내용 보기] 버튼, 그 아래 구역은 3개 이하(왜 위험한가 / 고치면 바뀌는 것 / 남는 한계). 점수 셈·용어·함께 해결되는 문제는 접기 안에 넣는다.
+  - 버튼 이름 통일: 줄 버튼 "바뀔 내용 보고 고치기", 요약 카드 "N개 한 번에 고치기". 줄마다 [이 기준 보기]로 기준 탭의 해당 항목에 연결한다.
+  - 권한 우회 모드 같은 말은 쉬운 말로 쓴다 (예: "확인 없이 실행하는 모드를 켤 수 있습니다"). 혼자 모드에서는 "일부러 쓰는 기능이면 그대로 두세요"를 덧붙이고, 막을지 말지 고를 수 있게 한다.
+  - 미리 보기에서 규칙마다 쉬운 말 한 줄을 보인다 (예: `Read(**/.env.*.local)` → ".env.○○.local 읽기 막기").
+- 변경할 파일: `src/app/ui/app.ts`, `src/app/ui/style.css`, `src/app/ui/index.html`, `src/details.ts`(혼자/팀 문장), `src/checks/settings.ts`·`src/checks/claude-md.ts`의 `message`(위험 문장으로)
+- 참조: 지금 `buildTodos`와 펼친 본문 렌더링, `details.ts`의 why·fix·limit
+- 검증: 4개 검증 명령 모두. 메시지 문구를 확인하는 단위 테스트는 새 문구에 맞춰 고친다(검사 내용은 그대로). 고친 뒤 실행 중인 앱에서 혼자·팀 두 폴더를 눈으로 확인한다
+- 안 하는 것: deny 규칙 12개 중 일부만 고르기, 적용 범위(local/user) 고르기
+- 멈춤 조건: CLI 출력(`src/report.ts`)도 같은 `message`를 써서 CLI 문구가 함께 바뀐다. 범위가 커지면 알린다
+
+### [ ] 7. 추천 세팅 묶음과 조언
+
+- 목표: 결과 화면에 "추천 세팅" 묶음을 둔다. 이 폴더에 아직 없는 것만 보여 주고, 묶음 하나를 누르면 기존 미리 보기 → 적용 흐름으로 간다(새 쓰기 경로 없음). 묶음마다 무엇을 하고 왜 필요한지 쉬운 말 두세 줄로 조언한다.
+  - 기본 보호 (혼자·팀): .env 읽기·쓰기 차단, 위험 명령 차단 훅
+  - 작업 방식 (혼자·팀): CLAUDE.md 검증 명령, plan.md
+  - 팀 공유 (팀만): 권한 우회 모드 막기, 커밋해서 팀원에게 적용
+  - 위험한 자동 허용처럼 자동으로 고치지 않는 항목은 "직접 하세요" 조언과 함께 둔다.
+- 변경할 파일: `src/app/ui/app.ts`, `src/app/ui/style.css`, `src/details.ts`(묶음 설명)
+- 참조: 지금 "N개 바로 고치기"의 `fix(nos)` 호출
+- 검증: 4개 검증 명령, e2e에 "묶음 → 미리 보기 열림" 추가
+- 안 하는 것: Claude로 맞춤 조언 리포트 만들기(비용 발생), 상담 신청 연결
+- 멈춤 조건: 묶음 구성이 사내 표준 파일에서 정해져야 한다는 요구가 나오면 묻는다 (지금은 코드에 고정)
+
+### [ ] 8. 가운뎃점·용어 통일과 마무리
+
+- 목표:
+  - 띄운 " · "는 짧은 명사구 메타데이터에만 쓴다. 문장 사이, 단계 번호와 이름 사이, 상태 결합, 코드 토큰 사이에는 쓰지 않는다. critique의 위치 목록(`app.ts` 698·1337·1587·1761·1912·1956, `index.html` 293–298, `core.ts` 281·301, `details.ts` 11, `report.ts` 29, `settings.ts` 77, `standard-rules.ts` 142)을 모두 고친다.
+  - 기준을 부르는 말은 "기준" 하나로 쓴다(사내 기준 파일은 "사내 기준"). 고치기 동사도 5번 결정대로 통일한다.
+  - 13px 미만 글자를 정리한다(본문·링크 최소 13px). 한글이 고정폭 글꼴로 나오는 `#std-path`를 고친다.
+  - `DESIGN.md`(+ `.impeccable/design.json`)를 새 시각 방향 기준으로 다시 쓰고, `docs/PRODUCT.md` 진단 항목 표를 실제와 맞춘다.
+  - impeccable critique를 다시 돌려 점수를 기록한다.
+- 변경할 파일: `src/app/ui/*`, `src/app/core.ts`, `src/details.ts`, `src/report.ts`, `src/checks/*.ts`, `DESIGN.md`, `docs/PRODUCT.md`
+- 검증: 4개 검증 명령, `grep`으로 문장 끝 뒤에 " · "가 남았는지 확인
+- 안 하는 것: 영문 번역
+
 ### [x] 단계 흐름·확인창 정리 후 점수 반복 (2026-10-25): 30 → 29 → 31 → 33 → 37 → 38/40
 
 - 방식: 사용자 선택 "추천대로" = A(요약 카드에 1 고치기 → 2 커밋 → 3 팀원에게 보내기 단계) + B(확인창은 쉬운 첫 줄 + 개발자용 접기). 그 뒤 같은 점검자가 4회 더 재며 "4점이 되려면"을 고침
