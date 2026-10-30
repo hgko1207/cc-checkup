@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>시안: 점검 결과 (Montage 기준)</title>
+<style>
+@font-face { font-family: "Pretendard Variable"; font-weight: 45 920; src: url("../../../node_modules/pretendard/dist/web/variable/woff2/PretendardVariable.woff2") format("woff2-variations"); }
+
+/* Montage 토큰 (wanteddev/montage-web, MIT). 상태색 글자만 4.5:1을 위해 30 단계 */
+:root {
+  --bg: #ffffff;               /* background.neutral.primary */
+  --bg-2: #f7f7f8;             /* background.neutral.secondary (coolNeutral 99) */
+  --fg: #171719;               /* foreground.neutral.primary (coolNeutral 10) */
+  --fg-2: rgb(46 47 51 / 0.88);/* foreground.neutral.secondary */
+  --fg-3: #5a5c63;             /* 보조 글자 (coolNeutral 40, 회색 면 위에서도 4.5:1) */
+  --line: rgb(112 115 124 / 0.22); /* line.neutral.primary */
+  --line-2: rgb(112 115 124 / 0.16);
+  --fill: rgb(112 115 124 / 0.08);  /* surface.neutral.secondary */
+  --brand: #0066ff; --brand-strong: #005eeb; --brand-subtle: rgb(0 102 255 / 0.05);
+  --neg: #b00c0c; --neg-bg: rgb(255 66 66 / 0.08);
+  --cau: #9c5800; --cau-bg: rgb(255 146 0 / 0.08);
+  --pos: #006e25; --pos-bg: rgb(0 191 64 / 0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1c1e; --bg-2: #0f0f10; --fg: #f7f7f8; --fg-2: rgb(194 196 200 / 0.88); --fg-3: #aeb0b6;
+    --line: rgb(112 115 124 / 0.32); --line-2: rgb(112 115 124 / 0.22); --fill: rgb(112 115 124 / 0.16);
+    --brand: #3385ff; --brand-strong: #1a75ff; --brand-subtle: rgb(51 133 255 / 0.12);
+    --neg: #ff6363; --neg-bg: rgb(255 99 99 / 0.12); --cau: #ffa938; --cau-bg: rgb(255 169 56 / 0.12);
+    --pos: #1ed45a; --pos-bg: rgb(30 212 90 / 0.12);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font-family: "Pretendard Variable", Pretendard, "Malgun Gothic", sans-serif; color: var(--fg); background: var(--bg);
+  font-size: 15px; line-height: 22px; letter-spacing: 0.0096em; word-break: keep-all; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; }
+svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* 버튼 (Montage button: solid / outlined, radius 12/10) */
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px; border-radius: 10px;
+  font-size: 15px; font-weight: 600; letter-spacing: 0.0096em; border: 1px solid var(--line); background: var(--bg); }
+.btn:hover { background: var(--fill); }
+.btn.solid { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn.solid:hover { background: var(--brand-strong); }
+.btn.lg { height: 48px; padding: 0 24px; border-radius: 12px; font-size: 16px; }
+.btn.sm { height: 32px; padding: 0 12px; border-radius: 8px; font-size: 14px; }
+.text-btn { border: 0; background: none; padding: 6px 4px; font-size: 14px; font-weight: 600; color: var(--fg-2); display: inline-flex; gap: 4px; align-items: center; }
+
+.app { display: grid; grid-template-columns: 248px 1fr; height: 100%; }
+
+/* 사이드바 */
+.side { border-right: 1px solid var(--line-2); padding: 20px 16px; display: flex; flex-direction: column; gap: 20px; }
+.brand { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 4px; font-size: 17px; font-weight: 700; text-align: left; }
+.mark { width: 28px; height: 28px; border-radius: 8px; background: var(--brand); color: #fff; display: grid; place-items: center; }
+.mark svg { width: 16px; height: 16px; stroke-width: 2.4; }
+.side .btn { width: 100%; justify-content: center; }
+.side h2 { margin: 0 0 6px; padding: 0 8px; font-size: 13px; line-height: 18px; font-weight: 600; color: var(--fg-3); }
+.folders { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.folder { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; padding: 10px 12px; border-radius: 10px; }
+.folder:hover { background: var(--fill); }
+.folder.on { background: var(--brand-subtle); }
+.folder b { font-size: 15px; font-weight: 600; }
+.folder.on b { color: var(--brand); }
+.folder small { grid-column: 1; font-size: 13px; line-height: 18px; color: var(--fg-3); }
+.folder .sc { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-size: 14px; font-weight: 600; }
+.side-foot { margin-top: auto; display: grid; gap: 4px; font-size: 13px; color: var(--fg-3); }
+.side-foot .text-btn { font-size: 15px; color: var(--fg); padding: 8px; justify-content: flex-start; border-radius: 8px; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--pos); margin: 0 6px 0 8px; }
+
+/* 본문 */
+.main { background: var(--bg-2); overflow: auto; }
+.wrap { max-width: 920px; margin: 0 auto; padding: 28px 40px 48px; }
+.head { display: flex; align-items: flex-start; gap: 16px; }
+.head h1 { margin: 0; font-size: 24px; line-height: 32px; font-weight: 700; letter-spacing: -0.023em; }
+.head .path { font-size: 13px; color: var(--fg-3); display: flex; gap: 8px; align-items: center; }
+.head .acts { margin-left: auto; display: flex; gap: 8px; }
+
+/* 사용 방식 (Montage segmented-control) */
+.mode { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+.seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--fill); }
+.seg button { border: 0; background: none; height: 32px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--fg-3); }
+.seg button[aria-pressed="true"] { background: var(--bg); color: var(--fg); box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); }
+.mode p { margin: 0; font-size: 14px; color: var(--fg-3); }
+
+/* 탭 (Montage tab: 밑줄) */
+.tabs { display: flex; gap: 24px; margin-top: 20px; border-bottom: 1px solid var(--line-2); }
+.tabs button { border: 0; background: none; padding: 12px 0; font-size: 16px; font-weight: 600; color: var(--fg-3); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-color: var(--fg); }
+
+/* 카드 */
+.card { background: var(--bg); border: 1px solid var(--line-2); border-radius: 16px; padding: 24px; margin-top: 20px; }
+.summary { display: grid; grid-template-columns: 1fr auto; gap: 16px 40px; align-items: center; }
+.score { display: flex; align-items: baseline; gap: 4px; }
+.score b { font-size: 40px; line-height: 52px; font-weight: 700; letter-spacing: -0.028em; }
+.score span { font-size: 18px; font-weight: 600; }
+.score em { font-style: normal; margin-left: 12px; font-size: 15px; color: var(--fg-3); }
+.lead { grid-column: 1 / -1; margin: 0; font-size: 18px; line-height: 26px; font-weight: 600; }
+.bar { position: relative; height: 8px; border-radius: 4px; background: var(--fill); margin-top: 12px; }
+.bar i { position: absolute; inset: 0 30% 0 0; border-radius: 4px; background: var(--brand); }
+.bar s { position: absolute; left: 80%; top: -4px; width: 2px; height: 16px; background: var(--fg); }
+.legend { position: relative; height: 18px; font-size: 13px; color: var(--fg-3); margin-top: 6px; }
+.legend span { position: absolute; top: 0; }
+.legend .t { left: 80%; transform: translateX(-50%); }
+.legend .e { right: 0; }
+
+/* 안내 상자 (Montage section-message) */
+.msg { display: flex; gap: 10px; align-items: flex-start; margin-top: 20px; padding: 12px 16px; border-radius: 12px; background: var(--fill); font-size: 14px; line-height: 20px; color: var(--fg-2); }
+
+/* 할 일 목록 (Montage section-header + list) */
+.sec-h { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.sec-h h2 { margin: 0; font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.012em; }
+.sec-h p { margin: 0; font-size: 14px; color: var(--fg-3); }
+.list { list-style: none; margin: 0; padding: 0; }
+.row { border-top: 1px solid var(--line-2); }
+.row:first-child { border-top: 0; }
+.row-h { display: grid; grid-template-columns: 52px 1fr auto auto 24px; gap: 12px; align-items: center; padding: 16px 0; }
+.badge { justify-self: start; font-size: 13px; line-height: 18px; font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+.badge.neg { color: var(--neg); background: var(--neg-bg); }
+.badge.cau { color: var(--cau); background: var(--cau-bg); }
+.row-h b { display: block; font-size: 16px; line-height: 24px; font-weight: 600; }
+.row-h small { display: block; font-size: 15px; color: var(--fg-2); }
+.pts { font-size: 15px; font-weight: 600; min-width: 48px; text-align: right; }
+.chev { color: var(--fg-3); }
+.row.open .chev { transform: rotate(180deg); }
+.row-b { margin: 0 0 20px 64px; border-radius: 12px; background: var(--bg-2); padding: 4px 20px; }
+.row-b div { display: grid; grid-template-columns: 112px 1fr; gap: 16px; padding: 14px 0; }
+.row-b div + div { border-top: 1px solid var(--line-2); }
+.row-b dt { font-size: 14px; line-height: 24px; font-weight: 600; color: var(--fg-3); }
+.row-b dd { margin: 0; font-size: 15px; line-height: 24px; }
+.row-b code { font-family: "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+.passed { display: flex; justify-content: center; border-top: 1px solid var(--line-2); padding-top: 12px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <button class="brand" type="button" title="처음 화면으로"><span class="mark"><svg class="i" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>Claude 세팅 점검</button>
+    <button class="btn" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>폴더 열기</button>
+    <section>
+      <h2>최근 폴더</h2>
+      <ul class="folders">
+        <li class="folder on"><b>moa-bom</b><small>혼자 · D:\project\Coding</small><span class="sc num">70점</span></li>
+        <li class="folder"><b>daily-news</b><small>팀 · D:\project\Coding</small><span class="sc num">65점</span></li>
+      </ul>
+    </section>
+    <div class="side-foot">
+      <button class="text-btn" type="button"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.5V14M12 17h.01"/></svg>사용법·용어 보기</button>
+      <span><span class="dot"></span>Claude Code 2.1.83 · 로그인됨</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <h1>moa-bom</h1>
+          <div class="path">D:\project\Coding\moa-bom <button class="text-btn" type="button">탐색기에서 열기</button></div>
+        </div>
+        <div class="acts">
+          <button class="btn" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>리포트 저장</button>
+          <button class="btn" type="button"><svg class="i" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/></svg>다시 점검</button>
+        </div>
+      </div>
+
+      <div class="mode">
+        <div class="seg" role="group" aria-label="사용 방식"><button aria-pressed="true">혼자 써요</button><button aria-pressed="false">팀이 같이 써요</button></div>
+        <p>커밋한 사람이 1명이라 혼자 쓰는 저장소로 봤습니다</p>
+      </div>
+
+      <div class="tabs" role="tablist"><button role="tab" aria-selected="true">점검 결과</button><button role="tab" aria-selected="false">추천 세팅</button><button role="tab" aria-selected="false">점검 기준</button></div>
+
+      <section class="card">
+        <div class="summary">
+          <p class="lead">4개를 고치면 Claude가 .env를 열지 못하고, 위험한 명령은 실행 전에 멈춥니다</p>
+          <div>
+            <div class="score num"><b>70</b><span>점</span><em>목표 80점 · 위험 1건 · 주의 3건</em></div>
+            <div class="bar" aria-hidden="true"><i></i><s></s></div>
+            <div class="legend num"><span>0</span><span class="t">목표 80</span><span class="e">100</span></div>
+          </div>
+          <button class="btn solid lg" type="button">4개 한 번에 고치기</button>
+        </div>
+        <div class="msg"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>혼자 쓰는 저장소라 고치기만 하면 끝납니다. 고치기 전에 바뀔 내용을 먼저 보여 드리고, 고친 뒤에도 되돌릴 수 있습니다.</div>
+      </section>
+
+      <section class="card">
+        <div class="sec-h"><h2>할 일 4개</h2><p>위험한 것부터</p></div>
+        <ul class="list">
+          <li class="row open">
+            <div class="row-h">
+              <span class="badge neg">위험</span>
+              <div><b>Claude가 .env(API 키·비밀번호)를 읽을 수 있습니다</b><small>할 일: Claude가 .env를 읽지 못하게 막습니다</small></div>
+              <span class="pts num">+15점</span>
+              <button class="btn sm" type="button">바뀔 내용 보기</button>
+              <svg class="i chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <dl class="row-b">
+              <div><dt>왜 위험한가요</dt><dd>이 폴더에 .env 파일이 있습니다. Claude가 읽으면 키와 비밀번호가 대화 기록에 그대로 남습니다.</dd></div>
+              <div><dt>고치면</dt><dd>Claude 설정 파일(<code>.claude/settings.json</code>)을 만들어 .env 읽기만 막습니다. 다른 설정은 그대로입니다.</dd></div>
+              <div><dt>못 막는 것</dt><dd>grep이나 스크립트로 읽는 것은 막지 못합니다. 위험 명령 검사(아래 할 일)를 함께 고치면 더 안전합니다.</dd></div>
+            </dl>
+          </li>
+          <li class="row"><div class="row-h"><span class="badge cau">주의</span><div><b>Claude가 .env 내용을 바꿀 수 있습니다</b><small>할 일: Claude가 .env를 고치지 못하게 막습니다</small></div><span class="pts num">+5점</span><button class="btn sm" type="button">바뀔 내용 보기</button><svg class="i chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div></li>
+          <li class="row"><div class="row-h"><span class="badge cau">주의</span><div><b>Claude가 되돌리기 어려운 명령(강제 푸시, rm -rf)을 바로 실행할 수 있습니다</b><small>할 일: 이런 명령을 실행 전에 멈추는 검사를 넣습니다</small></div><span class="pts num">+5점</span><button class="btn sm" type="button">바뀔 내용 보기</button><svg class="i chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div></li>
+          <li class="row"><div class="row-h"><span class="badge cau">주의</span><div><b>묻지 않고 모든 명령을 실행하는 모드를 켤 수 있습니다</b><small>할 일: 이 모드를 켜지 못하게 막습니다. 일부러 쓰고 있다면 그대로 두세요</small></div><span class="pts num">+5점</span><button class="btn sm" type="button">바뀔 내용 보기</button><svg class="i chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div></li>
+        </ul>
+        <div class="passed"><button class="text-btn" type="button">통과한 항목 3개 보기 <svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button></div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>
