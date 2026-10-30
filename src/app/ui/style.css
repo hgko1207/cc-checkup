@@ -1862,3 +1862,48 @@ kbd {
   outline-offset: 2px;
   border-radius: 8px;
 }
+
+/* ---- 추천 세팅 ---- */
+
+#view-recommend,
+#bundles {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.rec-intro {
+  margin: 0;
+  font-size: 15px;
+  line-height: 24px;
+  color: var(--fg-2);
+}
+.bundle {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bundle-advice {
+  margin: 0;
+  max-width: 64ch;
+  font-size: 15px;
+  line-height: 24px;
+  color: var(--fg-2);
+}
+.bundle-items {
+  list-style: none;
+  margin: 0;
+  padding: 4px 16px;
+  border-radius: 12px;
+  background: var(--bg-2);
+}
+.bundle-items li {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  font-size: 15px;
+}
+.bundle-items li + li {
+  border-top: 1px solid var(--line-2);
+}

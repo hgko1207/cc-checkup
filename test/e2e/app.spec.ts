@@ -97,6 +97,15 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   await expect(page.locator("#usage-note")).not.toContainText("직접 골랐습니다");
   await expect(page.locator(".todo-head").first()).toBeVisible();
 
+  // 추천 세팅: 묶음을 누르면 같은 미리 보기가 열린다 (쓰지 않고 닫기)
+  await page.getByRole("tab", { name: "추천 세팅" }).click();
+  await expect(page.locator("#bundles")).toContainText("기본 보호");
+  await page.getByRole("button", { name: "기본 보호: 바뀔 내용 보고 고치기" }).click();
+  await expect(page.locator(".file-path").first()).toContainText(".claude/settings.json");
+  await page.keyboard.press("Escape");
+  expect(await exists(join(repo, ".claude", "settings.json"))).toBe(false);
+  await page.keyboard.press("Control+1");
+
   // Esc로 패널을 닫으면 포커스가 누른 버튼으로 돌아온다
   const fixAll = page.getByRole("button", { name: /바로 고칠 수 있는 \d+개 고치기/ });
   await fixAll.click();
@@ -144,8 +153,8 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
   expect(await exists(join(repo, ".claude"))).toBe(false);
   await expect.poll(async () => Number(await page.locator("#score").textContent())).toBe(before);
 
-  // 점검 기준 탭(Ctrl+2): 적용 중인 표준과 보는 항목 전체, 용어 풀이
-  await page.keyboard.press("Control+2");
+  // 점검 기준 탭(Ctrl+3): 적용 중인 표준과 보는 항목 전체, 용어 풀이
+  await page.keyboard.press("Control+3");
   await expect(page.getByRole("tab", { name: "점검 기준" })).toHaveAttribute(
     "aria-selected",
     "true",

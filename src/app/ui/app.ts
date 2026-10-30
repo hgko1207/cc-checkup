@@ -1674,7 +1674,12 @@ function goHome(): void {
   $("home-open").focus();
 }
 
-let tab: "results" | "criteria" = "results";
+const TABS = [
+  ["results", "tab-results", "view-results"],
+  ["recommend", "tab-recommend", "view-recommend"],
+  ["criteria", "tab-criteria", "view-criteria"],
+] as const;
+let tab: (typeof TABS)[number][0] = "results";
 let showPassed = (() => {
   try {
     return localStorage.getItem("showPassed") === "1";
@@ -1691,14 +1696,11 @@ function setTab(t: typeof tab, focus = false): void {
     document.body.classList.remove("has-toast");
   }
   render();
-  if (focus) $(t === "results" ? "tab-results" : "tab-criteria").focus();
+  if (focus) $(`tab-${t}`).focus();
 }
 
 function renderTabs(): void {
-  for (const [t, id, view] of [
-    ["results", "tab-results", "view-results"],
-    ["criteria", "tab-criteria", "view-criteria"],
-  ] as const) {
+  for (const [t, id, view] of TABS) {
     const on = tab === t;
     const b = $(id);
     b.setAttribute("aria-selected", String(on));
@@ -2084,6 +2086,145 @@ const CRIT_STATUS = {
   pending: "확인 전",
 };
 
+// ---- 추천 세팅: 묶음을 누르면 기존 미리 보기 → 적용 흐름으로 간다 (새 쓰기 경로 없음) ----
+
+const BUNDLES: {
+  key: string;
+  title: string;
+  advice: string;
+  teamOnly?: boolean;
+  match: (id: string) => boolean;
+}[] = [
+  {
+    key: "protect",
+    title: "기본 보호",
+    advice:
+      "Claude가 .env(API 키·비밀번호)를 읽거나 고치지 못하게 막고, 강제 푸시나 rm -rf 같은 명령은 실행 전에 멈추게 합니다. 어떤 저장소든 가장 먼저 넣기를 권합니다.",
+    match: (id) =>
+      [
+        "settings/missing",
+        "settings/env-read-deny",
+        "settings/env-edit-deny",
+        "hooks/present",
+      ].includes(id),
+  },
+  {
+    key: "work",
+    title: "작업 방식",
+    advice:
+      "Claude가 대화마다 읽는 작업 지침(CLAUDE.md)에 빌드·검증 명령을 적어 둡니다. 그러면 Claude가 고친 뒤 테스트를 돌려 스스로 확인합니다.",
+    match: (id) => id.startsWith("claude-md") || id.startsWith("file/"),
+  },
+  {
+    key: "team",
+    title: "팀 공유",
+    teamOnly: true,
+    advice:
+      "팀원 누구도 묻지 않고 실행하는 모드를 켜지 못하게 막고, 설정 파일을 커밋해 팀원 모두에게 같은 보호를 적용합니다.",
+    match: (id) => ["settings/bypass", "settings/committed"].includes(id),
+  },
+];
+
+function renderBundles(d: DiagnosisView): void {
+  const team = d.usage === "team";
+  const off = busy || locked || (state?.running ?? false);
+  const findings = d.areas.flatMap((a) => a.findings).filter((f) => !f.notApplicable);
+  const { pending } = commitInfo(d);
+  const cards: HTMLElement[] = [];
+  const done: string[] = [];
+  let first = true; // 남은 묶음 중 맨 위만 주 버튼
+  for (const b of BUNDLES) {
+    if (b.teamOnly && !team) continue;
+    const items = findings.filter((f) => b.match(f.id));
+    if (items.length === 0) continue;
+    const left = items.filter((f) => f.severity !== "ok");
+    if (left.length === 0) {
+      done.push(b.title);
+      continue;
+    }
+    const nos = [...new Set(left.flatMap((f) => f.fixNo ?? f.fixSharedWith ?? []))] as number[];
+    const claude = left.filter((f) => f.claudeTask && f.fixNo === undefined);
+    const acts: HTMLElement[] = [];
+    const cls = (primary: boolean) => `btn${primary ? " solid" : ""}`;
+    if (nos.length > 0) {
+      const fixBtn = keyed(
+        button("바뀔 내용 보고 고치기", () => void fix(nos), cls(first)),
+        `bundle:${b.key}`,
+      );
+      fixBtn.setAttribute("aria-label", `${b.title}: 바뀔 내용 보고 고치기`);
+      fixBtn.disabled = off;
+      acts.push(fixBtn);
+    }
+    if (claude.length === 1 && claude[0]) acts.push(...claudeButton(claude[0]));
+    else if (claude.length > 1) {
+      const all = keyed(
+        button(`Claude로 ${claude.length}개 쓰기`, () => confirmClaudeAll(claude), "btn soft"),
+        `bundle-claude:${b.key}`,
+      );
+      all.disabled = off || claudeBlocked() !== null;
+      acts.push(all);
+    }
+    // 팀 공유: 고칠 것이 없고 커밋·보내기만 남았으면 그 단계 버튼
+    if (b.teamOnly && nos.length === 0 && (pending || d.pushPending)) {
+      const step = pending
+        ? button("변경 커밋하기", () => void commitFlow(), cls(first))
+        : button("팀원에게 보내기", () => void pushFlow(), cls(first));
+      step.disabled = off;
+      acts.push(step);
+    }
+    first = false;
+    // 직접 해야 하는 항목은 버튼 없이 할 일만 (예: 위험한 자동 허용)
+    const line = (f: FindingView) =>
+      h(
+        "li",
+        {},
+        sevBadge(
+          f.severity === "ok" ? "ok" : f.severity,
+          f.severity === "ok" ? "됨" : SEVERITY[f.severity],
+        ),
+        h("span", {}, f.detail?.todo ?? head(f.message)),
+      );
+    cards.push(
+      h(
+        "section",
+        { class: "card bundle" },
+        h(
+          "div",
+          { class: "sec-h" },
+          h("h2", {}, b.title),
+          h("p", {}, `${items.length}개 중 ${left.length}개 남음`),
+        ),
+        h("p", { class: "bundle-advice" }, b.advice),
+        h("ul", { class: "bundle-items" }, ...items.map(line)),
+        acts.length > 0 ? h("div", { class: "row-btns" }, ...acts) : null,
+      ),
+    );
+  }
+  // 자동으로 고치지 않는 항목: 직접 하라는 조언
+  const risky = findings.find((f) => f.id === "settings/risky-allow" && f.severity !== "ok");
+  if (risky)
+    cards.push(
+      h(
+        "section",
+        { class: "card bundle" },
+        h("div", { class: "sec-h" }, h("h2", {}, "직접 확인할 것")),
+        h("p", { class: "bundle-advice" }, risky.detail?.why ?? risky.message),
+        h("p", { class: "bundle-advice" }, `점검 결과: ${risky.message}`),
+      ),
+    );
+  if (cards.length === 0)
+    cards.push(
+      h(
+        "section",
+        { class: "card" },
+        h("p", { class: "bundle-advice" }, "추천할 세팅이 모두 들어 있습니다."),
+      ),
+    );
+  $("bundles").replaceChildren(...cards);
+  $("bundles-done").hidden = done.length === 0;
+  $("bundles-done").textContent = `이미 들어 있는 묶음: ${done.join(", ")}`;
+}
+
 const critId = (id: string) => `crit-${id.replace(/[^a-z0-9-]/gi, "-")}`;
 
 // 할 일에서 [점검 기준에서 이 항목 보기]: 기준 탭으로 옮겨 그 줄에 포커스
@@ -2258,6 +2399,7 @@ function render(): void {
 
   renderTabs();
   renderResults(current);
+  renderBundles(current);
   renderCriteria(current);
 }
 
@@ -2298,16 +2440,28 @@ $("passed-toggle").addEventListener("click", () => {
   }
   render();
 });
-$("tab-results").addEventListener("click", () => setTab("results"));
-$("tab-criteria").addEventListener("click", () => setTab("criteria"));
-// 탭은 좌우 화살표로 옮긴다 (WAI-ARIA 탭 패턴)
-for (const id of ["tab-results", "tab-criteria"])
+// 탭은 좌우 화살표·Home·End로 옮긴다 (WAI-ARIA 탭 패턴)
+for (const [t, id] of TABS) {
+  $(id).addEventListener("click", () => setTab(t));
   $(id).addEventListener("keydown", (e) => {
-    if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Home" || e.key === "End") {
+    const at = TABS.findIndex(([x]) => x === tab);
+    const to =
+      e.key === "ArrowRight"
+        ? (at + 1) % TABS.length
+        : e.key === "ArrowLeft"
+          ? (at + TABS.length - 1) % TABS.length
+          : e.key === "Home"
+            ? 0
+            : e.key === "End"
+              ? TABS.length - 1
+              : -1;
+    const next = TABS[to];
+    if (next) {
       e.preventDefault();
-      setTab(tab === "results" ? "criteria" : "results", true);
+      setTab(next[0], true);
     }
   });
+}
 // 사용 방식: 자동 추천과 같은 값을 고르면 직접 지정이 풀린다 (core가 처리)
 for (const [id, u] of [
   ["usage-solo", "solo"],
@@ -2377,10 +2531,10 @@ document.addEventListener("keydown", (e) => {
         );
       closeOnly();
     }
-  } else if (e.ctrlKey && (e.key === "1" || e.key === "2") && current && $("scrim").hidden) {
-    // Ctrl+1·2: 탭 옮기기
+  } else if (e.ctrlKey && ["1", "2", "3"].includes(e.key) && current && $("scrim").hidden) {
+    // Ctrl+1·2·3: 탭 옮기기
     e.preventDefault();
-    setTab(e.key === "1" ? "results" : "criteria", true);
+    setTab(TABS[Number(e.key) - 1]?.[0] ?? "results", true);
   }
 });
 for (const id of ["kind-dev", "kind-docs"])
