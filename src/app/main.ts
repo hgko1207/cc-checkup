@@ -201,6 +201,10 @@ async function start(): Promise<void> {
     CHANNELS.showFolder,
     wrap((p: unknown) => core.showFolder(p)),
   );
+  ipcMain.handle(
+    CHANNELS.forgetFolder,
+    wrap((p: unknown) => core.forgetFolder(p)),
+  );
 
   win = new BrowserWindow({
     width: 1200,

@@ -23,6 +23,7 @@ const api: CcCheckupApi = {
   openUpdate: () => call("cc:openUpdate"),
   openGuide: () => call("cc:openGuide"),
   showFolder: (path) => call("cc:showFolder", path),
+  forgetFolder: (path) => call("cc:forgetFolder", path),
   onEvent: (cb) => {
     const listener = (_e: unknown, ev: AppEvent) => cb(ev);
     ipcRenderer.on("cc:event", listener);

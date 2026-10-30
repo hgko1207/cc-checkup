@@ -21,6 +21,7 @@ export interface RecentFolder {
   at: string;
   kind?: Kind; // 사용자가 고른 폴더 종류 (없으면 자동 판별)
   usage?: Usage; // 사용자가 고른 사용 방식 (없으면 자동 추천)
+  seen?: Usage; // 마지막으로 점검한 사용 방식 (목록에 혼자·팀 표시)
 }
 
 export interface AppState {
@@ -38,7 +39,8 @@ export interface FindingView {
   severity: Severity;
   message: string;
   judgment?: string;
-  detail?: { why: string; fix?: string; limit?: string }; // [자세히]
+  // 할 일 카드: 제목(위험), "할 일:" 한 줄, 왜 위험한가요 / 고치면 / 못 막는 것
+  detail?: { risk?: string; todo?: string; why: string; fix?: string; limit?: string };
   example?: string; // [예시 보기]
   fixNo?: number; // 바로 고치기 후보 번호
   fixLabel?: string; // 바로 고치기 | 바로 만들기 | 플러그인 설정 추가
@@ -195,5 +197,6 @@ export interface CcCheckupApi {
   openUpdate(): Promise<void>; // 사내 표준 파일이 알려 준 새 설치 파일 위치 열기
   openGuide(): Promise<void>; // 사내 표준 파일의 guideUrl 열기
   showFolder(path: string): Promise<void>; // 점검 중인 폴더를 탐색기로 열기
+  forgetFolder(path: string): Promise<AppState>; // 최근 폴더 목록에서 빼기 (파일은 그대로)
   onEvent(cb: (e: AppEvent) => void): () => void;
 }

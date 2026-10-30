@@ -398,7 +398,11 @@ export function toView(
       severity: f.severity,
       message: f.message,
       judgment: f.judgment,
-      detail: detailFor(f.id),
+      detail: detailFor(f.id, {
+        usage: diag.usage,
+        envFiles: diag.ctx.scan.envFiles.length,
+        severity: f.severity,
+      }),
       notApplicable: f.notApplicable,
       needsCommit: f.needsCommit,
       example: f.severity === "ok" ? undefined : f.example || undefined,
@@ -547,7 +551,8 @@ export class AppCore {
         if (typeof r?.path !== "string" || !isAbsolute(r.path)) continue;
         const kind = r.kind === "dev" || r.kind === "docs" ? r.kind : undefined;
         const usage = r.usage === "solo" || r.usage === "team" ? r.usage : undefined;
-        this.recent.push({ path: r.path, score: r.score, at: String(r.at), kind, usage });
+        const seen = r.seen === "solo" || r.seen === "team" ? r.seen : undefined;
+        this.recent.push({ path: r.path, score: r.score, at: String(r.at), kind, usage, seen });
         this.allowed.set(this.key(r.path), r.path);
       }
     }
@@ -589,10 +594,13 @@ export class AppCore {
     score?: number,
     kind?: FolderKind | null,
     usage?: Usage | null,
+    seen?: Usage,
   ): Promise<void> {
     const k = this.key(path);
     const prev = this.entry(path);
     const next: RecentFolder = { path, score: score ?? prev?.score, at: new Date().toISOString() };
+    const seenUsage = seen ?? prev?.seen;
+    if (seenUsage) next.seen = seenUsage;
     const chosen = kind === undefined ? prev?.kind : (kind ?? undefined);
     if (chosen) next.kind = chosen;
     const chosenUsage = usage === undefined ? prev?.usage : (usage ?? undefined);
@@ -662,6 +670,14 @@ export class AppCore {
     return path;
   }
 
+  // 최근 폴더 목록에서만 뺀다 (폴더·백업은 그대로, 이번 실행에서 연 폴더는 계속 쓸 수 있다)
+  async forgetFolder(v: unknown): Promise<AppState> {
+    const k = this.key(this.folder(v));
+    this.recent = this.recent.filter((r) => this.key(r.path) !== k);
+    await this.saveRecent();
+    return this.getState();
+  }
+
   async pickStandard(reset?: unknown): Promise<AppState> {
     if (reset !== undefined && bool(reset, "reset")) {
       delete this.config.standardPath;
@@ -710,6 +726,7 @@ export class AppCore {
       diag.score,
       chosen && chosen === diag.kindGuess.kind ? null : undefined,
       chosenUsage && chosenUsage === diag.usageGuess.usage ? null : undefined,
+      diag.usage,
     );
     const target = await findUndoTarget(path, this.deps.backup);
     const canUndo = target !== null && !(await this.undoCommitted(path, target));

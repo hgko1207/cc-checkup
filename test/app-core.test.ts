@@ -342,6 +342,35 @@ describe("사용 방식 (혼자 / 팀)", () => {
     expect(after.score).toBe(preview.expectedScore);
     expect(ids(after)).not.toContain("settings/committed");
   });
+
+  it("마지막으로 본 사용 방식을 최근 폴더에 남기고, 할 일 설명은 사용 방식에 맞춘다", async () => {
+    const { core, repo } = await setup();
+    await core.pickFolder();
+    const solo = await core.diagnose(repo, "dev");
+    expect((await core.getState()).recent[0]).toMatchObject({ seen: "solo" });
+    expect((await core.getState()).recent[0]?.usage).toBeUndefined(); // 자동 추천은 고른 값이 아니다
+    const bypass = (v: typeof solo) =>
+      v.areas.flatMap((a) => a.findings).find((f) => f.id === "settings/bypass");
+    expect(bypass(solo)?.detail?.todo).toContain("일부러 쓰고 있다면");
+    const team = await core.diagnose(repo, undefined, "team");
+    expect((await core.getState()).recent[0]).toMatchObject({ seen: "team", usage: "team" });
+    expect(bypass(team)?.detail?.todo).toContain("팀원");
+  });
+});
+
+describe("최근 폴더 빼기", () => {
+  it("목록에서만 빼고 다시 시작해도 돌아오지 않는다 (파일은 그대로)", async () => {
+    const { core, deps, repo } = await setup();
+    await core.pickFolder();
+    expect((await core.getState()).recent.map((r) => r.path)).toEqual([repo]);
+    const state = await core.forgetFolder(repo);
+    expect(state.recent).toEqual([]);
+    expect(await exists(repo)).toBe(true);
+    const again = new AppCore(deps);
+    await again.init();
+    expect((await again.getState()).recent).toEqual([]);
+    await expect(core.forgetFolder("C:\\Windows")).rejects.toThrow("허용되지 않은 폴더");
+  });
 });
 
 describe("자세히·예시", () => {

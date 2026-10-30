@@ -43,9 +43,8 @@ test("한 건만 미리 보기: 커밋 뒤 점수는 그 한 건을 고친 점�
   await page.getByRole("button", { name: "폴더 열기…" }).click();
   await expect(page.locator(".todo-head").first()).toBeVisible();
 
-  await page.locator(".todo-head").first().click();
   await page
-    .getByRole("button", { name: /^이 할 일만 고치기/ })
+    .getByRole("button", { name: /^바뀔 내용 보기/ })
     .first()
     .click();
   await expect(page.locator("#panel-message")).toContainText("고친 뒤 커밋하면");

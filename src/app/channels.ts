@@ -14,6 +14,7 @@ export const CHANNELS = {
   openUpdate: "cc:openUpdate",
   openGuide: "cc:openGuide",
   showFolder: "cc:showFolder",
+  forgetFolder: "cc:forgetFolder",
 } as const;
 
 export const EVENT_CHANNEL = "cc:event";

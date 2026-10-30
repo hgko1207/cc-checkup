@@ -14,20 +14,14 @@
   <body>
     <div class="shell">
       <aside class="side">
-        <div class="brand">
+        <button id="brand" class="brand" type="button" title="처음 화면으로">
           <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M5.5 12.5l4 4 9-9" /></svg>
+            <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
           </span>
-          <span class="brand-name">Claude 세팅 점검</span>
-        </div>
+          Claude 세팅 점검
+        </button>
 
-        <button
-          id="open"
-          class="btn soft wide"
-          type="button"
-          title="Ctrl+O"
-          aria-keyshortcuts="Control+O"
-        >
+        <button id="open" class="btn" type="button" title="Ctrl+O" aria-keyshortcuts="Control+O">
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
           </svg>
@@ -40,15 +34,18 @@
         </nav>
 
         <div class="side-foot">
-          <button id="side-help" class="linkish small-link shortcuts" type="button" hidden>
-            용어·단축키 보기
+          <button id="help-open" class="text-btn help-btn" type="button" aria-haspopup="dialog">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.5V14M12 17h.01" />
+            </svg>
+            사용법·용어 보기
           </button>
-          <p id="side-kind" class="small"></p>
           <div class="claude-line">
-            <span id="claude-status" class="small"></span>
+            <span id="claude-status"></span>
             <button
               id="claude-recheck"
-              class="linkish small-link"
+              class="text-btn small"
               type="button"
               aria-label="Claude Code 설치·로그인 다시 확인"
             >
@@ -60,28 +57,39 @@
 
       <main class="main">
         <div class="wrap">
-          <div id="update" class="notice info" hidden>
+          <div id="update" class="msg info-row" hidden>
             <span id="update-text"></span>
             <span class="row-btns">
-              <button id="update-open" class="btn small" type="button">설치 파일 위치 열기</button>
-              <button id="update-close" class="btn small ghost" type="button">닫기</button>
+              <button id="update-open" class="btn sm" type="button">설치 파일 위치 열기</button>
+              <button id="update-close" class="text-btn" type="button">닫기</button>
             </span>
           </div>
 
-          <div id="empty" class="empty">
+          <div id="home" class="home">
             <h1>점검할 폴더를 여세요</h1>
-            <p>
-              폴더를 고르면 팀 기준과 비교해 무엇이 부족한지와 지금 할 일을 보여 줍니다. 고치기
-              전에는 항상 바뀔 내용을 먼저 보여 주고, 적용한 뒤에도 되돌릴 수 있습니다.
+            <p class="home-lead">
+              Claude가 .env(API 키·비밀번호)를 읽거나 위험한 명령을 바로 실행할 수 있는지
+              점검하고, 고칠 것을 위험한 것부터 알려 드립니다.
             </p>
-            <button id="empty-open" class="btn primary big" type="button">
-              점검할 폴더 고르기
-            </button>
-            <p class="small muted">저장소 맨 위 폴더(.git이 있는 폴더)를 고르세요.</p>
-            <p class="small muted">
-              <span id="empty-standard"></span>
-              <button id="empty-pick-standard" class="linkish small-link" type="button">
-                기준 파일 고르기
+            <div class="home-act">
+              <button id="home-open" class="btn solid lg" type="button">점검할 폴더 고르기</button>
+              <span class="muted">저장소 맨 위 폴더(.git이 있는 폴더)를 고르세요</span>
+            </div>
+
+            <section class="card" aria-labelledby="guide-title">
+              <h2 id="guide-title" class="card-title">이렇게 씁니다</h2>
+              <ol class="guide"></ol>
+            </section>
+
+            <section id="home-recent-box" class="card" aria-labelledby="home-recent-title">
+              <h2 id="home-recent-title" class="card-title">최근에 점검한 폴더</h2>
+              <ul id="home-recent" class="list"></ul>
+            </section>
+
+            <p class="home-std muted">
+              <span id="home-standard"></span>
+              <button id="home-pick-standard" class="text-btn" type="button">
+                사내 기준 파일 고르기
               </button>
             </p>
           </div>
@@ -92,31 +100,42 @@
                 <h1 id="path" class="folder" tabindex="-1"></h1>
                 <div class="path-line">
                   <span id="path-full" class="path"></span>
-                  <button id="show-folder" class="linkish small-link" type="button">
+                  <button id="show-folder" class="text-btn small" type="button">
                     탐색기에서 열기
                   </button>
                 </div>
               </div>
               <div class="head-btns">
-                <button id="undo" class="btn quiet" type="button">
+                <button id="undo" class="btn" type="button">
                   <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M9 14L4 9l5-5" />
                     <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
                   </svg>
                   마지막으로 고친 것 되돌리기
                 </button>
-                <button id="save-report" class="btn quiet" type="button">리포트 저장</button>
-                <button
-                  id="rerun"
-                  class="btn quiet"
-                  type="button"
-                  title="F5"
-                  aria-keyshortcuts="F5"
-                >
-                  다시 점검
+                <button id="save-report" class="btn" type="button">
+                  <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+                  </svg>
+                  리포트 저장
+                </button>
+                <button id="rerun" class="btn" type="button" title="F5" aria-keyshortcuts="F5">
+                  <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6" />
+                  </svg>
+                  <span id="rerun-label">다시 점검</span>
                 </button>
               </div>
             </header>
+
+            <div class="mode">
+              <div class="seg" role="group" aria-labelledby="usage-label">
+                <span id="usage-label" class="sr-only">사용 방식</span>
+                <button id="usage-solo" type="button" aria-pressed="false">혼자 써요</button>
+                <button id="usage-team" type="button" aria-pressed="false">팀이 같이 써요</button>
+              </div>
+              <p id="usage-note"></p>
+            </div>
 
             <div class="tabs" role="tablist" aria-label="화면">
               <button
@@ -143,79 +162,87 @@
               </button>
             </div>
             <p id="notice" class="notice-line" role="status" hidden></p>
-            <p id="blocked" class="notice warn" hidden></p>
+            <p id="blocked" class="msg warn" hidden></p>
 
             <div id="view-results" role="tabpanel" aria-labelledby="tab-results">
               <section class="card hero" aria-labelledby="headline">
-                <div class="hero-top">
-                  <span id="status-pill" class="pill"></span>
-                  <span id="std-line" class="muted small-text"></span>
+                <div class="summary">
+                  <h2 id="headline" class="lead"></h2>
+                  <div class="score-box">
+                    <div class="score">
+                      <b id="score"></b><span class="unit">점</span>
+                      <em id="breakdown"></em>
+                    </div>
+                    <div class="bar" aria-hidden="true">
+                      <span id="bar-commit" class="bar-seg commit"></span>
+                      <span id="bar-fix" class="bar-seg fix"></span>
+                      <span id="bar-now" class="bar-seg now"></span>
+                      <span class="bar-goal"></span>
+                    </div>
+                    <div class="axis" aria-hidden="true">
+                      <span>0</span><span class="goal">목표 80</span><span class="end">100</span>
+                    </div>
+                  </div>
+                  <div class="hero-act">
+                    <button
+                      id="fix-all"
+                      class="btn solid lg"
+                      type="button"
+                      title="Ctrl+Enter"
+                      aria-keyshortcuts="Control+Enter"
+                      hidden
+                    ></button>
+                    <button
+                      id="hero-commit"
+                      class="btn solid lg"
+                      type="button"
+                      title="Ctrl+Enter"
+                      aria-keyshortcuts="Control+Enter"
+                      hidden
+                    >
+                      변경 커밋하기
+                    </button>
+                    <button
+                      id="hero-push"
+                      class="btn solid lg"
+                      type="button"
+                      title="Ctrl+Enter"
+                      aria-keyshortcuts="Control+Enter"
+                      hidden
+                    >
+                      팀원에게 보내기
+                    </button>
+                  </div>
                 </div>
-                <h2 id="headline" class="headline"></h2>
-                <div class="score-row">
-                  <span class="score-big"
-                    ><span id="score"></span><span class="unit">점</span></span
-                  >
-                  <span id="breakdown" class="breakdown"></span>
-                </div>
-                <div class="bar" aria-hidden="true">
-                  <span id="bar-commit" class="bar-seg commit"></span>
-                  <span id="bar-fix" class="bar-seg fix"></span>
-                  <span id="bar-now" class="bar-seg now"></span>
-                  <span class="bar-goal"></span>
-                </div>
-                <ul id="legend" class="legend"></ul>
                 <div id="steps" class="steps" hidden></div>
-                <div class="hero-act">
-                  <button
-                    id="fix-all"
-                    class="btn primary big"
-                    type="button"
-                    title="Ctrl+Enter"
-                    aria-keyshortcuts="Control+Enter"
-                    hidden
-                  ></button>
-                  <button
-                    id="hero-commit"
-                    class="btn primary big"
-                    type="button"
-                    title="Ctrl+Enter"
-                    aria-keyshortcuts="Control+Enter"
-                    hidden
-                  >
-                    변경 커밋하기
-                  </button>
-                  <button
-                    id="hero-push"
-                    class="btn primary big"
-                    type="button"
-                    title="Ctrl+Enter"
-                    aria-keyshortcuts="Control+Enter"
-                    hidden
-                  >
-                    팀원에게 보내기
-                  </button>
-                  <span id="fix-caption" class="caption"></span>
-                </div>
+                <p id="hero-msg" class="msg" hidden>
+                  <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 11v5M12 8h.01" />
+                  </svg>
+                  <span id="hero-msg-text"></span>
+                </p>
               </section>
 
               <section class="card todos" aria-labelledby="todo-title">
-                <div class="card-head">
+                <div class="sec-h">
                   <h2 id="todo-title"></h2>
-                  <span id="todo-hint" class="muted small-text">눌러서 이유 보기</span>
+                  <p id="todo-hint">위험한 것부터</p>
                 </div>
                 <div id="todos"></div>
-                <button
-                  id="passed-toggle"
-                  class="passed-toggle"
-                  type="button"
-                  aria-expanded="false"
-                >
-                  <span id="passed-label"></span>
-                  <svg class="ico chev" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </button>
+                <div id="passed-line" class="passed-line">
+                  <button
+                    id="passed-toggle"
+                    class="text-btn passed-toggle"
+                    type="button"
+                    aria-expanded="false"
+                  >
+                    <span id="passed-label"></span>
+                    <svg class="ico chev" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </button>
+                </div>
                 <div id="passed" hidden></div>
               </section>
             </div>
@@ -226,15 +253,13 @@
                   <div class="std-text">
                     <h2 id="std-title" class="std-name"><span id="standard"></span></h2>
                     <p id="std-desc" class="std-desc"></p>
-                    <p id="std-path" class="path"></p>
-                    <p id="standard-error" class="small error" hidden></p>
+                    <p id="std-path" class="std-path"></p>
+                    <p id="standard-error" class="error" hidden></p>
                   </div>
                   <div class="std-btns">
-                    <button id="pick-standard" class="btn soft" type="button">
-                      표준 파일 바꾸기
-                    </button>
-                    <button id="reset-standard" class="btn quiet" type="button">기본으로</button>
-                    <button id="open-guide" class="btn quiet" type="button" hidden>
+                    <button id="pick-standard" class="btn" type="button">사내 기준 파일 바꾸기</button>
+                    <button id="reset-standard" class="btn" type="button">기본으로</button>
+                    <button id="open-guide" class="btn" type="button" hidden>
                       사내 가이드 열기
                     </button>
                   </div>
@@ -250,7 +275,7 @@
               <section class="card" aria-labelledby="kind-title">
                 <h2 id="kind-title" class="card-title">폴더 종류</h2>
                 <p class="std-desc">
-                  폴더 종류에 따라 보는 항목이 다릅니다. 문서·기획 폴더는 위험 명령 차단 훅을 보지
+                  폴더 종류에 따라 보는 항목이 다릅니다. 문서·기획 폴더는 위험 명령 검사를 보지
                   않고, CLAUDE.md 필수 섹션도 문서용으로 봅니다.
                 </p>
                 <div class="kind-row" role="radiogroup" aria-labelledby="kind-title">
@@ -262,41 +287,22 @@
                     ><input id="kind-docs" type="radio" name="kind" value="docs" disabled />
                     문서·기획 폴더</label
                   >
-                  <button id="kind-auto" class="btn quiet small" type="button" hidden>
+                  <button id="kind-auto" class="btn sm" type="button" hidden>
                     자동 판별로 되돌리기
                   </button>
                 </div>
-                <p id="kind-note" class="small muted"></p>
+                <p id="kind-note"></p>
               </section>
 
               <section class="card crit" aria-labelledby="crit-title">
-                <div class="card-head">
+                <div class="sec-h">
                   <h2 id="crit-title"></h2>
-                  <span id="crit-sum" class="small-text"></span>
+                  <p id="crit-sum"></p>
                 </div>
                 <div class="crit-cols" aria-hidden="true">
                   <span>항목과 통과 기준</span><span>안 지키면</span><span>이 폴더</span>
                 </div>
                 <div id="criteria"></div>
-              </section>
-
-              <section class="card" aria-labelledby="glossary-title">
-                <h2 id="glossary-title" class="card-title" tabindex="-1">자주 나오는 말</h2>
-                <div id="glossary"></div>
-                <h3 class="card-sub">단축키</h3>
-                <dl class="glossary">
-                  <dt>Ctrl+Enter</dt>
-                  <dd>
-                    다음 단계의 주 버튼(바로 고치기 → 커밋하기 → 팀원에게 보내기), 확인창의 주 버튼.
-                    사용량이 드는 Claude 실행과 push는 직접 눌러야 합니다.
-                  </dd>
-                  <dt>Ctrl+1 · Ctrl+2</dt>
-                  <dd>점검 결과 · 점검 기준 탭</dd>
-                  <dt>Ctrl+Z</dt>
-                  <dd>마지막으로 고친 것 되돌리기 (커밋 전까지)</dd>
-                  <dt>Ctrl+O · F5 · Esc</dt>
-                  <dd>폴더 열기 · 다시 점검 · 확인창·알림 닫기</dd>
-                </dl>
               </section>
             </div>
           </div>
@@ -312,9 +318,9 @@
           hidden
         >
           <div class="panel-head">
-            <h2 id="panel-title" tabindex="-1">진행 · 변경 확인</h2>
-            <!-- 닫을 수 있는지(Esc)만 나타내는 자리. 닫기는 아래 행동 바의 [취소]·[닫기]로 한다 -->
-            <button id="panel-close" class="btn quiet small" type="button" aria-label="닫기">
+            <h2 id="panel-title" tabindex="-1">진행 상황</h2>
+            <!-- 결과 알림(toast)에서만 보이는 ×. 확인창은 아래 행동 바의 [취소]·[닫기]로 닫는다 -->
+            <button id="panel-close" class="icon-btn" type="button" aria-label="닫기">
               <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
@@ -329,6 +335,62 @@
           </div>
           <div id="panel-btns" class="panel-foot"></div>
         </section>
+
+        <dialog id="help" class="help" aria-labelledby="help-title">
+          <div class="panel-head">
+            <h2 id="help-title" tabindex="-1">사용법과 용어</h2>
+            <button id="help-close" class="icon-btn" type="button" aria-label="닫기">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
+          <div class="panel-body">
+            <h3 class="help-h">사용법</h3>
+            <ol class="guide"></ol>
+            <h3 class="help-h">혼자 / 팀</h3>
+            <p class="help-p">
+              폴더마다 "혼자 써요"와 "팀이 같이 써요" 중 하나로 봅니다. 처음에는 커밋한 사람 수로
+              추천하고, 바꾸면 그 폴더에 기억합니다. 혼자 쓰는 폴더는 고치면 끝나고, 내 PC 전체
+              설정(~/.claude/settings.json)에 둔 보호도 인정합니다. 팀 폴더는 고친 뒤 커밋하고
+              팀원에게 보내야 끝납니다.
+            </p>
+            <h3 class="help-h">자주 나오는 말</h3>
+            <div id="glossary"></div>
+            <h3 class="help-h">단축키</h3>
+            <table class="keys">
+              <tbody>
+                <tr>
+                  <th scope="row"><kbd>Ctrl+O</kbd></th>
+                  <td>폴더 열기</td>
+                </tr>
+                <tr>
+                  <th scope="row"><kbd>F5</kbd></th>
+                  <td>다시 점검</td>
+                </tr>
+                <tr>
+                  <th scope="row"><kbd>Ctrl+Enter</kbd></th>
+                  <td>
+                    지금 단계의 주 버튼(고치기, 커밋하기)과 확인창의 주 버튼. 사용량이 드는 Claude
+                    실행과 팀원에게 보내기는 직접 눌러야 합니다.
+                  </td>
+                </tr>
+                <tr>
+                  <th scope="row"><kbd>Ctrl+Z</kbd></th>
+                  <td>마지막으로 고친 것 되돌리기 (커밋하기 전까지)</td>
+                </tr>
+                <tr>
+                  <th scope="row"><kbd>Ctrl+1</kbd>, <kbd>Ctrl+2</kbd></th>
+                  <td>점검 결과 탭, 점검 기준 탭</td>
+                </tr>
+                <tr>
+                  <th scope="row"><kbd>Esc</kbd></th>
+                  <td>확인창·알림·이 창 닫기</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </dialog>
       </main>
     </div>
   </body>
