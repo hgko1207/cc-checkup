@@ -247,3 +247,61 @@ describe("진단 8 위험 명령 차단 훅 (R9)", () => {
     expect(byId(off, "hooks/present")?.severity).toBe("warn");
   });
 });
+
+describe("저장소 밖 설정 (개인 설정·내 PC 전체 설정)", () => {
+  const userSettings = settingsJson(
+    { deny: FULL_DENY, allow: ["Bash(git push:*)"], disableBypassPermissionsMode: "disable" },
+    { hooks: { PreToolUse: [{ matcher: "Bash", hooks: [] }] } },
+  );
+
+  async function ctxWithUser(usage: "solo" | "team") {
+    const ctx = await ctxFor(await repoWith({ ".env": "KEY=1\n" }));
+    return {
+      ...ctx,
+      usage,
+      other: { local: { state: "missing" as const }, user: await readJson(userSettings) },
+    };
+  }
+
+  async function readJson(body: string) {
+    return readSettings(await repoWith({ ".claude/settings.json": body }));
+  }
+
+  it("혼자: 내 PC 전체 설정에서 막혀 있으면 통과로 보고 어디서 막혔는지 적는다", async () => {
+    const findings = await checkSettings(await ctxWithUser("solo"));
+    expect(byId(findings, "settings/missing")).toMatchObject({ severity: "ok" });
+    for (const id of ["settings/env-read-deny", "settings/env-edit-deny"]) {
+      expect(byId(findings, id)?.severity).toBe("ok");
+      expect(byId(findings, id)?.message).toContain("내 PC 전체 설정");
+    }
+    expect(byId(findings, "settings/bypass")?.severity).toBe("ok");
+    expect(byId(findings, "hooks/present")?.severity).toBe("ok");
+    // 내 PC 전체 설정의 위험한 허용도 이 저장소에서 실행되므로 알린다
+    expect(byId(findings, "settings/risky-allow")?.severity).toBe("warn");
+  });
+
+  it("팀: 감점은 그대로 두고 팀원에게는 적용되지 않는다고 알린다", async () => {
+    const findings = await checkSettings(await ctxWithUser("team"));
+    expect(byId(findings, "settings/missing")?.severity).toBe("fail");
+    const read = byId(findings, "settings/env-read-deny");
+    expect(read?.severity).toBe("fail");
+    expect(read?.message).toContain("팀원에게는 적용되지 않습니다");
+    expect(read?.denyRules?.length).toBeGreaterThan(0);
+    expect(byId(findings, "settings/bypass")).toMatchObject({ severity: "warn", bypassFix: true });
+    expect(byId(findings, "hooks/present")?.message).toContain("팀원에게는");
+    expect(byId(findings, "settings/risky-allow")?.severity).toBe("ok");
+  });
+
+  it("혼자: 일부만 막혀 있으면 빠진 규칙만 고치기 후보로 낸다", async () => {
+    const ctx = await ctxFor(await repoWith({}));
+    const user = await readJson(settingsJson({ deny: ["Read(**/.env)"] }));
+    const findings = await checkSettings({
+      ...ctx,
+      usage: "solo",
+      other: { local: { state: "missing" }, user },
+    });
+    const rules = byId(findings, "settings/env-read-deny")?.denyRules ?? [];
+    expect(rules).toHaveLength(5);
+    expect(rules).not.toContain("Read(**/.env)");
+  });
+});

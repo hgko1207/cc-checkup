@@ -76,8 +76,22 @@ function listNames(items: string[]): string {
 
 const SCOPE_NOTE = "파일 도구·cat 등에는 적용, grep -r·스크립트는 못 막음";
 
+// 저장소 밖 설정. 혼자 쓰면 보호로 인정하고, 팀이면 팀원에게는 적용되지 않는다고 알린다
+type Scope = keyof CheckContext["other"];
+const SCOPE_NAMES: Record<Scope, string> = {
+  local: "개인 설정(settings.local.json)",
+  user: "내 PC 전체 설정(~/.claude/settings.json)",
+};
+const TEAM_NOTE = "팀원에게는 적용되지 않습니다";
+
 // 진단 4·5: 기본 대상 6개와 실제 .env 파일이 deny 규칙에 덮이는가
-function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Finding {
+// where: 저장소 밖 설정에서 막혔을 때 그 이름 (통과 문장에 넣는다)
+function envDenyFinding(
+  ctx: CheckContext,
+  deny: string[],
+  tool: FileTool,
+  where?: string,
+): Finding {
   const read = tool === "Read";
   const id = read ? "settings/env-read-deny" : "settings/env-edit-deny";
   const verb = read ? "읽기" : "쓰기";
@@ -124,7 +138,7 @@ function envDenyFinding(ctx: CheckContext, deny: string[], tool: FileTool): Find
     return {
       id,
       severity: "ok",
-      message: `.env ${verb} 차단: 기본 ${targets.length}개${extra} (${SCOPE_NOTE})`,
+      message: `.env ${verb} 차단: 기본 ${targets.length}개${extra}${where ? `, ${where}에서 막음` : ""} (${SCOPE_NOTE})`,
     };
   }
   // 위험: 실제 .env가 있는데 읽기 차단이 없거나, 차단에서 빠진 실제 .env가 있을 때
@@ -185,14 +199,22 @@ export function matcherHitsBash(matcher: unknown): boolean {
   }
 }
 
-function hooksFinding(settings: SettingsRead, kind: CheckContext["kind"]): Finding {
+// Bash 명령 전에 실행되는 훅 또는 team-ai 플러그인이 있는가
+function guardOf(settings: SettingsRead): "hook" | "kit" | null {
   const data = settings.state === "ok" ? settings.data : {};
+  const plugins = isObject(data.enabledPlugins) ? data.enabledPlugins : {};
+  if (Object.entries(plugins).some(([k, v]) => k.startsWith("team-ai@") && v === true))
+    return "kit";
   const hooks = isObject(data.hooks) ? data.hooks : {};
   const pre = Array.isArray(hooks.PreToolUse) ? hooks.PreToolUse : [];
-  const hasBashHook = pre.some((h) => isObject(h) && matcherHitsBash(h.matcher));
-  const plugins = isObject(data.enabledPlugins) ? data.enabledPlugins : {};
-  const hasKit = Object.entries(plugins).some(([k, v]) => k.startsWith("team-ai@") && v === true);
-  if (hasBashHook || hasKit) {
+  return pre.some((h) => isObject(h) && matcherHitsBash(h.matcher)) ? "hook" : null;
+}
+
+function hooksFinding(settings: SettingsRead, kind: CheckContext["kind"]): Finding {
+  const data = settings.state === "ok" ? settings.data : {};
+  const guard = guardOf(settings);
+  const hasKit = guard === "kit";
+  if (guard !== null) {
     return {
       id: "hooks/present",
       severity: "ok",
@@ -268,10 +290,80 @@ export const checkSettings: Check = async (ctx) => {
 
   const permissions = permissionsOf(settings);
   const deny = stringArray(permissions.deny);
-  findings.push(envDenyFinding(ctx, deny, "Read"));
-  findings.push(envDenyFinding(ctx, deny, "Edit"));
-  findings.push(riskyAllowFinding(stringArray(permissions.allow)));
-  findings.push(bypassFinding(permissions));
-  findings.push(hooksFinding(settings, ctx.kind));
+  const others = (Object.keys(SCOPE_NAMES) as Scope[]).map((scope) => ({
+    scope,
+    read: ctx.other[scope],
+    permissions: permissionsOf(ctx.other[scope]),
+  }));
+  const otherDeny = others.flatMap((o) => stringArray(o.permissions.deny));
+  const where = (scopes: Scope[]) => scopes.map((s) => SCOPE_NAMES[s]).join(", ");
+  const denyScopes = others.filter((o) => stringArray(o.permissions.deny).length > 0);
+  const solo = ctx.usage === "solo";
+
+  if (solo && settings.state === "missing") {
+    // 혼자 쓰면 저장소 밖 설정만으로도 충분하다. 실제 보호 여부는 아래 항목들이 따로 본다
+    const used = others.filter((o) => o.read.state === "ok").map((o) => o.scope);
+    if (used.length > 0)
+      findings[0] = {
+        id: "settings/missing",
+        severity: "ok",
+        message: `저장소 설정 파일은 없지만 ${where(used)}을 씁니다`,
+      };
+  }
+
+  for (const tool of ["Read", "Edit"] as const) {
+    const own = envDenyFinding(ctx, deny, tool);
+    const all = envDenyFinding(ctx, [...deny, ...otherDeny], tool);
+    const elsewhere = own.severity !== "ok" && all.severity === "ok";
+    const scopes = where(denyScopes.map((o) => o.scope));
+    if (solo)
+      findings.push(elsewhere ? envDenyFinding(ctx, [...deny, ...otherDeny], tool, scopes) : all);
+    else
+      findings.push(
+        elsewhere
+          ? { ...own, message: `${own.message}. ${scopes}에서는 막혀 있지만 ${TEAM_NOTE}` }
+          : own,
+      );
+  }
+
+  const allow = stringArray(permissions.allow);
+  // 혼자 쓰면 내 PC 전체 설정의 허용도 이 저장소에서 그대로 실행된다
+  findings.push(
+    riskyAllowFinding(
+      solo ? [...allow, ...others.flatMap((o) => stringArray(o.permissions.allow))] : allow,
+    ),
+  );
+
+  const bypass = bypassFinding(permissions);
+  const bypassElsewhere = others.filter(
+    (o) => o.permissions.disableBypassPermissionsMode === "disable",
+  );
+  if (bypass.severity !== "ok" && bypassElsewhere.length > 0) {
+    const scopes = where(bypassElsewhere.map((o) => o.scope));
+    findings.push(
+      solo
+        ? {
+            id: "settings/bypass",
+            severity: "ok",
+            message: `권한 우회 모드가 ${scopes}에서 막혀 있습니다`,
+          }
+        : { ...bypass, message: `${bypass.message}. ${scopes}에서는 막혀 있지만 ${TEAM_NOTE}` },
+    );
+  } else findings.push(bypass);
+
+  const hooks = hooksFinding(settings, ctx.kind);
+  const guarded = others.filter((o) => guardOf(o.read) !== null);
+  if (hooks.severity !== "ok" && !hooks.notApplicable && guarded.length > 0) {
+    const scopes = where(guarded.map((o) => o.scope));
+    findings.push(
+      solo
+        ? {
+            id: "hooks/present",
+            severity: "ok",
+            message: `${scopes}에 위험 명령 전에 실행되는 훅이 있습니다`,
+          }
+        : { ...hooks, message: `${hooks.message}. ${scopes}에는 있지만 ${TEAM_NOTE}` },
+    );
+  } else findings.push(hooks);
   return findings;
 };

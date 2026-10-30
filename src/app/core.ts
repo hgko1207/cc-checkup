@@ -684,6 +684,7 @@ export class AppCore {
       standard: await this.standard(),
       kind: this.entry(path)?.kind ?? "auto",
       usage: this.entry(path)?.usage ?? "auto",
+      home: this.deps.backup?.home, // 테스트·E2E는 임시 홈을 쓴다
     });
     return { diag, plan: planFixes(diag) };
   }
