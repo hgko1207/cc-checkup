@@ -41,5 +41,6 @@ export async function ctxFor(
     git,
     standard,
     kind: "dev",
+    usage: "team",
   };
 }

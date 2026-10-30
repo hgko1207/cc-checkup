@@ -163,7 +163,7 @@ async function start(): Promise<void> {
   );
   ipcMain.handle(
     CHANNELS.diagnose,
-    wrap((p: unknown, kind?: unknown) => core.diagnose(p, kind)),
+    wrap((p: unknown, kind?: unknown, usage?: unknown) => core.diagnose(p, kind, usage)),
   );
   ipcMain.handle(
     CHANNELS.fix,

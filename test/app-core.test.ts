@@ -118,7 +118,7 @@ describe("진단 화면 데이터", () => {
     picks.push(EXAMPLE);
     await core.pickFolder();
     await core.pickStandard();
-    const v = await core.diagnose(repo, "dev");
+    const v = await core.diagnose(repo, "dev", "team");
     expect(v.standard).toContain("사내 Claude 표준");
     const all = v.areas.flatMap((a) => a.findings.map((f) => ({ ...f, area: a.area })));
     const byId = (id: string) => all.find((f) => f.id === id);
@@ -299,6 +299,51 @@ describe("폴더 종류 선택", () => {
   });
 });
 
+describe("사용 방식 (혼자 / 팀)", () => {
+  it("자동 추천 → 직접 고르면 기억 → 자동으로 되돌리기", async () => {
+    // setup의 fakeGit: settings.json 추적 안 됨, git log 실패(커밋 없음) → 혼자
+    const { core, deps, repo } = await setup();
+    await core.pickFolder();
+    const auto = await core.diagnose(repo, "dev");
+    expect(auto).toMatchObject({ usage: "solo", usageAuto: true, usageGuess: "solo" });
+    expect(auto.usageReason).toContain("혼자");
+
+    const team = await core.diagnose(repo, undefined, "team");
+    expect(team).toMatchObject({ usage: "team", usageAuto: false, kind: "dev" });
+    const again = new AppCore(deps);
+    await again.init();
+    expect((await again.getState()).recent[0]?.usage).toBe("team");
+    expect((await again.diagnose(repo)).usage).toBe("team");
+
+    expect(await again.diagnose(repo, undefined, "auto")).toMatchObject({
+      usage: "solo",
+      usageAuto: true,
+    });
+    await expect(again.diagnose(repo, undefined, "group")).rejects.toThrow("사용 방식");
+  });
+
+  it("혼자: 커밋 감점·커밋 뒤 점수·사내 플러그인이 없고, 고쳐도 커밋 위험이 생기지 않는다", async () => {
+    const s = await setup();
+    await s.core.pickFolder();
+    s.picks.push(EXAMPLE);
+    await s.core.pickStandard();
+    const team = await s.core.diagnose(s.repo, "dev", "team");
+    const solo = await s.core.diagnose(s.repo, undefined, "solo");
+    const ids = (v: typeof solo) => v.areas.flatMap((a) => a.findings.map((f) => f.id));
+    expect(ids(team)).toContain("plugins/required");
+    expect(ids(solo)).not.toContain("plugins/required");
+    expect(solo.committedScore).toBeUndefined();
+
+    const nos = solo.fixes.map((f) => f.no);
+    const preview = await s.core.fix(s.repo, nos, false);
+    if (preview.kind !== "preview") throw new Error(preview.kind);
+    await s.core.fix(s.repo, nos, true);
+    const after = await s.core.diagnose(s.repo);
+    expect(after.score).toBe(preview.expectedScore);
+    expect(ids(after)).not.toContain("settings/committed");
+  });
+});
+
 describe("자세히·예시", () => {
   it("문제 항목에는 설명과 예시가 붙고 통과 항목에는 예시가 없다", async () => {
     const { core, repo } = await setup({ "CLAUDE.md": "# 앱\n" });
@@ -421,7 +466,7 @@ describe("예상 점수", () => {
     // setup의 fakeGit은 "pathspec did not match"(git 저장소인데 추적 안 됨)를 돌려준다
     const { core, repo } = await setup();
     await core.pickFolder();
-    const before = await core.diagnose(repo, "dev");
+    const before = await core.diagnose(repo, "dev", "team");
     const nos = before.fixes.map((f) => f.no);
     const preview = await core.fix(repo, nos, false);
     if (preview.kind !== "preview") throw new Error("preview");
@@ -438,7 +483,7 @@ describe("예상 점수", () => {
   it("커밋 뒤 점수: 고친 뒤 settings.json을 커밋하면 실제로 그 점수가 된다", async () => {
     const { core, deps, repo } = await setup();
     await core.pickFolder();
-    const before = await core.diagnose(repo, "dev");
+    const before = await core.diagnose(repo, "dev", "team");
     const commitTo = before.committedScore;
     expect(commitTo).toBeGreaterThan(before.expectedScore ?? 0);
     const nos = before.fixes.map((f) => f.no);
@@ -496,7 +541,7 @@ describe("점검 기준 화면", () => {
     await s.core.pickFolder();
     s.picks.push(EXAMPLE);
     await s.core.pickStandard();
-    const v = await s.core.diagnose(s.repo, "dev");
+    const v = await s.core.diagnose(s.repo, "dev", "team");
     const company = v.criteria.filter((c) => c.company).map((c) => c.id);
     expect(company).toEqual(["claude-md/sections", "file/plan", "file/design", "plugins/required"]);
     expect(v.criteria.find((c) => c.id === "claude-md/sections")?.rule).toBe(
@@ -535,7 +580,7 @@ describe("앱에서 커밋하기", () => {
     const core = new AppCore({ ...s.deps, runGit: undefined });
     await core.init();
     await core.pickFolder();
-    const before = await core.diagnose(s.repo, "dev");
+    const before = await core.diagnose(s.repo, "dev", "team");
     const nos = before.fixes.map((f) => f.no);
     await core.fix(s.repo, nos, false);
     await core.fix(s.repo, nos, true);

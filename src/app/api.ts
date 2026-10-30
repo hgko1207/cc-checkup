@@ -4,6 +4,7 @@
 export type Severity = "ok" | "warn" | "fail";
 export type Area = "security" | "team" | "docs" | "plugins";
 export type Kind = "dev" | "docs"; // 개발 저장소 / 문서·기획 폴더
+export type Usage = "solo" | "team"; // 혼자 쓰는 저장소 / 팀 저장소
 
 export interface ClaudeStatus {
   ok: boolean; // 설치돼 있고 실행됨
@@ -19,6 +20,7 @@ export interface RecentFolder {
   score?: number;
   at: string;
   kind?: Kind; // 사용자가 고른 폴더 종류 (없으면 자동 판별)
+  usage?: Usage; // 사용자가 고른 사용 방식 (없으면 자동 추천)
 }
 
 export interface AppState {
@@ -81,6 +83,10 @@ export interface DiagnosisView {
   kindAuto: boolean; // 자동 판별 결과를 쓰는 중
   kindReason: string; // 자동 판별 이유
   kindGuess: Kind; // 자동 판별 결과 (직접 고른 종류와 다를 수 있음)
+  usage: Usage;
+  usageAuto: boolean; // 자동 추천 결과를 쓰는 중
+  usageReason: string; // 자동 추천 이유
+  usageGuess: Usage; // 자동 추천 결과 (직접 고른 방식과 다를 수 있음)
   counts: Record<Severity, number>;
   areas: AreaView[];
   fixes: { no: number; title: string }[];
@@ -178,7 +184,8 @@ export interface CcCheckupApi {
   getState(refresh?: boolean): Promise<AppState>; // refresh면 Claude 설치·로그인을 다시 확인
   pickFolder(recent?: string): Promise<string | null>;
   pickStandard(reset?: boolean): Promise<AppState>;
-  diagnose(path: string, kind?: Kind | "auto"): Promise<DiagnosisView>; // kind를 주면 그 폴더에 기억
+  // kind·usage를 주면 그 폴더에 기억 ("auto"는 자동 판별로 되돌림)
+  diagnose(path: string, kind?: Kind | "auto", usage?: Usage | "auto"): Promise<DiagnosisView>;
   fix(path: string, nos: number[], apply: boolean): Promise<FixView>;
   claude(action: ClaudeAction): Promise<ClaudeView>;
   undo(path: string, apply: boolean): Promise<UndoView>;

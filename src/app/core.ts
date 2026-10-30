@@ -48,6 +48,7 @@ import {
   type LoadedStandard,
 } from "../standard.js";
 import type { Finding } from "../types.js";
+import type { Usage } from "../usage.js";
 import type {
   AppEvent,
   AppState,
@@ -191,7 +192,7 @@ export function expectedScore(diag: Diagnosis, chosen: FixCandidate[]): number {
   const createsSettings =
     diag.ctx.settings.state === "missing" &&
     chosen.some((c) => c.denyRules.length > 0 || c.bypass || c.plugins || c.hook);
-  if (createsSettings) {
+  if (createsSettings && diag.usage === "team") {
     const { tracked, reason } = diag.ctx.git;
     const skip = diag.kind === "docs" && reason === "git 저장소가 아닙니다";
     if (tracked === false)
@@ -204,7 +205,7 @@ export function expectedScore(diag: Diagnosis, chosen: FixCandidate[]): number {
 
 // 고친 뒤 settings.json까지 커밋했을 때의 점수. 커밋으로 풀리는 항목이 있거나 생길 때만 (git 저장소)
 export function committedScore(diag: Diagnosis, chosen: FixCandidate[]): number | undefined {
-  if (diag.ctx.git.tracked !== false) return undefined;
+  if (diag.usage === "solo" || diag.ctx.git.tracked !== false) return undefined;
   const findings: Finding[] = diag.findings.map((f) =>
     f.needsCommit || fixFor(f, chosen) ? { ...f, severity: "ok" } : f,
   );
@@ -384,6 +385,7 @@ export function toView(
   plan: FixPlan,
   canUndo: boolean,
   kindAuto = true,
+  usageAuto = true,
 ): DiagnosisView {
   const counts = { ok: 0, warn: 0, fail: 0 };
   const byArea = new Map<Area, FindingView[]>();
@@ -446,6 +448,10 @@ export function toView(
     kindAuto,
     kindReason: diag.kindGuess.reason,
     kindGuess: diag.kindGuess.kind,
+    usage: diag.usage,
+    usageAuto,
+    usageReason: diag.usageGuess.reason,
+    usageGuess: diag.usageGuess.usage,
     counts,
     areas,
     fixes: plan.candidates.map((c) => ({ no: c.no, title: c.title })),
@@ -540,7 +546,8 @@ export class AppCore {
       for (const r of recent as RecentFolder[]) {
         if (typeof r?.path !== "string" || !isAbsolute(r.path)) continue;
         const kind = r.kind === "dev" || r.kind === "docs" ? r.kind : undefined;
-        this.recent.push({ path: r.path, score: r.score, at: String(r.at), kind });
+        const usage = r.usage === "solo" || r.usage === "team" ? r.usage : undefined;
+        this.recent.push({ path: r.path, score: r.score, at: String(r.at), kind, usage });
         this.allowed.set(this.key(r.path), r.path);
       }
     }
@@ -576,13 +583,20 @@ export class AppCore {
     return this.recent.find((r) => this.key(r.path) === k);
   }
 
-  // kind: undefined면 기존 선택 유지, null이면 자동 판별로 되돌림
-  private async remember(path: string, score?: number, kind?: FolderKind | null): Promise<void> {
+  // kind·usage: undefined면 기존 선택 유지, null이면 자동 판별로 되돌림
+  private async remember(
+    path: string,
+    score?: number,
+    kind?: FolderKind | null,
+    usage?: Usage | null,
+  ): Promise<void> {
     const k = this.key(path);
     const prev = this.entry(path);
     const next: RecentFolder = { path, score: score ?? prev?.score, at: new Date().toISOString() };
     const chosen = kind === undefined ? prev?.kind : (kind ?? undefined);
     if (chosen) next.kind = chosen;
+    const chosenUsage = usage === undefined ? prev?.usage : (usage ?? undefined);
+    if (chosenUsage) next.usage = chosenUsage;
     this.recent = [next, ...this.recent.filter((r) => this.key(r.path) !== k)].slice(0, RECENT_MAX);
     this.allowed.set(k, path);
     await this.saveRecent();
@@ -663,34 +677,48 @@ export class AppCore {
     return this.getState();
   }
 
-  // 폴더 종류는 사용자가 고른 값, 없으면 자동 판별
+  // 폴더 종류·사용 방식은 사용자가 고른 값, 없으면 자동 판별
   private async run(path: string): Promise<{ diag: Diagnosis; plan: FixPlan }> {
     const diag = await diagnose(path, {
       runGit: this.deps.runGit,
       standard: await this.standard(),
       kind: this.entry(path)?.kind ?? "auto",
+      usage: this.entry(path)?.usage ?? "auto",
     });
     return { diag, plan: planFixes(diag) };
   }
 
-  async diagnose(v: unknown, kindIn?: unknown): Promise<DiagnosisView> {
+  async diagnose(v: unknown, kindIn?: unknown, usageIn?: unknown): Promise<DiagnosisView> {
     const path = this.folder(v);
     if (kindIn !== undefined) {
       if (kindIn !== "auto" && kindIn !== "dev" && kindIn !== "docs")
         throw new InputError("폴더 종류 값이 잘못됐습니다");
       await this.remember(path, undefined, kindIn === "auto" ? null : kindIn);
     }
+    if (usageIn !== undefined) {
+      if (usageIn !== "auto" && usageIn !== "solo" && usageIn !== "team")
+        throw new InputError("사용 방식 값이 잘못됐습니다");
+      await this.remember(path, undefined, undefined, usageIn === "auto" ? null : usageIn);
+    }
     const { diag, plan } = await this.run(path);
-    // 직접 고른 종류가 자동 판별과 같으면 직접 지정을 풀고 자동으로 둔다
+    // 직접 고른 값이 자동 판별과 같으면 직접 지정을 풀고 자동으로 둔다
     const chosen = this.entry(path)?.kind;
+    const chosenUsage = this.entry(path)?.usage;
     await this.remember(
       path,
       diag.score,
       chosen && chosen === diag.kindGuess.kind ? null : undefined,
+      chosenUsage && chosenUsage === diag.usageGuess.usage ? null : undefined,
     );
     const target = await findUndoTarget(path, this.deps.backup);
     const canUndo = target !== null && !(await this.undoCommitted(path, target));
-    const view = toView(diag, plan, canUndo, this.entry(path)?.kind === undefined);
+    const view = toView(
+      diag,
+      plan,
+      canUndo,
+      this.entry(path)?.kind === undefined,
+      this.entry(path)?.usage === undefined,
+    );
     const pushPending = await this.pushState(path);
     if (pushPending) view.pushPending = pushPending;
     return view;

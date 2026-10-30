@@ -16,6 +16,10 @@ test.beforeAll(async () => {
   git("init");
   git("add", ".");
   git("-c", "user.name=e2e", "-c", "user.email=e2e@example.com", "commit", "-m", "init");
+  // 커밋한 사람이 2명이라 팀 저장소로 추천된다 (혼자면 커밋 점수가 없다)
+  await writeFile(join(repo, "README.md"), "# 앱\n");
+  git("add", ".");
+  git("-c", "user.name=b", "-c", "user.email=b@example.com", "commit", "-m", "readme");
   const { ELECTRON_RUN_AS_NODE: _, ...env } = process.env;
   void _;
   app = await electron.launch({

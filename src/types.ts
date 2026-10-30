@@ -1,4 +1,5 @@
 import type { FolderKind, Standard } from "./standard.js";
+import type { Usage } from "./usage.js";
 
 // 진단 결과 한 건
 export type Severity = "ok" | "warn" | "fail";
@@ -72,6 +73,7 @@ export interface CheckContext {
   git: GitTracking;
   standard: Standard; // 폴더 종류에 맞춘 기준 (standardFor)
   kind: FolderKind;
+  usage: Usage;
 }
 
 // 진단 하나: 공유 입력을 받아 결과 목록을 돌려준다
