@@ -18,28 +18,34 @@
 
 ## 3. 진단 항목
 
-| id                          | 무엇을 보나         | 통과 기준                                                                               | 실패 시     | 가중치 |
-| --------------------------- | ------------------- | --------------------------------------------------------------------------------------- | ----------- | ------ |
-| `claude-md/missing`         | CLAUDE.md 존재      | 루트에 있음                                                                             | fail        | 15     |
-| `claude-md/too-long`        | CLAUDE.md 길이      | 200줄 이하 (100줄 권장)                                                                 | warn        | 5      |
-| `claude-md/verify-commands` | 검증 명령           | "검증 명령" 섹션 또는 test·lint·typecheck 명령이 적혀 있음                              | fail        | 10     |
-| `claude-md/do-not`          | 금지 사항           | "하지 말 것" 섹션이 있음                                                                | warn        | 5      |
-| `settings/missing`          | 팀 권한 설정        | `.claude/settings.json` 있음                                                            | fail        | 10     |
-| `settings/env-read-deny`    | 비밀 파일 읽기 차단 | deny에 `.env` Read 규칙                                                                 | fail        | 10     |
-| `settings/env-edit-deny`    | 비밀 파일 쓰기 차단 | deny에 `.env` Edit 규칙                                                                 | warn        | 5      |
-| `settings/risky-allow`      | 위험한 자동 허용    | allow에 `git restore`·`git reset`·`git clean`·`git push`·`rm -rf`·`Bash(*)`·`Bash` 없음 | warn        | 10     |
-| `settings/bypass-disabled`  | 권한 우회 모드      | `disableBypassPermissionsMode: "disable"`                                               | warn        | 5      |
-| `settings/powershell-pair`  | Windows 짝 규칙     | Bash 규칙마다 PowerShell 짝이 있음                                                      | warn (정보) | 0      |
-| `hooks/present`             | 차단 훅             | settings의 hooks 또는 팀 플러그인(team-ai) 활성                                         | fail        | 10     |
-| `plan/present`              | 작업 계획 파일      | `plan.md` 또는 `TASKS.md`                                                               | warn        | 5      |
-| `gitignore/local-settings`  | 개인 설정 분리      | `.gitignore`에 `.claude/settings.local.json`                                            | warn        | 5      |
-| `skills/too-many`           | 컨텍스트 비용       | 저장소 스킬 15개 이하                                                                   | warn        | 5      |
+진단 기준은 코드가 아니라 기준 파일(기본 내장 `src/standard-default.ts`, 사내 기준 파일 `standard/*.json`)에서 읽는다. 아래는 기본 기준이다. 앱의 [점검 기준] 탭이 같은 목록을 이 폴더의 결과와 함께 보여 준다.
+
+| id                       | 무엇을 보나        | 통과 기준                                                              | 안 지키면                      | 언제 보나                  |
+| ------------------------ | ------------------ | ---------------------------------------------------------------------- | ------------------------------ | -------------------------- |
+| `settings/missing`       | Claude 설정 파일   | `.claude/settings.json`이 있다                                         | 위험                           | 항상 (혼자면 아래 참고)    |
+| `settings/env-read-deny` | .env 읽기 차단     | .env 기본 이름과 폴더 안 실제 .env 파일을 Read로 막는다                | 위험 (.env가 아직 없으면 주의) | 항상                       |
+| `settings/env-edit-deny` | .env 쓰기 차단     | 같은 파일을 Edit로 막는다                                              | 주의                           | 항상                       |
+| `settings/risky-allow`   | 위험한 자동 허용   | allow에 강제 푸시·rm -rf·Bash 전체 같은 명령이 없다                    | 주의 (자동으로 고치지 않음)    | 항상                       |
+| `settings/bypass`        | 권한 우회 모드     | `permissions.disableBypassPermissionsMode: "disable"`                  | 주의                           | 항상                       |
+| `hooks/present`          | 위험 명령 검사(훅) | Bash 앞에 도는 PreToolUse 훅 또는 team-ai 플러그인                     | 주의                           | 개발 저장소                |
+| `settings/committed`     | 설정 커밋          | settings.json이 git에 커밋돼 있고, 보호 규칙이 개인 설정에만 있지 않다 | 위험 (확인할 수 없으면 주의)   | 팀 저장소                  |
+| `claude-md`              | CLAUDE.md          | CLAUDE.md 또는 .claude/CLAUDE.md가 있고 기준 줄 수 이하                | 없으면 위험, 길면 주의         | 항상                       |
+| `claude-md/verify`       | 검증 명령          | 검증 섹션이나 테스트·린트·타입체크 명령이 적혀 있다                    | 주의                           | 개발 저장소                |
+| `claude-md/sections`     | 사내 필수 섹션     | 사내 기준 파일이 정한 섹션이 있다                                      | 주의                           | 사내 기준 파일을 고른 경우 |
+| `file/<id>`              | 사내 필수 파일     | 사내 기준 파일이 정한 파일(예: plan.md, DESIGN.md)이 있다              | 기준 파일이 정한 심각도        | 사내 기준 파일을 고른 경우 |
+| `plugins/required`       | 사내 플러그인      | 저장소 설정에서 사내 플러그인을 켜 둔다                                | 주의                           | 사내 기준 파일 + 팀 저장소 |
+
+### 혼자 / 팀
+
+- 폴더마다 사용 방식을 고른다. 자동 추천: settings.json이 이미 커밋돼 있거나 커밋한 사람이 2명 이상이면 팀, 아니면 혼자(`src/usage.ts`). CLI는 지금처럼 팀 기준.
+- 혼자: `settings/committed`·`plugins/required`를 보지 않는다. 개인 설정(`.claude/settings.local.json`)과 내 PC 전체 설정(`~/.claude/settings.json`)에 둔 .env 차단·우회 모드 막기·훅도 통과로 인정하고, 저장소 설정 파일이 없어도 다른 설정을 쓰면 `settings/missing`을 통과로 본다.
+- 팀: 저장소 설정만 통과로 친다. 다른 곳에 보호가 있으면 "팀원에게는 적용되지 않습니다"라고 알리되 감점은 그대로.
 
 ## 4. 점수
 
-- 점수 = 통과한 항목의 가중치 합 ÷ 전체 가중치 합 × 100 (반올림)
-- warn은 가중치의 절반을 준다.
-- 등급: 80 이상 "준비됨", 50~79 "부분 준비", 50 미만 "준비 필요"
+- 점수 = 100 − 위험 수 × 15 − 주의 수 × 5 (0 아래로 내려가지 않음). 가중치는 기준 파일의 `score`에서 바꿀 수 있다.
+- 해당 없음(폴더 종류·사용 방식에 따라 보지 않는 항목)은 점수에 넣지 않는다.
+- 목표는 80점. 앱은 지금 점수, 바로 고치면 오를 점수, (팀이면) 커밋하면 오를 점수를 함께 보여 준다.
 
 ## 5. 출력
 

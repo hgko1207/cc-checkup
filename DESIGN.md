@@ -1,105 +1,99 @@
 ---
 name: Claude 세팅 점검
-description: 폴더의 Claude Code 팀 세팅을 사내 기준과 비교해 점수(0–100)로 보여 주고, 미리 보기 → 적용 → 되돌리기로 고치는 데스크톱 도구
+description: 폴더의 Claude Code 세팅을 기준과 비교해 0–100점과 할 일로 보여 주고, 미리 보기 → 적용 → 되돌리기로 고치는 데스크톱 도구
 colors:
-  bg: "#f2f4f6"
-  surface: "#ffffff"
-  soft: "#f2f4f6"
-  soft-2: "#f9fafb"
-  ink: "#191f28"
-  ink-2: "#4e5968"
-  ink-3: "#66717f"
-  line: "#e5e8eb"
-  accent: "#1b64da"
-  accent-hover: "#1957c2"
-  accent-ink: "#ffffff"
-  accent-soft: "#e8f3ff"
-  accent-soft-hover: "#dbeafe"
-  accent-text: "#1b64da"
-  fail: "#d32f2f"
-  fail-text: "#b42318"
-  fail-bg: "#ffebee"
-  fail-ink: "#ffffff"
-  warn: "#c2410c"
-  warn-text: "#a8410a"
-  warn-bg: "#fff3e0"
-  ok: "#15803d"
-  ok-bg: "#e8f7ee"
-  bar-fix: "#b3d4fd"
-  bar-commit: "#e3eefc"
-  code-bg: "#f6f7f9"
-  add: "#e3f5e8"
-  del: "#fdeaea"
+  bg: "#ffffff"
+  bg-2: "#f7f7f8"
+  fg: "#171719"
+  fg-2: "rgb(46 47 51 / 0.88)"
+  fg-3: "#5a5c63"
+  line: "rgb(112 115 124 / 0.22)"
+  line-2: "rgb(112 115 124 / 0.16)"
+  fill: "rgb(112 115 124 / 0.08)"
+  fill-2: "rgb(112 115 124 / 0.14)"
+  brand: "#0066ff"
+  brand-strong: "#005eeb"
+  brand-subtle: "rgb(0 102 255 / 0.06)"
+  brand-light: "rgb(0 102 255 / 0.28)"
+  on-brand: "#ffffff"
+  brand-fill: "#0066ff"
+  brand-fill-strong: "#005eeb"
+  brand-text: "#005eeb"
+  neg: "#b00c0c"
+  neg-fill: "#e52222"
+  neg-fill-strong: "#b00c0c"
+  neg-bg: "rgb(255 66 66 / 0.08)"
+  cau: "#9c5800"
+  cau-bg: "rgb(255 146 0 / 0.1)"
+  pos: "#006e25"
+  pos-bg: "rgb(0 191 64 / 0.1)"
+  add: "rgb(0 191 64 / 0.12)"
+  del: "rgb(255 66 66 / 0.1)"
+  scrim: "rgb(23 23 25 / 0.4)"
 typography:
   display:
-    fontFamily: "Pretendard Variable, Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
+    fontFamily: "Pretendard Variable, Pretendard, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
     fontSize: "40px"
-    fontWeight: 800
-    lineHeight: 1.1
-    letterSpacing: "-0.03em"
+    fontWeight: 700
+    lineHeight: "52px"
+    letterSpacing: "-0.028em"
     fontFeature: "tnum"
   headline:
-    fontFamily: "Pretendard Variable, Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
-    fontSize: "30px"
-    fontWeight: 800
-    lineHeight: 1.35
-    letterSpacing: "-0.03em"
-  title-page:
-    fontFamily: "Pretendard Variable, Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
-    fontSize: "24px"
-    fontWeight: 800
-    letterSpacing: "-0.02em"
-  title-dialog:
-    fontFamily: "Pretendard Variable, Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
-    fontSize: "20px"
-    fontWeight: 800
-    letterSpacing: "-0.02em"
-  title:
-    fontFamily: "Pretendard Variable, Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
-    fontSize: "18px"
-    fontWeight: 800
-    letterSpacing: "-0.02em"
-  body-strong:
-    fontFamily: "Pretendard Variable, Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
-    fontSize: "15px"
+    fontFamily: "Pretendard Variable, Pretendard, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
+    fontSize: "28px"
     fontWeight: 700
-  body-long:
-    fontFamily: "Pretendard Variable, Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
+    lineHeight: "38px"
+    letterSpacing: "-0.024em"
+  title-page:
+    fontFamily: "Pretendard Variable, Pretendard, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
+    fontSize: "24px"
+    fontWeight: 700
+    lineHeight: "32px"
+    letterSpacing: "-0.023em"
+  title:
+    fontFamily: "Pretendard Variable, Pretendard, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
+    fontSize: "20px"
+    fontWeight: 600
+    lineHeight: "28px"
+    letterSpacing: "-0.012em"
+  lead:
+    fontFamily: "Pretendard Variable, Pretendard, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
+    fontSize: "18px"
+    fontWeight: 600
+    lineHeight: "26px"
+  body-strong:
+    fontFamily: "Pretendard Variable, Pretendard, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
+    fontSize: "16px"
+    fontWeight: 600
+    lineHeight: "24px"
+  body:
+    fontFamily: "Pretendard Variable, Pretendard, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
     fontSize: "15px"
     fontWeight: 400
-    lineHeight: 1.6
-  body:
-    fontFamily: "Pretendard Variable, Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
+    lineHeight: "22px"
+    letterSpacing: "0.0096em"
+  body-small:
+    fontFamily: "Pretendard Variable, Pretendard, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
     fontSize: "14px"
     fontWeight: 400
-    lineHeight: 1.55
-    letterSpacing: "-0.01em"
+    lineHeight: "20px"
   caption:
-    fontFamily: "Pretendard Variable, Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
+    fontFamily: "Pretendard Variable, Pretendard, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
     fontSize: "13px"
-    fontWeight: 400
-    lineHeight: 1.6
-  label:
-    fontFamily: "Pretendard Variable, Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
-    fontSize: "12px"
-    fontWeight: 700
-  micro:
-    fontFamily: "Pretendard Variable, Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui, sans-serif"
-    fontSize: "11px"
-    fontWeight: 700
+    fontWeight: 600
+    lineHeight: "18px"
   mono:
     fontFamily: "Cascadia Mono, Consolas, D2Coding, monospace"
-    fontSize: "12px"
+    fontSize: "13px"
     fontWeight: 400
 rounded:
-  pill-sm: "6px"
-  sm: "8px"
-  tab: "9px"
-  md: "10px"
+  xs: "4px"
+  sm: "6px"
+  md: "8px"
+  btn: "10px"
   lg: "12px"
-  xl: "14px"
-  row: "16px"
-  card: "24px"
+  card: "16px"
+  panel: "20px"
   full: "50%"
 spacing:
   xs: "4px"
@@ -108,141 +102,169 @@ spacing:
   lg: "16px"
   xl: "20px"
   2xl: "24px"
-  3xl: "32px"
-  4xl: "40px"
+  3xl: "40px"
 components:
   button:
-    backgroundColor: "{colors.soft}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    padding: "0 14px"
+    backgroundColor: "{colors.bg}"
+    textColor: "{colors.fg}"
+    rounded: "{rounded.btn}"
+    padding: "0 16px"
     height: "40px"
   button-hover:
-    backgroundColor: "{colors.line}"
-  button-primary:
-    backgroundColor: "{colors.accent}"
-    textColor: "{colors.accent-ink}"
-    rounded: "{rounded.md}"
-    padding: "0 14px"
+    backgroundColor: "{colors.fill}"
+  button-solid:
+    backgroundColor: "{colors.brand-fill}"
+    textColor: "{colors.on-brand}"
+    rounded: "{rounded.btn}"
+    padding: "0 16px"
     height: "40px"
-  button-primary-hover:
-    backgroundColor: "{colors.accent-hover}"
+  button-solid-hover:
+    backgroundColor: "{colors.brand-fill-strong}"
   button-soft:
-    backgroundColor: "{colors.accent-soft}"
-    textColor: "{colors.accent-text}"
-    rounded: "{rounded.md}"
+    backgroundColor: "{colors.bg}"
+    textColor: "{colors.brand}"
+    rounded: "{rounded.btn}"
     height: "40px"
-  button-soft-hover:
-    backgroundColor: "{colors.accent-soft-hover}"
-    textColor: "{colors.accent-hover}"
-  button-quiet:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink-2}"
-    rounded: "{rounded.md}"
+  button-danger:
+    backgroundColor: "{colors.bg}"
+    textColor: "{colors.neg}"
+    rounded: "{rounded.btn}"
     height: "40px"
-  button-quiet-hover:
-    backgroundColor: "{colors.soft}"
-    textColor: "{colors.ink}"
   button-danger-fill:
-    backgroundColor: "{colors.fail}"
-    textColor: "{colors.fail-ink}"
-    rounded: "{rounded.md}"
+    backgroundColor: "{colors.neg-fill}"
+    textColor: "{colors.on-brand}"
+    rounded: "{rounded.btn}"
     height: "40px"
   button-danger-fill-hover:
-    backgroundColor: "{colors.fail-text}"
-  button-small:
+    backgroundColor: "{colors.neg-fill-strong}"
+  button-lg:
+    rounded: "{rounded.lg}"
+    padding: "0 24px"
+    height: "48px"
+  button-sm:
+    rounded: "{rounded.md}"
     padding: "0 12px"
-    height: "34px"
-  button-big:
-    rounded: "{rounded.xl}"
-    padding: "0 32px"
-    height: "56px"
-  button-wide:
-    rounded: "{rounded.lg}"
-    width: "100%"
-    height: "44px"
-  tabs-track:
-    backgroundColor: "{colors.line}"
-    rounded: "{rounded.lg}"
-    padding: "4px"
+    height: "32px"
+  text-button:
+    backgroundColor: "transparent"
+    textColor: "{colors.fg-2}"
+    typography: "{typography.body-small}"
+    rounded: "{rounded.sm}"
+    padding: "6px 4px"
+  link-button:
+    backgroundColor: "transparent"
+    textColor: "{colors.brand}"
+    rounded: "{rounded.sm}"
+    padding: "6px 4px"
+  icon-button:
+    backgroundColor: "transparent"
+    textColor: "{colors.fg-3}"
+    rounded: "{rounded.md}"
+    size: "36px"
+  segmented-track:
+    backgroundColor: "{colors.fill}"
+    rounded: "{rounded.btn}"
+    padding: "3px"
+  segmented-item:
+    backgroundColor: "transparent"
+    textColor: "{colors.fg-3}"
+    rounded: "{rounded.md}"
+    padding: "0 16px"
+    height: "32px"
+  segmented-item-selected:
+    backgroundColor: "{colors.bg}"
+    textColor: "{colors.fg}"
   tab:
     backgroundColor: "transparent"
-    textColor: "{colors.ink-2}"
-    rounded: "{rounded.tab}"
-    padding: "0 18px"
-    height: "36px"
+    textColor: "{colors.fg-3}"
+    padding: "12px 0"
   tab-selected:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink}"
+    textColor: "{colors.fg}"
   card:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "{colors.bg}"
     rounded: "{rounded.card}"
-    padding: "30px 36px"
-  card-hero:
-    backgroundColor: "{colors.surface}"
-    rounded: "{rounded.card}"
-    padding: "34px 40px"
-  pill-warn:
-    backgroundColor: "{colors.warn-bg}"
-    textColor: "{colors.warn-text}"
-    rounded: "{rounded.sm}"
-    padding: "5px 10px"
-  pill-good:
-    backgroundColor: "{colors.ok-bg}"
-    textColor: "{colors.ok}"
-    rounded: "{rounded.sm}"
-    padding: "5px 10px"
+    padding: "24px"
+  message:
+    backgroundColor: "{colors.fill}"
+    textColor: "{colors.fg-2}"
+    typography: "{typography.body-small}"
+    rounded: "{rounded.lg}"
+    padding: "12px 16px"
+  message-warn:
+    backgroundColor: "{colors.cau-bg}"
+    textColor: "{colors.cau}"
   badge-fail:
-    backgroundColor: "{colors.fail-bg}"
-    textColor: "{colors.fail}"
-    rounded: "{rounded.full}"
-    size: "36px"
+    backgroundColor: "{colors.neg-bg}"
+    textColor: "{colors.neg}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.sm}"
+    padding: "3px 8px"
   badge-warn:
-    backgroundColor: "{colors.warn-bg}"
-    textColor: "{colors.warn}"
-    rounded: "{rounded.full}"
-    size: "36px"
+    backgroundColor: "{colors.cau-bg}"
+    textColor: "{colors.cau}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.sm}"
+    padding: "3px 8px"
   badge-ok:
-    backgroundColor: "{colors.ok-bg}"
-    textColor: "{colors.ok}"
-    rounded: "{rounded.full}"
-    size: "36px"
-  badge-commit:
-    backgroundColor: "{colors.accent-soft}"
-    textColor: "{colors.accent-text}"
-    rounded: "{rounded.full}"
-    size: "36px"
+    backgroundColor: "{colors.pos-bg}"
+    textColor: "{colors.pos}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.sm}"
+    padding: "3px 8px"
+  badge-na:
+    backgroundColor: "{colors.fill}"
+    textColor: "{colors.fg-3}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.sm}"
+    padding: "3px 8px"
   tag:
-    backgroundColor: "{colors.soft}"
-    textColor: "{colors.ink-3}"
-    typography: "{typography.micro}"
-    rounded: "{rounded.pill-sm}"
+    backgroundColor: "{colors.fill}"
+    textColor: "{colors.fg-3}"
+    typography: "{typography.caption}"
+    rounded: "{rounded.sm}"
     padding: "2px 6px"
-  tag-company:
-    backgroundColor: "{colors.accent-soft}"
-    textColor: "{colors.accent-text}"
-    typography: "{typography.micro}"
-    rounded: "{rounded.pill-sm}"
-    padding: "2px 6px"
-  todo-row:
+  tag-accent:
+    backgroundColor: "{colors.brand-subtle}"
+    textColor: "{colors.brand-text}"
+  recent-item:
     backgroundColor: "transparent"
-    rounded: "{rounded.xl}"
-    padding: "14px 16px"
-  todo-row-open:
-    backgroundColor: "{colors.soft-2}"
-    rounded: "{rounded.row}"
-  dialog:
-    backgroundColor: "{colors.surface}"
-    rounded: "{rounded.card}"
+    rounded: "{rounded.btn}"
+    padding: "8px 12px"
+    height: "52px"
+  recent-item-current:
+    backgroundColor: "{colors.brand-subtle}"
+    textColor: "{colors.brand-text}"
+  todo-body:
+    backgroundColor: "{colors.bg-2}"
+    rounded: "{rounded.lg}"
+    padding: "4px 20px"
+  bundle-items:
+    backgroundColor: "{colors.bg-2}"
+    rounded: "{rounded.lg}"
+    padding: "4px 16px"
+  step:
+    backgroundColor: "{colors.bg-2}"
+    rounded: "{rounded.lg}"
+    padding: "12px 14px"
+  step-now:
+    backgroundColor: "{colors.brand-subtle}"
+    textColor: "{colors.brand-text}"
+  panel:
+    backgroundColor: "{colors.bg}"
+    rounded: "{rounded.panel}"
     width: "min(880px, calc(100vw - var(--side-w) - 48px))"
-  dialog-compact:
+  panel-compact:
     width: "min(560px, calc(100vw - var(--side-w) - 48px))"
   toast:
-    backgroundColor: "{colors.surface}"
-    rounded: "{rounded.card}"
+    backgroundColor: "{colors.bg}"
+    rounded: "{rounded.panel}"
     width: "min(640px, calc(100vw - var(--side-w) - 48px))"
+  help-dialog:
+    backgroundColor: "{colors.bg}"
+    rounded: "{rounded.panel}"
+    width: "min(720px, calc(100vw - 48px))"
   command-code:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "{colors.bg-2}"
     typography: "{typography.mono}"
     rounded: "{rounded.md}"
     padding: "8px 10px"
@@ -252,213 +274,210 @@ components:
 
 ## Overview
 
-**Creative North Star: "한눈에 읽히는 점검표"**
+**Creative North Star: "Montage 위의 점검표"**
 
-회색 바탕(`bg`) 위에 흰 카드가 놓이고, 카드 안에서 글자와 숫자가 일을 합니다. 화려한 장식 없이 큰 굵은 글자, 넉넉한 여백, 크게 둥근 모서리(24px)로 차분하고 친절하게 보이는 토스풍 도구 화면입니다. 사용자는 먼저 개발자, 그다음 비개발자이므로 모든 문장은 합니다체로 "지금 상태 → 고치면 → 커밋하면"을 순서대로 말합니다.
+원티드 Montage 디자인 시스템(wanteddev/montage-web, MIT)의 색·글자·모서리 토큰 위에 그린 업무 도구 화면입니다. 은유나 장식 그림 없이, 흰 면과 옅은 회색 면, 1px 선, 글자와 숫자만으로 "무엇이 위험하고 무엇을 누르면 되는지"를 보여 줍니다. 토큰 이름과 값은 `src/app/ui/style.css`의 `:root`에 있고, 어두운 모드는 같은 이름을 `@media (prefers-color-scheme: dark)`에서 다시 정의합니다.
 
-색은 아껴 씁니다. 파란색 하나(`accent`)가 "지금 할 행동"과 "현재 점수"를 맡고, 빨강·주황·초록은 위험·주의·통과 상태를 뜻할 때만 나옵니다. 깊이는 그림자가 아니라 회색 바탕과 흰 면의 차이로 만듭니다. 그림자는 선택된 탭과 떠 있는 창(대화 상자·알림)에만 있습니다.
-
-밀도는 조작 도구(Operate) 수준입니다. 한 화면에 요약 카드 하나, 할 일 카드 하나가 세로로 쌓이고(간격 20px), 모든 줄은 오른쪽 끝의 같은 자리에 점수(+N점)를 둡니다. 밝은 모드와 어두운 모드(`prefers-color-scheme: dark`)를 같은 토큰 이름으로 모두 지원합니다.
+밀도는 조작 도구 수준입니다. 왼쪽 사이드바(최근 폴더) + 오른쪽 본문 두 칸이고, 본문은 머리글 → 사용 방식 세그먼트 → 밑줄 탭 → 카드들이 20px 간격으로 쌓입니다. 파란색은 행동과 현재 위치에만, 빨강·주황·초록은 상태에만 쓰고, 상태는 항상 글자로도 말합니다.
 
 **Key Characteristics:**
 
-- 회색 페이지(`bg`) + 흰 카드(`surface`, 24px 모서리), 테두리 없는 면 구분
-- 파란 강조색 하나, 상태색 세 가지(fail / warn / ok)는 상태 표시 전용
-- Pretendard Variable, 굵기 800의 짧은 제목, 숫자는 tabular-nums
-- 점수 막대: 지금 / 고치면 / 커밋하면(점선) 세 구간 + 80점 목표선
-- 아이콘은 인라인 선(stroke) SVG만, 이모지·글리프 문자 없음
-- 확인이 필요한 일은 가운데 모달, 결과 알림은 아래쪽 비모달 카드
+- 흰 카드(`bg`, 16px 모서리, 1px `line-2` 테두리)를 옅은 회색 본문(`bg-2`) 위에 쌓는 평면 구조
+- 파란색(`brand`) 하나, 상태색 세 가지(`neg` / `cau` / `pos`)는 진단 상태 전용
+- Pretendard Variable 한 벌, 굵기 400–700, 13px 미만 글자 없음
+- 버튼은 Montage outlined(흰 면 + 1px `line`)가 기본, 채운 파란 버튼은 한 화면에 하나
+- 아이콘은 인라인 선 SVG(굵기 1.8)만
+- 확인은 가운데 모달, 결과는 아래쪽 비모달 알림, 사용법은 네이티브 `<dialog>`
 
 ## Colors
 
-차가운 회색 중립색 위에 파란색 하나와 상태색 세 가지만 얹은 팔레트입니다. 어두운 모드 값은 같은 토큰 이름으로 `style.css`의 `@media (prefers-color-scheme: dark)` 블록에 있고, 사이드카(`.impeccable/design.json`)의 `colorMeta.*.dark`에 함께 기록합니다.
+Montage의 coolNeutral 회색과 파란색 하나, 상태색 세 가지로 된 팔레트입니다. 투명도 값(`rgb(… / a)`)이 Montage의 원래 형식이라 그대로 씁니다. 어두운 모드 값은 사이드카 `colorMeta.*.dark`에 있습니다.
 
 ### Primary
 
-- **토스 블루** (`accent`): 주 버튼 배경, 점수 막대의 "지금" 구간, 포커스 링, 라디오·체크박스 `accent-color`, 브랜드 마크. 화면에서 가장 중요한 행동 하나와 현재 점수에만 씁니다.
-- **눌린 블루** (`accent-hover`): 주 버튼과 링크의 hover.
-- **블루 글자** (`accent-text`): 흰 면 위의 파란 글자(링크형 버튼, 현재 폴더, "사내" 태그, 목표 타일 숫자). 어두운 모드에서는 `accent`보다 밝게 갈라집니다.
-- **옅은 블루** (`accent-soft`, hover `accent-soft-hover`): 보조(soft) 버튼, 현재 폴더 줄, 커밋 배지, "사내" 태그, 목표 타일, 텍스트 선택 배경.
-- **블루 위 글자** (`accent-ink`): 주 버튼 글자.
+- **Montage 블루** (`brand`): 흰·어두운 면 위의 파란 글자와 선. 링크형 버튼 글자, outlined soft 버튼 글자, 포커스 링, 점수 막대의 "지금" 구간, 라디오·체크박스 `accent-color`. 어두운 모드에서 밝아집니다.
+- **눌린 블루** (`brand-strong`): 링크형 버튼의 hover.
+- **채운 블루** (`brand-fill`, hover `brand-fill-strong`): 흰 글자(`on-brand`)를 얹는 면. 채운 주 버튼, 브랜드 마크, 현재 단계 번호. 두 모드에서 값이 같아 흰 글자가 늘 4.5:1을 넘깁니다.
+- **옅은 면 위 블루 글자** (`brand-text`): `brand-subtle` 위의 파란 글자. 현재 폴더 이름, 현재 단계 제목, "사내" 태그, 사용법 번호 원.
+- **옅은 블루 면** (`brand-subtle`): 현재 폴더 줄, 현재 단계 칸, 사용법 번호 원, "사내" 태그, 텍스트 선택 배경.
+- **막대 예상 구간** (`brand-light`): 점수 막대의 "고치면" 구간 채움과 "커밋하면" 구간 점선.
+- **블루 위 글자** (`on-brand`): 채운 버튼 글자(채운 위험 버튼도 같음).
 
 ### Status
 
-- **위험 빨강** (`fail` 아이콘·채운 위험 버튼 / `fail-text` 글자 / `fail-bg` 배지·타일 바탕 / `fail-ink` 채운 버튼 글자): 감점이 큰 위험 항목과 되돌릴 수 없는 행동에만.
-- **주의 주황** (`warn` 아이콘 / `warn-text` 글자 / `warn-bg` 바탕): 주의 항목, 상태 알약 "아직 준비 전", 막힘 안내.
-- **통과 초록** (`ok` 아이콘·글자 / `ok-bg` 바탕): 통과 항목, 준비됨 알약, 80점 이상 최근 폴더 점수.
+- **위험** (`neg` 글자 / `neg-bg` 배지 바탕 / `neg-fill` 채운 위험 버튼, hover `neg-fill-strong`): 위험 배지, 오류 문장, 80점 미만 최근 폴더 점수, 되돌릴 수 없는 확인.
+- **주의** (`cau` 글자 / `cau-bg` 바탕): 주의 배지, 경고 안내 상자, 알림 줄.
+- **통과** (`pos` 글자 / `pos-bg` 바탕): 통과·"됨" 배지, 끝난 단계 번호, 80점 이상 점수, 목표 타일.
 
 ### Neutral
 
-- **페이지 회색** (`bg`): 앱 전체 바탕. 카드 사이의 빈 곳.
-- **흰 면** (`surface`): 카드, 사이드바, 대화 상자, 선택된 탭, 명령 코드 칸.
-- **옅은 회색 면** (`soft`): 기본 버튼 바탕, 점수 막대 빈 트랙, 카드 안 구분선, 기본 태그 바탕.
-- **더 옅은 회색 면** (`soft-2`): 펼친 할 일 줄, 줄 hover, 규칙 타일, 커밋 안내 상자.
-- **먹색** (`ink`): 본문과 제목, 80점 목표선.
-- **회색 바탕용 보조 글자** (`ink-2`): `bg`·`soft` 위의 보조 문장, 탭 글자, 조용한 버튼 글자.
-- **흰 바탕용 보조 글자** (`ink-3`): 카드 안의 보조 문장, 그룹 이름, 캡션, 경로, 접기 화살표.
-- **선** (`line`): 대화 상자 행동 바 위 선, 파일 칸·명령 칸 테두리, 탭 트랙 바탕, 기본 버튼 hover.
-- **코드 바탕** (`code-bg`), **추가 줄** (`add`), **삭제 줄** (`del`): 미리 보기 diff와 예시·로그.
-- **막대 고치면** (`bar-fix`), **막대 커밋하면** (`bar-commit`): 점수 막대의 예상 구간 전용.
+- **흰 면** (`bg`): 사이드바, 카드, 버튼, 모달, 사용법 창.
+- **옅은 회색 면** (`bg-2`): 본문 바탕, 카드 안의 펼친 본문·묶음 목록·단계 칸·규칙 타일·코드 칸.
+- **먹색** (`fg`): 제목과 본문, 선택된 탭 밑줄, 80점 목표선.
+- **보조 글자** (`fg-2`): 할 일 줄의 "할 일:" 문장, 안내 문단, 텍스트 버튼.
+- **흐린 글자** (`fg-3`): 경로, 그룹 이름, 표 머리, 선택 안 된 탭·세그먼트. Montage 토큰이 아니라 이 앱이 더한 값으로, 회색 면(`bg-2`) 위에서도 4.5:1을 넘깁니다.
+- **선** (`line` 버튼·kbd 테두리, `line-2` 카드 테두리·줄 구분선·탭 바닥선).
+- **채움** (`fill` hover·세그먼트 트랙·기본 안내 상자, `fill-2` 막대 빈 트랙·단계 번호 원).
+- **diff** (`add`, `del`): 미리 보기의 추가·삭제 줄 바탕.
+- **스크림** (`scrim`): 모달과 사용법 창 뒤.
 
 ### Named Rules
 
-**The One Blue Rule.** 파란색은 행동과 현재 점수의 색입니다. 장식, 제목, 구역 바탕에 쓰지 않습니다. 상태를 말할 때는 빨강·주황·초록만 씁니다.
+**The 30-Step Status Text Rule.** 상태색 글자는 Montage 팔레트의 50 단계(red 50 `#ff4242` 등) 대신 30 단계(`neg` `#b00c0c`, `cau` `#9c5800`, `pos` `#006e25`)를 써서 흰 면과 옅은 상태 바탕 위에서 4.5:1을 넘깁니다. 50 단계 색은 투명도를 낮춘 바탕(`*-bg`)에만 남습니다. 어두운 모드는 밝은 60 단계를 씁니다.
 
-**The Surface-Aware Gray Rule.** 보조 글자 토큰은 놓이는 면으로 고릅니다. 회색 바탕(`bg`·`soft`) 위에는 `ink-2`, 흰 면(`surface`·`soft-2`) 위에는 `ink-3`. `ink-3`은 `bg` 위에서 4.5:1 경계(약 4.5:1)에 걸리므로 회색 바탕에 쓰지 않습니다. 모든 글자는 4.5:1 이상입니다.
+**The Blue Means Act Rule.** 파란색은 누를 수 있는 것(주 버튼, 링크, soft 버튼 글자)과 지금 위치(현재 폴더, 현재 단계, 지금 점수 구간, 포커스)에만 씁니다. 제목, 장식, 구역 바탕에는 쓰지 않습니다.
 
-**The Status-Only Color Rule.** 빨강·주황·초록은 진단 결과의 심각도(위험·주의·통과)를 뜻할 때만 씁니다. 글자에는 `*-text`, 아이콘·채움에는 기본 토큰, 바탕에는 `*-bg`를 씁니다.
+**The Right Blue Rule.** 파란 토큰은 놓이는 자리로 고릅니다. 흰 글자 아래 면은 `brand-fill`, `brand-subtle` 위 글자는 `brand-text`, 그 밖의 파란 글자·선은 `brand`. 어두운 모드의 밝은 `brand`를 흰 글자 아래에 깔지 않습니다.
+
+**The Words Before Color Rule.** 상태는 색만으로 말하지 않습니다. 배지는 "위험 / 주의 / 통과 / 됨" 글자를 담고, 점수는 숫자로, 규칙 타일은 이름표로 함께 말합니다.
 
 ## Typography
 
-**Display Font:** Pretendard Variable (Segoe UI, Malgun Gothic, Apple SD Gothic Neo, system-ui 대체)
+**Display Font:** Pretendard Variable (Pretendard, Malgun Gothic, Apple SD Gothic Neo, system-ui 대체)
 **Body Font:** Pretendard Variable (같은 스택)
 **Label/Mono Font:** Cascadia Mono (Consolas, D2Coding 대체)
 
-**Character:** 한글이 반듯하게 읽히는 Pretendard 한 벌로 제목부터 캡션까지 처리합니다. 큰 제목은 굵기 800과 좁은 자간(-0.02 ~ -0.03em)으로 단단하게, 본문은 14px에 자간 -0.01em으로 조밀하게 둡니다. Pretendard는 앱 안에 넣어 오프라인·CSP `'self'`에서도 같은 글꼴로 보입니다(SIL OFL 1.1, 라이선스 동봉).
+**Character:** Pretendard 한 벌로 점수부터 캡션까지 처리합니다. 큰 글자일수록 자간을 좁히고(-0.028 ~ -0.012em), 본문 15px은 Montage 본문 자간(0.0096em)을 씁니다. 글꼴은 앱에 넣어 오프라인·CSP `'self'`에서도 같게 보입니다(SIL OFL 1.1).
 
 ### Hierarchy
 
-- **Display** (800, 40px, 1.1, tabular-nums): 요약 카드의 큰 점수. 단위 "점"은 0.6em.
-- **Headline** (800, 30px, 1.35, -0.03em): 요약 카드의 두 줄 결론. `white-space: pre-line`으로 줄을 일부러 나누고 `text-wrap: balance`. 좁은 창(≤1000px)에서 26px.
-- **Title-page** (800, 24px, -0.02em): 폴더 이름(h1), 기준 이름. 빈 화면 제목은 26px.
-- **Title-dialog** (800, 20px): 대화 상자 제목.
-- **Title** (800, 18px, -0.02em): 카드 제목, 대화 상자 본문의 첫 줄 요약(`::first-line`).
-- **Body-strong** (700, 15px): 할 일 제목, 기준 항목 제목.
-- **Body-long** (400, 15px, 1.6–1.7): 대화 상자 메시지, 빈 화면 안내.
-- **Body** (400, 14px, 1.55): 기본 글자, 버튼, 탭. 펼친 설명 문단은 1.65에 68ch까지.
-- **Caption** (400, 13px, 1.6): "고치면:" 부제, 범례, 캡션, 그룹 이름(700).
-- **Label** (700, 12px): 기준 표의 열 이름, 고르기 항목 제목. 경로는 Mono 12px.
-- **Micro** (700, 11px): 태그, 예시 라벨, 점수 옆 메모(500).
+- **Display** (700, 40px/52px): 요약 카드의 점수 숫자 한 곳. 단위 "점"은 18px/600.
+- **Headline** (700, 28px/38px): 처음 화면 제목.
+- **Title-page** (700, 24px/32px): 머리글의 폴더 이름(h1), 점검 기준 이름.
+- **Title** (600, 20px/28px): 카드 제목·묶음 제목. 모달 제목은 같은 크기에 700, 규칙 타일 숫자도 20px/700.
+- **Lead** (600, 18px/26px): 요약 카드의 리드 문장(`pre-line`), 모달 메시지의 `::first-line`(700).
+- **Body-strong** (600, 16px/24px): 할 일 제목, 탭, 사용법 단계 제목. 처음 화면 안내 문단은 16px/26px 400.
+- **Body** (400, 15px/22px): 기본 글자, 버튼, "할 일:" 문장, 펼친 본문 칸(15px/24px, 64ch).
+- **Body-small** (400–600, 14px/20px): 안내 상자, 작은 버튼, 텍스트 버튼, 세그먼트 항목, 펼친 본문 칸 이름.
+- **Caption** (600, 13px/18px): 배지, 태그, 그룹 이름, 경로(400), 막대 눈금, kbd.
+- **Mono** (400, 13px): 경로·명령·diff·로그·예시.
 
 ### Named Rules
 
-**The Tabular Score Rule.** 점수·감점·경과 시간처럼 바뀌는 숫자는 모두 `font-variant-numeric: tabular-nums`로 자리를 고정합니다.
+**The 13px Floor Rule.** 화면의 어떤 글자도 13px보다 작지 않습니다. 가장 작은 단계는 Caption과 Mono(13px)입니다.
 
-**The Keep-All Rule.** 한국어 문장 블록에는 `word-break: keep-all`을 겁니다. 어절 중간에서 줄이 끊기지 않게 합니다. 경로·명령·파일 이름만 `break-all`/`overflow-wrap: anywhere`로 끊습니다.
+**The Tabular Score Rule.** 점수, +N점, 경과 시간처럼 바뀌는 숫자는 `font-variant-numeric: tabular-nums`로 자리를 고정합니다.
+
+**The Keep-All Rule.** 문서 전체에 `word-break: keep-all`을 걸어 어절 중간에서 줄이 끊기지 않게 합니다. 경로·명령·제목만 `overflow-wrap: anywhere` 또는 `break-all`로 끊습니다.
 
 ## Layout
 
-두 칸 구조입니다. 왼쪽 사이드바(`--side-w` 248px, 흰 면, 오른쪽 1px `line`)에 브랜드, 폴더 열기, 최근 폴더, Claude 상태가 있고, 오른쪽 본문은 최대 880px 열(`.wrap`, 안쪽 여백 32px 40px 56px)에 카드를 세로로 20px 간격으로 쌓습니다.
+두 칸 격자(`--side-w` 248px + 나머지)입니다. 사이드바는 흰 면에 오른쪽 1px `line-2`, 안쪽 20px 16px, 요소 간격 20px이고 위에서부터 브랜드 → [폴더 열기] → 최근 폴더 → 아래쪽(사용법, Claude 상태 줄)입니다. 본문은 `bg-2` 바탕에서만 스크롤되고, 최대 920px 열(안쪽 28px 40px 48px)에 블록을 20px 간격으로 쌓습니다.
 
-- **기준 간격:** 4 / 8 / 12 / 16 / 20 / 24 / 32 / 40px. 카드 사이 20px, 카드 안 할 일 줄 사이 2px(펼치면 6px), 줄 안쪽 14px 16px.
-- **오른쪽 고정 열:** 할 일 줄은 Claude 버튼 열(148px)과 점수·화살표 열(104px)의 폭을 고정해 모든 줄에서 같은 자리에 둡니다. 펼친 본문은 배지 폭만큼(66px) 들여 씁니다.
-- **기준 표:** `minmax(0,1fr) 160px 120px` 세 열(항목과 통과 기준 / 안 지키면 / 이 폴더). 열 이름은 화면에 보이되 `aria-hidden`이고, 각 칸에는 `sr-only` 라벨이 붙습니다.
-- **반응형(≤1000px):** 사이드바 220px, 본문 여백 24px, 카드 26px 24px, 기준 표 `1fr 120px 92px`, Claude 버튼은 할 일 문장 아래로 내려 갑니다. 창 최소 폭은 760px(스타일시트 주석 기준)이라 두 칸은 항상 유지합니다.
+- **기준 간격:** 4 / 8 / 12 / 16 / 20 / 24 / 40px. 카드 안쪽 24px, 버튼 사이 8px.
+- **할 일 줄:** `minmax(0,1fr) auto auto 28px` 네 열(머리 버튼 | +N점 | 작은 버튼 | 화살표), 위아래 16px, 줄 사이 1px `line-2`. 머리 버튼 안은 `52px` 배지 열 + 문장. 펼친 본문은 64px 들여 씁니다.
+- **기준 표:** `minmax(0,1fr) 160px 120px`.
+- **반응형(≤1000px):** 사이드바 220px, 본문 안쪽 24px, 카드 20px, 요약 카드 한 열, 할 일 줄의 버튼이 둘째 줄로, 펼친 본문 칸 이름이 위로, 단계·사용법 칸 한 열, 기준 표 `1fr 120px 92px`. 창 최소 폭 760px이라 두 칸은 유지됩니다.
 - **긴 경로:** 한 줄로 두고 `direction: rtl`로 앞쪽을 줄여 폴더 끝이 보이게 합니다.
+- **알림이 떠 있을 때:** 본문 아래 여백을 220px로 늘려 알림이 마지막 카드를 가리지 않게 합니다.
 
 ## Elevation & Depth
 
-평면 우선입니다. 깊이는 회색 페이지(`bg`)와 흰 카드(`surface`), 흰 카드 안의 `soft-2` 면으로 만듭니다. 카드에는 그림자도 테두리도 없습니다. 그림자는 화면 위에 떠야 하는 것에만 있습니다.
+평면 우선입니다. 깊이는 `bg-2` 바탕 위 흰 카드와 1px `line-2` 테두리로 만들고, 카드에는 그림자가 없습니다. 그림자는 화면 위에 떠야 하는 것과 세그먼트의 선택된 칸에만 있습니다.
 
 ### Shadow Vocabulary
 
-- **선택된 탭** (`box-shadow: 0 1px 3px rgb(0 0 0 / 0.08)`): 회색 트랙 위 흰 탭을 살짝 띄웁니다.
-- **모달 대화 상자** (`box-shadow: 0 2px 6px rgb(0 0 0 / 0.06), 0 24px 64px rgb(0 0 0 / 0.2)`): `scrim`(밝은 모드 `rgb(0 0 0 / 0.32)`, 어두운 모드 0.55) 위 가운데 창.
-- **결과 알림 카드** (`box-shadow: 0 2px 6px rgb(0 0 0 / 0.08), 0 16px 40px rgb(0 0 0 / 0.18)`): 스크림 없이 아래쪽에 뜨는 카드.
+- **떠 있는 창** (`--shadow`: `0 2px 8px rgb(23 23 25 / 0.06), 0 16px 40px rgb(23 23 25 / 0.16)`, 어두운 모드 0.3 / 0.5): 모달, 아래쪽 알림, 사용법 창.
+- **선택된 세그먼트** (`--shadow-sm`: `0 1px 2px rgb(23 23 25 / 0.08)`, 어두운 모드 `rgb(0 0 0 / 0.4)`): 트랙 위 흰 칸을 살짝 띄웁니다.
 
 ### Named Rules
 
-**The Flat Card Rule.** 카드는 바탕색 차이만으로 구분합니다. 카드에 그림자나 테두리를 더하지 않습니다. 그림자는 탭 선택과 떠 있는 창에만 씁니다.
+**The Bordered Flat Card Rule.** 카드는 1px `line-2` 테두리와 바탕색 차이로만 구분합니다. 카드에 그림자를 더하지 않습니다.
 
 ## Shapes
 
-크게 둥근 모서리가 이 화면의 형태 언어입니다. 바깥 면일수록 더 둥글고, 안쪽 요소일수록 덜 둥급니다: 카드·대화 상자 24px → 펼친 할 일 16px → 할 일 줄·큰 버튼·타일·안내 상자 14px → 탭 트랙·넓은 버튼 12px → 버튼·코드 칸·파일 칸 10px → 탭 9px → 알약·브랜드 마크 8px → 태그·막대 6px. 상태 배지만 완전한 원(36px, 지나간 항목 28px)입니다.
+바깥 면일수록 더 둥글고 안쪽일수록 덜 둥급니다: 모달·사용법 창 20px → 카드 16px → 큰 버튼·안내 상자·펼친 본문·묶음 목록·단계 칸·타일 12px → 버튼·세그먼트 트랙·최근 폴더 줄·파일 칸 10px → 작은 버튼·세그먼트 칸·아이콘 버튼·코드 칸·브랜드 마크 8px → 배지·태그·텍스트 버튼·kbd 6px → 막대 4px. 번호 원과 상태 점만 완전한 원입니다.
 
-선은 드물게 씁니다. 1px `line`은 코드·파일·명령 칸 테두리와 대화 상자 행동 바 위에만, 카드 안의 구분선은 더 옅은 `soft`(지나간 항목 토글, 기준 그룹)입니다. "커밋하면" 구간만 1.5px 점선 외곽선(`bar-fix`)으로 그려 아직 확정되지 않은 점수임을 보여 줍니다.
+선은 1px이 기본입니다. `line`은 버튼·kbd 테두리, `line-2`는 카드·줄 구분·탭 바닥선·코드 칸. 선택된 탭 밑줄만 2px `fg`, "커밋하면" 막대 구간만 1.5px 점선(`brand-light`)입니다.
 
 ## Components
 
 ### Buttons
 
-차분하고 단단한 버튼. 굵은 글자와 둥근 면, 테두리 없음.
+Montage outlined 버튼이 기본입니다. 흰 면, 1px `line` 테두리, 15px/600 글자, 아이콘과 6px 간격.
 
-- **Shape:** 부드럽게 둥근 모서리(10px), 높이 40px, 안쪽 0 14px, 글자 14px/600, 아이콘과 8px 간격.
-- **Primary:** 파란 면 + 흰 글자(700). **한 화면에 주 버튼은 하나**입니다. 요약 카드에서는 단계에 따라 "N개 바로 고치기" → "변경 커밋하기" → "팀원에게 보내기" 중 하나만 보이고, 대화 상자에서는 행동 바 맨 오른쪽 하나입니다. 주 버튼은 Ctrl+Enter로도 눌리지만, 돈이 들거나(Claude 실행) 되돌릴 수 없는(push·되돌리기) 버튼은 `deliberate`로 표시해 단축키에서 빼고, 행동 바에 Ctrl+Enter 칩 대신 "직접 눌러 주세요"를 둡니다. 빨강(`danger-fill`)은 지우는 동작(되돌리기)만, push는 앞으로 가는 동작이라 파랑입니다. 요약 카드의 단축키는 따로 칩을 두지 않고 캡션 첫 줄 끝에 " · Ctrl+Enter"로 적습니다.
-- **Soft:** 옅은 파랑 면 + 파란 글자(700). 줄 단위 행동(이 할 일만 고치기, Claude로 반영, 표준 파일 바꾸기). 사이드바 안에서는 회색 면(`soft`)으로 바뀝니다.
-- **Default:** 회색 면(`soft`) + 먹색 글자. 알림 안 보조 행동, 대화 상자의 취소·닫기.
-- **Quiet / Ghost:** 투명 + `ink-2` 글자(500). 머리글의 되돌리기·리포트 저장·다시 점검. hover에 `soft` 면.
-- **Danger-fill:** 빨간 면 + `fail-ink` 글자. 되돌릴 수 없는 확인에만. **Danger**(글자만 빨강)는 "중단".
-- **Sizes:** small 34px(13px 글자), big 56px·14px 모서리·17px 글자(요약 카드와 빈 화면의 주 행동), wide 100%·44px·12px 모서리(사이드바 폴더 열기). 대화 상자 행동 바의 버튼은 44px.
-- **Hover / Focus / Disabled:** 배경·글자색이 0.15s ease-out으로 바뀝니다. 포커스는 2px `accent` 외곽선, 2px 띄움. 꺼진 버튼은 투명도 0.45, 꺼진 이유는 버튼 아래 11px 글자로 적습니다.
-- **Link-ish:** 밑줄 있는 파란 13px 글자 버튼(탐색기에서 열기, 다시 확인, 예시 보기).
+- **Shape:** 10px 모서리, 높이 40px, 안쪽 0 16px. 큰 버튼(lg) 48px·12px 모서리·16px 글자, 작은 버튼(sm) 32px·8px 모서리·14px 글자. 모달 행동 바 버튼은 44px.
+- **Solid (주 행동):** `brand-fill` 면 + `on-brand` 글자, hover `brand-fill-strong`. 한 화면(탭)에 하나입니다: 처음 화면의 [점검할 폴더 고르기], 요약 카드의 단계별 주 버튼 하나, 추천 세팅의 첫 묶음 행동, 모달 행동 바 오른쪽 끝.
+- **Soft:** outlined 그대로 글자만 `brand`. 줄 단위 행동([Claude로 반영] 등).
+- **Danger / Danger-fill:** outlined + `neg` 글자([중단]), 채운 `neg-fill` + `on-brand` 글자, hover `neg-fill-strong`(되돌릴 수 없는 확인에만).
+- **Text / Link:** 테두리 없는 14px/600. 텍스트 버튼은 `fg-2`, 링크형은 `brand`.
+- **Icon:** 36px 투명 칸, `fg-3` 아이콘, hover에 `fill`.
+- **Hover / Focus / Disabled:** hover에 `fill`(채운 버튼은 `brand-fill-strong`), 0.15s ease-out. 포커스는 2px `brand` 외곽선 2px 띄움. 꺼진 버튼은 투명도 0.45, 이유는 버튼 아래 13px `fg-3`로 적습니다. 비용이 들거나 되돌릴 수 없는 버튼은 `deliberate`로 Ctrl+Enter에서 빠집니다.
+
+### Header
+
+폴더 이름(Title-page) + 경로 한 줄([탐색기에서 열기] 텍스트 버튼) 왼쪽, 오른쪽에 아이콘 달린 outlined 버튼 셋(마지막 반영 되돌리기 / 리포트 저장 / 다시 점검).
+
+### Segmented control (사용 방식)
+
+`fill` 트랙(3px 안쪽, 10px 모서리) 안의 32px 칸 두 개: 혼자 써요 / 팀이 같이 써요. `aria-pressed`로 선택을 말하고, 선택된 칸은 흰 면 + `fg` + `--shadow-sm`, 나머지는 `fg-3`. 오른쪽에 14px `fg-3` 설명.
 
 ### Tabs
 
-- **Style:** 회색 트랙(`line`, 12px 모서리, 4px 안쪽) 안의 36px 탭. 선택된 탭은 흰 면 + 먹색 700 + 작은 그림자, 나머지는 투명 + `ink-2` 500.
-- **Behavior:** `role="tablist"`, 선택된 탭만 `tabindex=0`(roving tabindex), 좌우 화살표·Home·End로 이동.
+Montage 밑줄 탭: 점검 결과 / 추천 세팅 / 점검 기준. 16px/600, 간격 24px, 바닥 1px `line-2`. 선택된 탭은 `fg` 글자 + 2px `fg` 밑줄, 나머지는 `fg-3`(hover `fg`). `role="tablist"`, Ctrl+1/2/3.
 
-### Status pill / Badge / Tag
+### Summary card (시그니처)
 
-- **Pill:** 요약 카드 맨 위의 상태(13px/700, 8px 모서리). 주의는 `warn-bg`/`warn-text`, 준비됨은 `ok-bg`/`ok`.
-- **Badge:** 할 일 줄 왼쪽의 36px 원, 안에 16px 선 SVG(굵기 2.6). 위험·주의·통과·해당 없음(`soft`/`ink-3`)·커밋(옅은 파랑). 화면 읽기 프로그램용 라벨은 `sr-only`.
-- **Tag:** 11px/700, 6px 모서리. 기준 표에서 사내 표준이 더한 항목에 "사내" 태그(옅은 파랑).
+카드 안 두 열(왼쪽 점수, 오른쪽 주 버튼): 리드 문장(Lead, 두 줄까지) → 40px 점수 + 감점 메모(15px `fg-3`) → 막대 → 눈금 → 주 버튼 하나 → 정보 안내 상자.
 
-### Cards / Containers
+- **막대:** 8px 높이, 4px 모서리, `fill-2` 트랙. 겹친 세 구간: 지금(`brand`) / 고치면(`brand-light`) / 커밋하면(1.5px 점선 `brand-light`). 80% 자리에 2×16px `fg` 목표선. 아래 13px 눈금 "0 / 목표 80 / 100". 막대와 눈금은 `aria-hidden`, 숫자는 글자로 따로 말합니다.
+- **단계(팀 저장소):** 고치기 → 커밋 → 팀원에게 보내기 세 칸. 지금 칸은 `brand-subtle` 면 + `brand-fill` 번호 원 + `brand-text` 제목, 끝난 칸은 `pos` 체크 번호, 다음 칸은 `bg-2`.
+- **Motion:** 막대 폭 0.7s `cubic-bezier(0.16, 1, 0.3, 1)`이 유일한 연출 움직임이고, 다시 계산 중인 점수는 투명도 0.45로 흐립니다.
 
-- **Corner Style:** 24px.
-- **Background:** `surface` on `bg`.
-- **Shadow Strategy:** 없음(Flat Card Rule).
-- **Border:** 없음.
-- **Internal Padding:** 일반 카드 30px 36px, 요약 카드 34px 40px, 목록 카드(할 일·기준) 26px 24px 8px. 카드 제목 줄은 안쪽 0 16px로 줄 글자와 맞춥니다.
+### Message box
 
-### Inputs / Fields
+Montage section-message. 아이콘 + 14px/20px 글자, 12px 모서리, 안쪽 12px 16px. 기본은 `fill` + `fg-2`, 경고는 `cau-bg` + `cau`, 업데이트 안내 줄은 흰 면 + `line-2` 테두리.
 
-텍스트 입력은 없습니다. 라디오·체크박스는 18px 기본 컨트롤에 `accent-color: accent`만 줍니다.
+### To-do list rows (시그니처)
 
-### Navigation
+- **구조:** 글자 배지 | 위험 제목(16px/600) + "할 일: …" 줄(15px `fg-2`) | +N점(15px/600, tabular) | 작은 outlined 버튼 | 화살표 아이콘(28px). 그룹 이름은 13px/600 `fg-3`.
+- **펼친 본문:** `bg-2` 12px 상자 안의 세 줄 표 — 왜 위험한가요 / 고치면 / 못 막는 것(있을 때만, 예시가 있으면 "예시" 줄). 칸 이름 112px 14px/600 `fg-3`, 내용 15px/24px, 줄 사이 1px `line-2`. 아래 행동 버튼 줄.
+- **States:** 머리 버튼이 펼치기를 맡고(`aria-expanded`), 화살표는 0.2s 회전. 포커스는 2px `brand` 외곽선 4px 띄움.
+- **지나간 항목:** 카드 아래 "통과한 항목" 토글로 접혀 있고, 펼치면 76px 배지 열의 조용한 `fg-2` 줄.
 
-- **사이드바 최근 폴더:** 44px 이상 줄, 10px 모서리. 폴더 이름(500) 위, 경로(11px `ink-3`, 앞쪽 줄임) 아래, 오른쪽 점수(13px/600, 80점 이상 `ok`, 미만 `fail-text`). 현재 폴더는 옅은 파랑 면 + 파란 글자.
+### Badge / Tag
 
-### Summary hero (시그니처)
+- **Badge:** 13px/600, 6px 모서리, 안쪽 3px 8px. 위험 `neg`/`neg-bg`, 주의 `cau`/`cau-bg`, 통과 `pos`/`pos-bg`, 해당 없음 `fg-3`/`fill`. 글자가 상태를 말합니다.
+- **Tag:** 13px/600, 6px 모서리. 기본 `fill`/`fg-3`, "사내" 태그는 `brand-subtle`/`brand-text`.
 
-요약 카드는 위에서 아래로: 상태 알약 + 기준 이름 → 두 줄 결론(Headline) → 큰 점수 + 감점 내역("100점에서 … = −N점", `ink-3` 14px) → 점수 막대 → 범례 → 주 버튼 + 두 줄 캡션.
+### Bundle cards (추천 세팅)
 
-- **점수 막대:** 12px 높이, 6px 모서리, `soft` 트랙. 겹친 세 구간: 지금(`accent`) / 고치면(`bar-fix`) / 커밋하면(`bar-commit` + 1.5px 점선 `bar-fix` 외곽선). 80% 자리에 2px 먹색 목표선이 위아래로 5px 넘칩니다. 막대는 `aria-hidden`이고 숫자는 글자로 따로 말합니다.
-- **범례:** 10px 둥근 사각 견본 + "지금 N점 / 고치면 N점 / 커밋하면 N점", 목표선 견본은 2×12px.
-- **Motion:** 이 화면의 유일한 연출 움직임은 막대 폭 전환(0.7s `cubic-bezier(0.16, 1, 0.3, 1)`)입니다. 다시 계산 중인 점수는 투명도 0.45로 흐려집니다.
+카드마다 제목(Title) + "N개 중 N개 남음"(14px `fg-3`) → 조언 문단(15px/24px `fg-2`, 64ch) → `bg-2` 목록 상자(52px 배지 열 + 할 일 문장, 줄 사이 `line-2`) → 행동 버튼 줄. 첫 묶음의 행동만 Solid입니다.
 
-### To-do rows (시그니처)
+### Sidebar recent folders
 
-- **구조:** 배지 → 제목(15px/700) + "고치면: …" 부제(13px `ink-3`) → (Claude 버튼 열) → 오른쪽 고정 열 "+N점"(14px/700, tabular) + 접기 화살표.
-- **그룹:** 13px/700 `ink-3` 그룹 이름 — 바로 고칠 수 있습니다 / Claude가 써 줍니다 · 건당 약 1분, 사용량 약 $0.1~0.3 / 직접 해야 합니다 / 커밋해서 팀에 적용합니다. 위험 항목이 먼저, 그다음 감점이 큰 순서.
-- **States:** hover에 `soft-2` 면, 펼치면 줄 전체가 `soft-2` 면(16px 모서리)이 되고 본문이 열립니다. 포커스는 안쪽 2px `accent` 외곽선.
-- **펼친 본문:** 13px/700 `ink-2` 소제목 + 14px/1.65 문단(68ch) — 왜 문제인가요 / 함께 해결되는 문제(흰 칸 목록, 항목별 감점) / 고치면 / 남는 한계 / 예시(코드 바탕 칸). 맨 아래 행동 버튼.
-- **팀에 적용하기 단계 (요약 카드):** git 저장소에서 커밋이 필요한 폴더면 막대 아래에 세 칸 단계 — 1 고치기 → 2 커밋(+15점) → 3 팀원에게 보내기. 칸마다 끝남(초록 체크) / 지금(`accent-soft` 바탕, 파란 번호) / 다음(`soft-2`). 실행은 단계에 맞는 주 버튼 하나(N개 바로 고치기 → 변경 커밋하기 → 팀원에게 보내기)가 맡고, 남은 고치기가 있으면 커밋 버튼은 보조(soft)로 함께. 브랜치·대상·git 명령은 "자세히 (개발자용)" 접기 안([명령 복사]). 상태 알약은 한 방향으로만 오릅니다: 아직 준비 전 → 커밋 전 → 커밋됨 · 아직 안 보냄 → 준비됨. "준비됨"(초록)은 목표 80점 이상이고 팀원에게 보낸 뒤 한 가지 뜻으로만 씁니다. 커밋이 남으면 할 일 카드 제목은 "남은 단계: 커밋"·"남은 단계: 팀원에게 보내기"입니다. 커밋·보내기 확인창도 쉬운 말 첫 줄 + 개발자용 접기 구조입니다.
-- **안전 장치:** 확인창이 열린 직후 0.4초의 Ctrl+Enter와 키 반복은 무시합니다(두 번 눌러 미리 보기를 건너뛰지 않게). 고칠 항목 체크를 빠르게 바꾸면 늦게 온 미리 보기는 버리고, 새 미리 보기가 올 때까지 [적용]을 끄고 "바뀔 내용을 다시 계산하는 중…"과 흐린 옛 목록(`.stale`)을 보입니다. 처리 중에는 패널에 `aria-busy`를 달고 고를 항목까지 끄며, 꺼진 요소에 있던 포커스는 패널 제목으로 옮깁니다.
-- **오류 알림:** 쉬운 첫 문장 + "모르면 팀 담당자에게 물어보세요."를 먼저, 개발자용 해결 안내와 git 출력은 "자세히 (개발자용)" 접기에 나눠 둡니다(core는 `쉬운 문장\n개발자: …\n원문: …` 형식으로 넘김). [다시 시도]로 같은 동작을 다시 엽니다.
-- **지나간 항목:** 카드 맨 아래 52px 토글("통과한 항목 N개 보기")로 접혀 있고, 펼치면 28px 배지의 조용한 줄(`ink-2`)로 보입니다. 열림 여부는 기억됩니다.
+52px 이상 줄, 10px 모서리. 폴더 이름(15px/600) 위, 경로(13px `fg-3`, 앞쪽 줄임) 아래, 오른쪽 점수(14px/600, 80점 이상 `pos`, 미만 `neg`). 현재 폴더는 `brand-subtle` 면 + `brand-text` 이름. 줄에 마우스를 올리거나 포커스가 오면 점수 자리에 28px × 아이콘 버튼(목록에서 빼기, 흰 면)이 나타납니다.
 
-### Criteria list
+### Modal panel and toast
 
-기준 카드 위에는 규칙 타일 네 칸(시작 점수 / 위험 1건마다 / 주의 1건마다 / 목표 80점, 20px/800 숫자, 14px 모서리, 상태별 옅은 바탕). 기준 표는 그룹 이름(14px/800, 위 `soft` 선) 아래 세 열 줄: 제목 + 규칙(13px `ink-3`) / 감점(위험·주의 색 글자) / 이 폴더 상태(통과 `ok`, 위험 `fail-text`, 주의 `warn-text`, 해당 없음 `ink-3`).
+- **확인 창(모달):** 본문 영역 가운데, 흰 면 20px 모서리 + `--shadow`, 폭 880px(compact 560px), 최대 86vh. 제목(20px/700) / 스크롤 본문(15px/24px `fg-2`, 첫 줄 18px/700 `fg`) / 위 1px `line-2`의 행동 바([취소] → [주 버튼], 주 버튼이 오른쪽 끝). 뒤는 `scrim`.
+- **결과 알림(toast):** 같은 창이 아래 20px에 640px로 바뀌고, 스크림 없이 1px `line-2` 테두리 + 그림자, 오른쪽 위 × 아이콘 버튼.
+- **미리 보기:** 파일별 접는 칸(10px, `line-2` 테두리), diff는 `add`/`del` 바탕 Mono 13px.
 
-### Dialogs
+### Help window
 
-- **확인 창(모달):** 본문 영역 가운데, 흰 면 24px 모서리, 폭 880px(compact 560px), 높이 최대 86vh. 제목(20px/800) / 스크롤되는 본문 / 위 1px `line`이 있는 행동 바. 행동 바는 [취소] → [주 버튼] 순서라 주 버튼이 오른쪽 끝에 오고 Tab 순서도 화면 순서와 같습니다. 메시지의 첫 줄은 `::first-line`으로 18px/800 먹색 한 문장 요약, 나머지는 15px `ink-2`. 뒤 화면은 `inert`, Tab은 창 안에서 돕니다.
-- **결과 알림(비모달 toast):** 같은 창이 아래 20px에 640px 카드로 바뀌고 스크림이 없습니다. 버튼은 "닫기" 하나.
-- **미리 보기:** 파일별로 접는 칸(10px 모서리, `line` 테두리), diff 줄은 `add`/`del` 바탕, Mono 12px.
-
-### Command copy row
-
-`soft-2` 상자(14px 모서리) 안에 Mono 12.5px 명령 칸(흰 면, `line` 테두리, 10px 모서리, `break-all`) + 오른쪽 복사 버튼. 할 일 목록 안에서는 배지 폭만큼 들여 씁니다.
+네이티브 `<dialog>`(`showModal`) 720px, 20px 모서리, `::backdrop`은 `scrim`. 번호 원(24px `brand-subtle`/`brand-text`)이 달린 단계 목록, 용어 `dl`, 단축키 표(줄 사이 `line-2`)로 됩니다.
 
 ## Do's and Don'ts
 
 ### Do:
 
-- **Do** 회색 페이지(`bg`) 위에 흰 카드(`surface`, 24px 모서리)를 20px 간격으로 쌓고, 카드에 그림자·테두리를 더하지 마세요(The Flat Card Rule).
-- **Do** 한 화면에 주 버튼(`accent` 면)은 하나만 두세요. 대화 상자에서는 행동 바 오른쪽 끝입니다.
-- **Do** 보조 글자는 면에 맞춰 고르세요: 회색 바탕 위 `ink-2`, 흰 면 위 `ink-3`. 모든 글자 대비는 4.5:1 이상입니다.
-- **Do** 아이콘은 `viewBox="0 0 24 24"` 인라인 선 SVG(`fill: none; stroke: currentColor`, 굵기 2, 배지 안 2.6)로 넣고 `aria-hidden="true"`를 주세요.
-- **Do** 줄에 보이는 점수는 "고치면 되찾는 점수(+N점)"로 쓰세요. 줄 점수의 합이 막대의 "지금 → 고치면/커밋하면" 차이와 맞아야 합니다.
-- **Do** 바뀌는 숫자에는 tabular-nums, 한국어 문장 블록에는 `word-break: keep-all`을 거세요.
-- **Do** 포커스는 2px `accent` 외곽선으로 보이게 하고, `prefers-reduced-motion: reduce`에서는 모든 전환을 끄세요.
-- **Do** 확인이 필요한 일은 가운데 모달로, 결과만 알리는 일은 아래쪽 비모달 카드로 보여 주세요.
+- **Do** 색은 `style.css`의 토큰(`var(--…)`)으로만 쓰고, 밝은·어두운 모드를 같은 토큰 이름으로 맞추세요.
+- **Do** 흰 글자 아래에는 `brand-fill`·`neg-fill`을, 옅은 파랑 면 위 글자에는 `brand-text`를 쓰세요(The Right Blue Rule).
+- **Do** 상태 글자에는 30 단계 토큰(`neg` / `cau` / `pos`)을, 바탕에는 `*-bg`를 쓰세요(The 30-Step Status Text Rule).
+- **Do** 상태는 배지 글자·숫자·이름표로도 말하세요(The Words Before Color Rule).
+- **Do** 버튼은 outlined를 기본으로 두고, 채운 `brand-fill` 버튼은 한 화면에 하나만 두세요.
+- **Do** 카드는 흰 면 + 1px `line-2` + 16px 모서리로 만들고 20px 간격으로 쌓으세요.
+- **Do** 아이콘은 `viewBox="0 0 24 24"` 인라인 선 SVG(`fill: none; stroke: currentColor`, 굵기 1.8, 18px)로 넣고 `aria-hidden="true"`를 주세요.
+- **Do** 포커스는 2px `brand` 외곽선으로 보이게 하고, `prefers-reduced-motion: reduce`에서는 모든 전환을 끄세요.
 
 ### Don't:
 
+- **Don't** 은유 그림, 일러스트, 장식용 그래픽이나 배경 무늬를 넣지 마세요.
+- **Don't** 파란색을 제목·장식·구역 바탕에 쓰지 마세요. 행동, 링크, 현재 위치에만 씁니다.
+- **Don't** 상태를 색만으로 구분하지 마세요.
+- **Don't** 13px보다 작은 글자를 쓰지 마세요.
+- **Don't** 카드에 그림자를 더하지 마세요. 그림자는 떠 있는 창과 선택된 세그먼트에만 있습니다.
 - **Don't** 이모지나 글리프 문자(✓, ✕, ▶ 등)를 아이콘으로 쓰지 마세요.
-- **Don't** 빨강·주황·초록을 상태(위험·주의·통과) 말고 다른 뜻으로 쓰지 마세요. 파란색을 장식이나 구역 바탕으로 쓰지 마세요.
-- **Don't** `ink-3`을 회색 페이지(`bg`) 위 글자로 쓰지 마세요.
-- **Don't** 점수 막대 폭 전환 말고 다른 연출 움직임(등장 애니메이션, 튀는 효과)을 더하지 마세요. 상태 전환(색 0.15s, 화살표 회전 0.2s)만 허용됩니다.
-- **Don't** 제목 위에 작은 머리말(eyebrow·kicker) 줄을 새로 만들지 마세요.
+- **Don't** 제목 위에 작은 머리말(eyebrow·kicker) 줄을 만들지 마세요.
+- **Don't** 막대 폭 전환 말고 다른 연출 움직임을 더하지 마세요. 상태 전환(색 0.15s, 화살표 0.2s, 흐림 0.2s)만 있습니다.

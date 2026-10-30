@@ -26,8 +26,13 @@
   --brand-subtle: rgb(0 102 255 / 0.06);
   --brand-light: rgb(0 102 255 / 0.28); /* 막대: 고치면 오를 구간 */
   --on-brand: #ffffff;
+  --brand-fill: #0066ff; /* 흰 글자를 얹는 면 (4.5:1 이상) */
+  --brand-fill-strong: #005eeb;
+  --brand-text: #005eeb; /* 옅은 파랑 면 위 글자 */
   --neg: #b00c0c;
   --neg-fill: #e52222;
+  --neg-fill-strong: #b00c0c;
+  --shadow-sm: 0 1px 2px rgb(23 23 25 / 0.08);
   --neg-bg: rgb(255 66 66 / 0.08);
   --cau: #9c5800;
   --cau-bg: rgb(255 146 0 / 0.1);
@@ -60,8 +65,13 @@
     --brand-subtle: rgb(51 133 255 / 0.14);
     --brand-light: rgb(51 133 255 / 0.4);
     --on-brand: #ffffff;
+    --brand-fill: #0066ff;
+    --brand-fill-strong: #005eeb;
+    --brand-text: #3385ff;
     --neg: #ff6363;
     --neg-fill: #e52222;
+    --neg-fill-strong: #b00c0c;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
     --neg-bg: rgb(255 99 99 / 0.14);
     --cau: #ffa938;
     --cau-bg: rgb(255 169 56 / 0.14);
@@ -163,13 +173,14 @@ code {
 }
 .btn.primary,
 .btn.solid {
-  background: var(--brand);
-  border-color: var(--brand);
+  background: var(--brand-fill);
+  border-color: var(--brand-fill);
   color: var(--on-brand);
 }
 .btn.primary:hover:not(:disabled),
 .btn.solid:hover:not(:disabled) {
-  background: var(--brand-strong);
+  background: var(--brand-fill-strong);
+  border-color: var(--brand-fill-strong);
 }
 .btn.danger {
   color: var(--neg);
@@ -177,10 +188,11 @@ code {
 .btn.danger-fill {
   background: var(--neg-fill);
   border-color: var(--neg-fill);
-  color: #ffffff;
+  color: var(--on-brand);
 }
 .btn.danger-fill:hover:not(:disabled) {
-  background: var(--neg);
+  background: var(--neg-fill-strong);
+  border-color: var(--neg-fill-strong);
 }
 .btn.lg {
   height: 48px;
@@ -304,7 +316,7 @@ input:focus-visible {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: var(--brand);
+  background: var(--brand-fill);
   color: var(--on-brand);
   display: grid;
   place-items: center;
@@ -379,7 +391,7 @@ input:focus-visible {
   white-space: nowrap;
 }
 .recent-item.current .name {
-  color: var(--brand);
+  color: var(--brand-text);
 }
 /* 폴더 이름이 먼저, 경로는 앞쪽을 줄여 끝(폴더 위치)이 보이게 */
 .recent .where {
@@ -620,7 +632,7 @@ body.has-toast .main {
   place-items: center;
   margin-bottom: 4px;
   background: var(--brand-subtle);
-  color: var(--brand);
+  color: var(--brand-text);
   font-size: 13px;
   font-weight: 700;
 }
@@ -748,7 +760,7 @@ body.has-toast .main {
 .seg button[aria-pressed="true"] {
   background: var(--bg);
   color: var(--fg);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  box-shadow: var(--shadow-sm);
 }
 .seg button:disabled {
   cursor: not-allowed;
@@ -960,11 +972,11 @@ body.has-toast .main {
   background: var(--brand-subtle);
 }
 .step.now .step-no {
-  background: var(--brand);
+  background: var(--brand-fill);
   color: var(--on-brand);
 }
 .step.now .step-title {
-  color: var(--brand);
+  color: var(--brand-text);
 }
 .step.done .step-no {
   background: var(--pos-bg);
@@ -1245,7 +1257,7 @@ body.has-toast .main {
 }
 .tag.accent {
   background: var(--brand-subtle);
-  color: var(--brand);
+  color: var(--brand-text);
 }
 
 /* ---- 점검 기준 ---- */

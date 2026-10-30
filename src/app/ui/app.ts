@@ -655,7 +655,7 @@ async function fix(nos: number[]): Promise<void> {
   // 고를 항목: 체크를 바꾸면 패널 전체를 다시 그리지 않고 요약·파일만 바꾼다 (포커스·스크롤 유지)
   const picker = (): HTMLElement => {
     const boxes: HTMLInputElement[] = [];
-    const toggleAll = h("button", { class: "linkish small-link", type: "button" }, "모두 해제");
+    const toggleAll = h("button", { class: "linkish", type: "button" }, "모두 해제");
     const box = h("fieldset", { class: "pick" }, h("legend", {}, "고칠 항목 ", toggleAll));
     const sync = () => {
       chosen = all
@@ -715,9 +715,9 @@ async function fix(nos: number[]): Promise<void> {
       `\n문제 ${r.resolves}건 해결 · 파일 ${r.previews.length}개` +
       (newFiles > 0 ? ` (새 파일 ${newFiles})` : "") +
       (afterCommit !== undefined
-        ? ` · 고친 뒤 커밋하면 ${afterCommit}점`
+        ? `\n고친 뒤 커밋하면 ${afterCommit}점이 됩니다`
         : r.expectedScore < READY_SCORE
-          ? ` · 목표 ${READY_SCORE}점까지는 다른 할 일이 더 필요합니다`
+          ? `\n목표 ${READY_SCORE}점까지는 다른 할 일이 더 필요합니다`
           : "");
     files.replaceChildren(
       ...r.previews.map((p) =>
@@ -879,7 +879,7 @@ function confirmClaude(f: FindingView): void {
       { class: "facts" },
       fact(
         "시간·사용량",
-        "보통 1분 · 약 $0.1~0.3어치 (구독 요금제는 한도에서 차감, API 키는 청구. 이 앱이 받는 돈은 없음)",
+        "보통 1분, 약 $0.1~0.3어치 (구독 요금제는 한도에서 차감, API 키는 청구. 이 앱이 받는 돈은 없음)",
       ),
       fact(
         "안전",
@@ -935,7 +935,7 @@ function confirmClaudeAll(list: FindingView[]): void {
       { class: "facts" },
       fact(
         "시간·사용량",
-        `${n}건, 건당 보통 1분 · 모두 약 $${(0.1 * n).toFixed(1)}~${(0.3 * n).toFixed(1)}어치 (구독 요금제는 한도에서 차감, API 키는 청구)`,
+        `${n}건, 건당 보통 1분, 모두 약 $${(0.1 * n).toFixed(1)}~${(0.3 * n).toFixed(1)}어치 (구독 요금제는 한도에서 차감, API 키는 청구)`,
       ),
       fact(
         "안전",
@@ -998,7 +998,7 @@ async function runClaude(f: FindingView, label: string): Promise<void> {
   const elapsed = h("span", { class: "elapsed" });
   $("panel-note").replaceChildren(
     elapsed,
-    " · 실행 전 대상 파일을 백업했습니다. 중단하면 원래대로 되돌립니다.",
+    ". 실행 전 대상 파일을 백업했습니다. 중단하면 원래대로 되돌립니다.",
   );
   startElapsed(elapsed);
   $("panel-close").hidden = true; // 실행 중에는 중단 버튼을 가리지 않는다
@@ -1514,7 +1514,7 @@ function claudeStatusLine(): HTMLElement {
   const c = state?.claude;
   if (!c) return h("span", {}, "Claude Code 확인 중");
   if (!c.ok)
-    return h("span", { class: "dot-line bad" }, `Claude Code 없음 · ${c.error ?? "찾지 못함"}`);
+    return h("span", { class: "dot-line bad" }, `Claude Code 없음 (${c.error ?? "찾지 못함"})`);
   // "2.1.83 (Claude Code)"처럼 이름이 붙어 오면 뗀다
   const version = `Claude Code ${(c.version ?? "").replace(/\s*\(Claude Code\)/, "")}`.trim();
   if (c.loggedIn === false)
@@ -1869,7 +1869,7 @@ function renderSteps(d: DiagnosisView): void {
       n > 0
         ? `${n}개 남음`
         : claudeLeft > 0
-          ? `바로 고칠 것은 끝남 · Claude 할 일 ${claudeLeft}개 남음`
+          ? `바로 고칠 것은 끝남, Claude 할 일 ${claudeLeft}개 남음`
           : "설정 파일을 고쳤습니다",
       fixState,
     ),
@@ -1878,7 +1878,7 @@ function renderSteps(d: DiagnosisView): void {
       "커밋",
       commitState === "done"
         ? "git 기록에 남겼습니다"
-        : `이 PC의 git 기록에 남깁니다 · +${d.weights.fail}점`,
+        : `이 PC의 git 기록에 남깁니다 (+${d.weights.fail}점)`,
       commitState,
     ),
     step(
@@ -2080,8 +2080,8 @@ function renderResults(d: DiagnosisView): void {
 // 위험·주의를 색에만 맡기지 않고 글자로도 구분한다
 const CRIT_STATUS = {
   ok: "통과",
-  warn: "안 됨 · 주의",
-  fail: "안 됨 · 위험",
+  warn: "안 됨 (주의)",
+  fail: "안 됨 (위험)",
   na: "해당 없음",
   pending: "확인 전",
 };
@@ -2243,7 +2243,7 @@ function renderCriteria(d: DiagnosisView): void {
   $("standard").append(h("span", { class: "std-ver" }, si?.version ?? ""));
   $("std-desc").textContent =
     d.standardSource === "shared"
-      ? "지금 이 기준으로 점검합니다. 앱의 기본 점검에 사내 표준 파일이 정한 항목을 더했습니다. 더한 항목에는 '사내' 표시가 있습니다."
+      ? "지금 이 기준으로 점검합니다. 앱의 기본 점검에 사내 기준 파일이 정한 항목을 더했습니다. 더한 항목에는 '사내' 표시가 있습니다."
       : "지금 앱에 들어 있는 기본 기준으로 점검합니다. 팀 기준 파일(standard.json)을 고르면 필수 섹션·필수 파일·사내 플러그인을 더 볼 수 있습니다.";
   $("std-path").textContent = si?.path ?? "기본 내장";
   $("std-path").title = si?.path ?? "";

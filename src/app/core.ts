@@ -156,7 +156,7 @@ async function readJson<T>(path: string, fallback: T): Promise<T> {
 
 const AREA_TITLES: Record<Area, string> = {
   security: "보안",
-  team: "팀 표준 (CLAUDE.md)",
+  team: "작업 지침 (CLAUDE.md)",
   docs: "문서·구조",
   plugins: "스킬·플러그인",
 };
@@ -357,7 +357,7 @@ export function criteriaFor(diag: Diagnosis): CriterionView[] {
         id: `file/${file.id}`,
         group: "필수 파일",
         title: file.path,
-        rule: file.when === "hasUI" ? `${file.title} · 화면이 있는 프로젝트만 봅니다` : file.title,
+        rule: file.when === "hasUI" ? `${file.title} (화면이 있는 프로젝트만 봅니다)` : file.title,
         penalty: pen(file.severity),
         company: shared,
       },
@@ -643,7 +643,7 @@ export class AppCore {
   // 새 버전 위치 열기: http(s)는 브라우저로, 파일·공유 폴더 경로는 탐색기에서 보여 준다 (실행하지 않음)
   async openUpdate(): Promise<void> {
     const url = (await this.getState()).update?.downloadUrl;
-    if (!url) throw new InputError("사내 표준 파일에 새 버전 위치(app.downloadUrl)가 없습니다");
+    if (!url) throw new InputError("사내 기준 파일에 새 버전 위치(app.downloadUrl)가 없습니다");
     if (/^https?:\/\//i.test(url)) await this.deps.openExternal?.(url);
     else if (isAbsolute(url) || url.startsWith("\\\\")) this.deps.showItem?.(url);
     else throw new InputError(`열 수 없는 위치입니다: ${url}`);
@@ -655,7 +655,7 @@ export class AppCore {
 
   async openGuide(): Promise<void> {
     const url = (await this.standard()).standard.guideUrl;
-    if (!url) throw new InputError("사내 표준 파일에 가이드 주소(guideUrl)가 없습니다");
+    if (!url) throw new InputError("사내 기준 파일에 가이드 주소(guideUrl)가 없습니다");
     await this.deps.openExternal?.(url);
   }
 
@@ -776,7 +776,7 @@ export class AppCore {
             note: c.path.startsWith(`${HOOK_DIR}/`)
               ? "team-ai-kit 위험 명령 차단 훅 원본 그대로 복사"
               : chosen.some((x) => x.createFile?.path === c.path)
-                ? "사내 표준 템플릿"
+                ? "사내 기준 템플릿"
                 : undefined,
           };
         }),
