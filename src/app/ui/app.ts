@@ -183,7 +183,7 @@ function panelButtons(...btns: HTMLButtonElement[]): void {
   const hint = quick
     ? h("kbd", { class: "kbd" }, "Ctrl+Enter")
     : deliberate
-      ? h("span", { class: "kbd-note" }, "직접 눌러 주세요")
+      ? h("span", { class: "kbd-note" }, "단축키로는 실행되지 않습니다")
       : null;
   hint?.setAttribute("aria-hidden", "true");
   $("panel-btns").replaceChildren(...(hint ? [hint] : []), ...[...btns].reverse());
@@ -490,23 +490,41 @@ function ruleNotes(diff: string): string[] {
   return [...envLine(files.Read, "읽기"), ...envLine(files.Edit, "고치기"), ...new Set(other)];
 }
 
-// 파일 하나: 접을 수 있는 요약 줄(경로·새 파일·줄 수·출처) + 바뀌는 것(쉬운 말) + diff
+// 파일 하나: 경로·새 파일·줄 수 + 바뀌는 것(쉬운 말), 실제 바뀌는 코드는 개발자용으로 접는다
 function fileBlock(p: Pick<FilePreview, "path" | "diff">, open: boolean, meta = ""): HTMLElement {
   const notes = ruleNotes(p.diff);
-  const d = h(
+  const code = h(
     "details",
+    { class: "file-code" },
+    h("summary", {}, "바뀌는 코드 보기 (개발자용)"),
+    diffPre(p.diff),
+  );
+  code.open = open;
+  return h(
+    "div",
     { class: "file" },
     h(
-      "summary",
-      {},
+      "div",
+      { class: "file-head" },
       h("span", { class: "file-path" }, p.path),
       meta ? h("span", { class: "file-meta" }, meta) : null,
     ),
     notes.length > 0 ? h("ul", { class: "file-rules" }, ...notes.map((n) => h("li", {}, n))) : null,
-    diffPre(p.diff),
+    code,
   );
-  d.open = open;
-  return d;
+}
+
+// 되돌리기 안내: 혼자 쓰는 폴더는 커밋 단계가 없다
+function undoNote(d: DiagnosisView | null): string {
+  return d?.usage === "team"
+    ? "커밋하기 전까지는 ‘마지막으로 고친 것 되돌리기’로 되돌릴 수 있습니다."
+    : "언제든 ‘마지막으로 고친 것 되돌리기’로 되돌릴 수 있습니다.";
+}
+
+// 고치기 후보의 쉬운 이름 (할 일 줄의 "할 일:" 문장)
+function plainFix(d: DiagnosisView, no: number, title: string): string {
+  const t = buildTodos(d).find((x) => x.kind === "fix" && x.primary.fixNo === no);
+  return t ? todoLine(t, d) : title;
 }
 
 // ---- Claude 진행 로그 (도구 이름을 사람 말로) ----
@@ -565,6 +583,8 @@ async function refreshState(): Promise<void> {
   render();
 }
 
+const baseline = new Map<string, number>(); // 이번 실행에서 폴더를 처음 열었을 때 점수 (전후 비교)
+let noticeSame = false; // 알림이 "점수는 그대로"인지 (경고색을 쓰지 않음)
 let notice = ""; // 점수가 바뀐 이유 (폴더 종류·사용 방식을 바꿨을 때)
 
 async function load(path: string, kind?: Kind | "auto", usage?: Usage | "auto"): Promise<void> {
@@ -576,15 +596,20 @@ async function load(path: string, kind?: Kind | "auto", usage?: Usage | "auto"):
   setBusy(true);
   try {
     current = await api.diagnose(path, kind, usage);
+    if (!baseline.has(path)) baseline.set(path, current.score);
     const changed =
       kind !== undefined && prev && prev.kind !== current.kind
         ? "폴더 종류"
         : usage !== undefined && prev && prev.usage !== current.usage
           ? "사용 방식"
           : "";
+    // 점수가 같아도 보는 항목은 달라질 수 있어 알리되, 같으면 경고색 없이 "그대로"라고 말한다
+    noticeSame = prev !== null && prev.score === current.score;
     notice =
       changed && prev
-        ? `${changed}를 바꿔 보는 항목이 달라졌습니다: 점수 ${prev.score} → ${current.score}점`
+        ? noticeSame
+          ? `${changed}를 바꿔 보는 항목이 달라졌습니다. 점수는 그대로 ${current.score}점입니다`
+          : `${changed}를 바꿔 보는 항목이 달라졌습니다: 점수 ${prev.score} → ${current.score}점`
         : "";
     state = await api.getState();
   } catch (e) {
@@ -643,9 +668,11 @@ async function fix(nos: number[]): Promise<void> {
     .filter((t) => t.kind === "fix")
     .map((t) => t.primary.fixNo);
   const rank = (no: number) => (order.includes(no) ? order.indexOf(no) : order.length + no);
+  const d0 = current;
   const all = current.fixes
     .filter((f) => nos.includes(f.no))
-    .sort((a, b) => rank(a.no) - rank(b.no));
+    .sort((a, b) => rank(a.no) - rank(b.no))
+    .map((f) => ({ ...f, plain: plainFix(d0, f.no, f.title) }));
   let chosen = [...nos];
   locked = true;
   const applyBtn = button("적용", () => void apply(), "btn primary");
@@ -675,7 +702,7 @@ async function fix(nos: number[]): Promise<void> {
       cb.checked = chosen.includes(item.no);
       cb.addEventListener("change", sync);
       boxes.push(cb);
-      box.append(h("label", { class: "pick-item" }, cb, item.title));
+      box.append(h("label", { class: "pick-item" }, cb, item.plain));
     }
     return box;
   };
@@ -712,8 +739,8 @@ async function fix(nos: number[]): Promise<void> {
     m.className = "panel-message lead";
     m.textContent =
       `할 일 ${r.items.length}개를 고치면 ${before} → ${r.expectedScore}점` +
-      `\n문제 ${r.resolves}건 해결 · 파일 ${r.previews.length}개` +
-      (newFiles > 0 ? ` (새 파일 ${newFiles})` : "") +
+      `\n바뀌는 파일 ${r.previews.length}개` +
+      (newFiles > 0 ? ` (새 파일 ${newFiles}개)` : "") +
       (afterCommit !== undefined
         ? `\n고친 뒤 커밋하면 ${afterCommit}점이 됩니다`
         : r.expectedScore < READY_SCORE
@@ -723,8 +750,8 @@ async function fix(nos: number[]): Promise<void> {
       ...r.previews.map((p) =>
         fileBlock(
           p,
-          // 사람이 읽을 설정 파일만 펼치고, 원본을 그대로 복사하는 파일은 접어 둔다
-          r.previews.length === 1 || (p.note === undefined && p.added <= 60),
+          // 바뀌는 코드는 접어 두고 쉬운 말 요약만 보인다 (원칙 4)
+          false,
           [p.isNew ? "새 파일" : "수정", `${p.added}줄 추가`, p.note].filter(Boolean).join(" · "),
         ),
       ),
@@ -736,15 +763,19 @@ async function fix(nos: number[]): Promise<void> {
   // 요약 카드에 단계(고치기→커밋→보내기)가 보일 때만 제목에 단계 이름을 붙인다
   const stepName = $("steps").hidden ? "" : "1단계: ";
   const title =
-    all.length === 1 ? `${stepName}${all[0]?.title ?? ""}` : `${stepName}바뀔 내용 확인`;
+    all.length === 1 ? `${stepName}${all[0]?.plain ?? ""}` : `${stepName}바뀔 내용 확인`;
   const show = async (): Promise<void> => {
     panel(title);
-    $("diffs").replaceChildren(...(all.length > 1 ? [picker()] : []), files);
-    $("panel-note").textContent =
-      "적용 전 원본은 자동으로 백업되고, 커밋하기 전까지는 ‘마지막으로 고친 것 되돌리기’로 되돌릴 수 있습니다.";
+    // 안심 문구는 맨 위에 (적용 버튼을 누르기 전에 보이게)
+    const safe = h(
+      "p",
+      { class: "msg safe" },
+      `적용하기 전 원본은 자동으로 백업됩니다. ${undoNote(d0)}`,
+    );
+    $("diffs").replaceChildren(safe, ...(all.length > 1 ? [picker()] : []), files);
     panelButtons(applyBtn, button("취소", closePanel));
     await update();
-    $("diffs").querySelector<HTMLElement>(".pick legend button, .file summary")?.focus();
+    $("diffs").querySelector<HTMLElement>(".pick legend button, .file-code summary")?.focus();
   };
 
   const apply = async (): Promise<void> => {
@@ -762,15 +793,16 @@ async function fix(nos: number[]): Promise<void> {
           "적용했습니다",
           scoreChange(before, current.score) +
             (current.fixes.length > 0
-              ? `\n다음: 남은 ${current.fixes.length}개를 고치거나, ‘변경 커밋하기’로 지금까지 고친 것을 커밋하세요`
+              ? current.usage === "team"
+                ? `\n다음: 남은 ${current.fixes.length}개를 고치거나, ‘변경 커밋하기’로 지금까지 고친 것을 커밋하세요`
+                : `\n다음: 남은 ${current.fixes.length}개도 고칠 수 있습니다`
               : commitTo !== undefined
                 ? `\n다음: ‘변경 커밋하기’ (커밋하면 ${commitTo}점)`
                 : ""),
         );
         $("panel-message").classList.add("lead");
         const note = $("panel-note");
-        note.textContent =
-          "원본은 백업해 두었습니다. 커밋하기 전까지는 ‘마지막으로 고친 것 되돌리기’로 되돌릴 수 있습니다.";
+        note.textContent = `원본은 백업해 두었습니다. ${undoNote(current)}`;
         note.title = done.backupDir;
         closeOnly();
       }
@@ -834,13 +866,14 @@ function claudeResult(r: ClaudeView, path: string, before: number): void {
           action === "keep" ? "적용했습니다" : "취소했습니다",
           action === "keep"
             ? scoreChange(before, current.score) +
-                (current.kind === "dev" ? "\n바뀐 파일을 커밋해야 팀원 모두에게 적용됩니다" : "")
+                (current.usage === "team" && current.kind === "dev"
+                  ? "\n바뀐 파일을 커밋해야 팀원 모두에게 적용됩니다"
+                  : "")
             : done.message,
         );
         if (action === "keep") {
           $("panel-message").classList.add("lead");
-          $("panel-note").textContent =
-            "커밋하기 전까지는 ‘마지막으로 고친 것 되돌리기’로 되돌릴 수 있습니다.";
+          $("panel-note").textContent = undoNote(current);
         }
         closeOnly();
         render();
@@ -1559,8 +1592,10 @@ function renderRecent(): void {
       ? [h("li", { class: "none" }, "아직 없음")]
       : state.recent.map((r) => {
           const name = folderName(r.path);
-          const score = r.score !== undefined ? `${r.score}점` : "";
           const isCurrent = current?.path === r.path;
+          const unsent =
+            isCurrent && current?.usage === "team" && current.pushPending !== undefined;
+          const score = unsent ? "보내기 전" : r.score !== undefined ? `${r.score}점` : "";
           const b = keyed(
             h(
               "button",
@@ -1575,7 +1610,7 @@ function renderRecent(): void {
                 h("span", { class: "name" }, name),
                 h("span", { class: "where" }, recentMeta(r)),
               ),
-              h("span", { class: `pts${scoreTone(r.score)}` }, score),
+              h("span", { class: `pts${unsent ? " warn" : scoreTone(r.score)}` }, score),
             ),
             `recent:${r.path}`,
           );
@@ -1734,6 +1769,9 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
   const unpushed = team && d.pushPending !== undefined;
   const { pending, cmd } = commitInfo(d);
   const rest = todos.length - todos.filter((t) => t.kind === "fix").length;
+  const base = baseline.get(d.path); // 이번에 열었을 때 점수 (전후 비교)
+  const rose = base !== undefined && base < d.score;
+  const finished = n === 0 && rest === 0 && !pending && !unpushed;
 
   let headline: string;
   const effect = fixEffect(todos);
@@ -1747,20 +1785,22 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
     headline = ready
       ? `목표 ${READY_SCORE}점을 넘었습니다. 남은 할 일 ${rest}개로 더 올릴 수 있습니다`
       : `남은 할 일 ${rest}개는 Claude로 쓰거나 직접 해야 합니다`;
-  else headline = "모든 항목을 통과했습니다";
+  else
+    headline = rose
+      ? `${base}점에서 ${d.score}점이 됐습니다. 모든 항목을 통과했습니다`
+      : "모든 항목을 통과했습니다";
   $("headline").textContent = headline;
 
   $("score").textContent = String(d.score);
   $("score").parentElement?.classList.toggle("stale", loading);
-  const { fail, warn } = d.counts;
+  // 위험·주의 개수는 할 일 목록 머리가 할 일 단위로 말한다 (여기서는 점수만)
   $("breakdown").textContent = loading
     ? "점검 중…"
     : [
+        base !== undefined && base !== d.score ? `열었을 때 ${base}점` : "",
         fixTo !== undefined ? `고치면 ${fixTo}점` : "",
         commitTo !== undefined ? `커밋하면 ${commitTo}점` : "",
         `목표 ${READY_SCORE}점`,
-        fail ? `위험 ${fail}건` : "",
-        warn ? `주의 ${warn}건` : "",
       ]
         .filter(Boolean)
         .join(" · ");
@@ -1788,6 +1828,10 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
   pushBtn.hidden = !unpushed || pending;
   pushBtn.className = `btn lg${n > 0 ? "" : " solid"}`;
   pushBtn.disabled = off;
+  // 모두 끝나면 결과를 남기는 리포트 저장이 주 버튼
+  const reportBtn = $("hero-report") as HTMLButtonElement;
+  reportBtn.hidden = !finished;
+  reportBtn.disabled = off;
 
   const msg =
     n > 0
@@ -1798,7 +1842,11 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
         ? `앱이 만든 파일만 커밋합니다. 커밋하면 ${commitTo ?? d.score + d.weights.fail}점이 됩니다.`
         : unpushed
           ? "보내기 전에 보낼 커밋을 한 번 더 보여 드립니다."
-          : "";
+          : finished
+            ? (team && pushedPaths.has(d.path)
+                ? "팀 저장소에 올렸습니다. 팀원이 최신 내용을 받으면(pull) 같은 설정이 적용됩니다. "
+                : "더 고칠 것이 없습니다. ") + "결과를 남겨 두려면 리포트를 저장하세요."
+            : "";
   $("hero-msg").hidden = msg === "";
   $("hero-msg-text").textContent = msg;
 }
@@ -2023,7 +2071,14 @@ function renderResults(d: DiagnosisView): void {
         : team && d.pushPending
           ? "남은 단계: 팀원에게 보내기"
           : "할 일이 없습니다";
-  $("todo-hint").hidden = total < 2;
+  const failTodos = todos.filter((t) => t.severity === "fail").length;
+  $("todo-hint").textContent = [
+    failTodos ? `위험 ${failTodos}개` : "",
+    total - failTodos ? `주의 ${total - failTodos}개` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  $("todo-hint").hidden = total === 0;
 
   const active = document.activeElement as HTMLElement | null;
   const activeKey = $("todos").contains(active) ? (active?.dataset.key ?? null) : null;
@@ -2072,8 +2127,8 @@ function renderResults(d: DiagnosisView): void {
   toggle.setAttribute("aria-expanded", String(showPassed));
   toggle.classList.toggle("open", showPassed);
   $("passed-label").textContent = showPassed
-    ? "통과한 항목 접기"
-    : `통과한 항목 ${ok}개 보기${na > 0 ? `, 해당 없음 ${na}개` : ""}`;
+    ? "통과한 점검 항목 접기"
+    : `통과한 점검 항목 ${ok}개 보기${na > 0 ? `, 해당 없음 ${na}개` : ""}`;
   $("passed").hidden = !showPassed;
   $("passed").replaceChildren(...passed.map(passedItem));
 }
@@ -2130,20 +2185,26 @@ function renderBundles(d: DiagnosisView): void {
   const off = busy || locked || (state?.running ?? false);
   const findings = d.areas.flatMap((a) => a.findings).filter((f) => !f.notApplicable);
   const { pending } = commitInfo(d);
+  const allTodos = buildTodos(d);
   const cards: HTMLElement[] = [];
   const done: string[] = [];
   let first = true; // 남은 묶음 중 맨 위만 주 버튼
   for (const b of BUNDLES) {
     if (b.teamOnly && !team) continue;
-    const items = findings.filter((f) => b.match(f.id));
-    if (items.length === 0) continue;
-    const left = items.filter((f) => f.severity !== "ok");
-    if (left.length === 0) {
-      done.push(b.title);
+    // 남은 것은 점검 결과와 같은 "할 일" 단위로 센다 (같은 고치기로 풀리는 항목은 하나)
+    const todos = allTodos.filter((t) => t.items.some((x) => b.match(x.id)));
+    const steps: string[] = [];
+    if (b.teamOnly && pending) steps.push("설정 파일을 커밋해 팀원에게 보냅니다");
+    else if (b.teamOnly && d.pushPending) steps.push("커밋한 설정을 팀원에게 보냅니다");
+    const okItems = findings.filter((f) => b.match(f.id) && f.severity === "ok");
+    if (todos.length === 0 && steps.length === 0) {
+      if (okItems.length > 0) done.push(b.title);
       continue;
     }
-    const nos = [...new Set(left.flatMap((f) => f.fixNo ?? f.fixSharedWith ?? []))] as number[];
-    const claude = left.filter((f) => f.claudeTask && f.fixNo === undefined);
+    const nos = todos.flatMap((t) =>
+      t.kind === "fix" && t.primary.fixNo !== undefined ? [t.primary.fixNo] : [],
+    );
+    const claude = todos.filter((t) => t.kind === "claude").map((t) => t.primary);
     const acts: HTMLElement[] = [];
     const cls = (primary: boolean) => `btn${primary ? " solid" : ""}`;
     if (nos.length > 0) {
@@ -2173,29 +2234,26 @@ function renderBundles(d: DiagnosisView): void {
       acts.push(step);
     }
     first = false;
-    // 직접 해야 하는 항목은 버튼 없이 할 일만 (예: 위험한 자동 허용)
-    const line = (f: FindingView) =>
-      h(
-        "li",
-        {},
-        sevBadge(
-          f.severity === "ok" ? "ok" : f.severity,
-          f.severity === "ok" ? "됨" : SEVERITY[f.severity],
-        ),
-        h("span", {}, f.detail?.todo ?? head(f.message)),
-      );
+    // 남은 할 일 → 남은 단계(커밋·보내기) → 이미 된 것 순서
+    const line = (badge: HTMLElement, text: string) => h("li", {}, badge, h("span", {}, text));
+    const lines = [
+      ...todos.map((t) => line(sevBadge(t.severity, SEVERITY[t.severity]), todoLine(t, d))),
+      ...steps.map((s) => line(sevBadge("na", "다음"), s)),
+      ...okItems.map((f) => line(sevBadge("ok", "됨"), f.detail?.todo ?? head(f.message))),
+    ];
+    const count = [
+      todos.length > 0 ? `할 일 ${todos.length}개` : "",
+      steps.length > 0 ? (pending ? "커밋 남음" : "보내기 남음") : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
     cards.push(
       h(
         "section",
         { class: "card bundle" },
-        h(
-          "div",
-          { class: "sec-h" },
-          h("h2", {}, b.title),
-          h("p", {}, `${items.length}개 중 ${left.length}개 남음`),
-        ),
+        h("div", { class: "sec-h" }, h("h2", {}, b.title), h("p", {}, count)),
         h("p", { class: "bundle-advice" }, b.advice),
-        h("ul", { class: "bundle-items" }, ...items.map(line)),
+        h("ul", { class: "bundle-items" }, ...lines),
         acts.length > 0 ? h("div", { class: "row-btns" }, ...acts) : null,
       ),
     );
@@ -2371,6 +2429,7 @@ function render(): void {
   const n = $("notice");
   n.hidden = !notice;
   n.textContent = notice;
+  n.classList.toggle("same", noticeSame);
   ($("show-folder") as HTMLButtonElement).disabled = blocked;
   const blockedNote = $("blocked");
   blockedNote.hidden = !current.blocked;
@@ -2593,6 +2652,7 @@ $("update-close").addEventListener("click", () => {
 $("rerun").addEventListener("click", () => current && void load(current.path));
 $("undo").addEventListener("click", () => void undo());
 $("save-report").addEventListener("click", () => void saveReport());
+$("hero-report").addEventListener("click", () => void saveReport());
 $("fix-all").addEventListener("click", () => current && void fix(current.fixes.map((f) => f.no)));
 $("panel-close").addEventListener("click", closePanel);
 $("hero-commit").addEventListener("click", () => void commitFlow());

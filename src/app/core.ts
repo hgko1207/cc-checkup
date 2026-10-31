@@ -313,7 +313,9 @@ export function criteriaFor(diag: Diagnosis): CriterionView[] {
       penalty: pen("fail"),
       penaltyNote: `커밋 여부를 확인할 수 없으면 ${pen("warn")}`,
     },
-    { status: "pending", note: "설정 파일이 생기면 확인합니다" },
+    diag.usage === "solo"
+      ? { status: "na", note: "혼자 쓰는 폴더라 보지 않습니다" }
+      : { status: "pending", note: "설정 파일이 생기면 확인합니다" },
   );
   add(
     {

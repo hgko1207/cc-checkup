@@ -543,7 +543,8 @@ describe("점검 기준 화면", () => {
   it("기본 표준: 보는 항목 전체와 이 폴더 결과, 사내 항목 없음", async () => {
     const { core, repo } = await setup();
     await core.pickFolder();
-    const v = await core.diagnose(repo, "dev");
+    // 커밋 여부를 보는 팀 기준 (혼자면 해당 없음, 아래에서 확인)
+    const v = await core.diagnose(repo, "dev", "team");
     const ids = v.criteria.map((c) => c.id);
     expect(ids).toEqual([
       "settings/missing",
@@ -560,6 +561,12 @@ describe("점검 기준 화면", () => {
     expect(by("settings/missing")).toMatchObject({ status: "fail", penalty: "위험 −15" });
     // settings.json이 없으면 커밋 여부는 아직 보지 않는다
     expect(by("settings/committed")).toMatchObject({ status: "pending" });
+    const solo = await core.diagnose(repo, undefined, "solo");
+    expect(solo.criteria.find((c) => c.id === "settings/committed")).toMatchObject({
+      status: "na",
+      note: "혼자 쓰는 폴더라 보지 않습니다",
+    });
+    await core.diagnose(repo, undefined, "team");
     expect(by("claude-md/verify")?.status).toBe("ok");
     expect(v.criteria.some((c) => c.company)).toBe(false);
     expect(v.standardSource).toBe("default");

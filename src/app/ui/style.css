@@ -67,7 +67,7 @@
     --on-brand: #ffffff;
     --brand-fill: #0066ff;
     --brand-fill-strong: #005eeb;
-    --brand-text: #3385ff;
+    --brand-text: #69a5ff; /* 옅은 파랑 면 위에서도 4.5:1 */
     --neg: #ff6363;
     --neg-fill: #e52222;
     --neg-fill-strong: #b00c0c;
@@ -1651,39 +1651,51 @@ kbd {
 .pick-item input {
   accent-color: var(--brand);
 }
-/* 미리 보기: 파일별로 접기 */
+/* 미리 보기: 파일마다 경로·쉬운 말 요약, 바뀌는 코드는 개발자용으로 접는다 */
 .file {
   margin: 0 0 8px;
   overflow: hidden;
   border: 1px solid var(--line-2);
   border-radius: 10px;
 }
-.file summary {
+.file-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 10px;
   padding: 10px 12px;
+}
+.file-code summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line-2);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-2);
   cursor: pointer;
   list-style: none;
 }
-.file summary::-webkit-details-marker {
+.file-code summary::-webkit-details-marker {
   display: none;
 }
-.file summary::before {
+.file-code summary::before {
   content: "";
   flex: none;
-  align-self: center;
   width: 6px;
   height: 6px;
-  margin-right: 2px;
   border-right: 2px solid var(--fg-3);
   border-bottom: 2px solid var(--fg-3);
   transform: rotate(-45deg);
   transition: transform 0.15s var(--ease);
 }
-.file[open] summary::before {
+.file-code[open] summary::before {
   transform: rotate(45deg);
+}
+.file-code summary:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
 }
 .file-path {
   font-family: var(--mono);
@@ -1918,4 +1930,27 @@ kbd {
 }
 .bundle-items li + li {
   border-top: 1px solid var(--line-2);
+}
+
+/* 확인창 맨 위 안심 문구 */
+.msg.safe {
+  margin-bottom: 12px;
+}
+/* 보내기 전인 팀 저장소 점수 자리 */
+.recent .pts.warn {
+  color: var(--cau);
+  font-size: 13px;
+}
+/* 펼친 본문 아래 버튼 줄은 표 격자를 따르지 않는다 */
+.todo-body > .todo-acts {
+  display: flex;
+  grid-template-columns: none;
+}
+/* 머리글 경로가 줄어도 "탐색기에서 열기"는 한 줄 */
+.path-line .text-btn {
+  flex: none;
+  white-space: nowrap;
+}
+.notice-line.same {
+  color: var(--fg-3);
 }
