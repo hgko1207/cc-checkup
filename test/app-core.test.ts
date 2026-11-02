@@ -509,6 +509,20 @@ describe("예상 점수", () => {
     ).toBe("fail");
   });
 
+  it("고치기마다 오르는 점수(gain)는 그 고치기 하나만 미리 볼 때와 같다", async () => {
+    const { core, repo } = await setup();
+    await core.pickFolder();
+    for (const usage of ["solo", "team"] as const) {
+      const d = await core.diagnose(repo, "dev", usage);
+      expect(d.fixes.length).toBeGreaterThan(0);
+      for (const f of d.fixes) {
+        const p = await core.fix(repo, [f.no], false);
+        if (p.kind !== "preview") throw new Error("preview");
+        expect(f.gain).toBe(p.expectedScore - d.score);
+      }
+    }
+  });
+
   it("커밋 뒤 점수: 고친 뒤 settings.json을 커밋하면 실제로 그 점수가 된다", async () => {
     const { core, deps, repo } = await setup();
     await core.pickFolder();
@@ -635,7 +649,8 @@ describe("앱에서 커밋하기", () => {
     expect((await core.commit(s.repo, false)).kind).toBe("none");
     // 커밋한 뒤에는 되돌리기를 숨기고(커밋된 파일을 지우는 새 변경만 남으므로), push 전으로 표시한다
     expect(after.canUndo).toBe(false);
-    expect(after.pushPending).toEqual({ branch: expect.any(String), target: null });
+    // 원격 저장소가 없으면 화면이 "원격 연결 필요"를 보이도록 알려 준다
+    expect(after.pushPending).toEqual({ branch: expect.any(String), target: null, noRemote: true });
 
     // 원격이 없으면 push하지 않고 이유를 알려 준다
     expect(await core.push(s.repo, false)).toMatchObject({ kind: "none" });
@@ -643,6 +658,10 @@ describe("앱에서 커밋하기", () => {
     const remote = await mkdtemp(join(tmpdir(), "cc-remote-"));
     execFileSync("git", ["init", "-q", "--bare", remote]);
     git("remote", "add", "origin", remote);
+    expect((await core.diagnose(s.repo)).pushPending).toEqual({
+      branch: after.pushPending?.branch,
+      target: null,
+    });
     const pv = await core.push(s.repo, false);
     if (pv.kind !== "preview") throw new Error(pv.kind);
     expect(pv.newBranch).toBe(true);

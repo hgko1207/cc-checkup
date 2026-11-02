@@ -91,10 +91,10 @@ export interface DiagnosisView {
   usageGuess: Usage; // 자동 추천 결과 (직접 고른 방식과 다를 수 있음)
   counts: Record<Severity, number>;
   areas: AreaView[];
-  fixes: { no: number; title: string }[];
+  fixes: { no: number; title: string; gain: number }[]; // gain: 이 고치기 하나만 적용했을 때 오르는 점수
   blocked?: string; // settings.json을 쓸 수 없어 설정 고치기를 막은 이유
   canUndo: boolean; // 되돌릴 반영이 있고 아직 커밋되지 않음
-  pushPending?: { branch: string; target: string | null }; // 앱이 한 커밋이 아직 원격에 없음
+  pushPending?: { branch: string; target: string | null; noRemote?: boolean }; // 앱이 한 커밋이 아직 원격에 없음 (noRemote: 원격 저장소가 없음)
 }
 
 // 팀원에게 보내기(git push): 미리 보기 → push

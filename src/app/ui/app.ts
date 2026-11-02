@@ -383,7 +383,7 @@ async function commitFlow(): Promise<void> {
               panel(
                 "커밋했습니다",
                 scoreChange(before, current.score) +
-                  (current.pushPending ? "\n다음: 3단계 ‘팀원에게 보내기’" : ""),
+                  (pushLeft(current) ? "\n다음: 3단계 ‘팀원에게 보내기’" : ""),
               );
               $("panel-message").classList.add("lead");
               $("panel-note").textContent = "커밋한 뒤에는 앱에서 되돌릴 수 없습니다.";
@@ -1210,6 +1210,7 @@ interface Todo {
   penalty: number; // 이 할 일의 진단 항목 감점 합
   gain: number; // 고치면 오르는 점수 (커밋 전)
   gainNote?: string; // 커밋하면 더 오르는 점수
+  sharedNote?: string; // 다른 할 일의 항목도 함께 풀려 더 오를 때
 }
 
 function head(message: string): string {
@@ -1257,6 +1258,9 @@ function buildTodos(d: DiagnosisView): Todo[] {
     // settings.json을 새로 만드는 줄: 커밋하기 전까지 "커밋 여부"가 위험으로 남으므로 그만큼 덜 오른다
     const creates =
       d.committedScore !== undefined && items.some((x) => x.id === "settings/missing");
+    const own = penalty - (creates ? d.weights.fail : 0);
+    // 바로 고치기는 미리 보기와 같은 계산(이 고치기 하나만 적용)으로 오르는 점수를 쓴다
+    const engine = no !== undefined ? d.fixes.find((x) => x.no === no)?.gain : undefined;
     todos.push({
       key: no !== undefined ? `fix:${no}` : `item:${f.id}:${todos.length}`,
       kind: no !== undefined ? "fix" : f.claudeTask ? "claude" : "manual",
@@ -1265,8 +1269,12 @@ function buildTodos(d: DiagnosisView): Todo[] {
       items,
       severity,
       penalty,
-      gain: penalty - (creates ? d.weights.fail : 0),
+      gain: engine ?? own,
       gainNote: creates ? `나머지 ${d.weights.fail}점은 커밋하면 오릅니다` : undefined,
+      sharedNote:
+        engine !== undefined && engine > own
+          ? "설정 파일을 새로 만들면서 다른 할 일의 항목도 함께 풀려 그만큼 더 오릅니다. 다른 할 일과 함께 고치면 겹치는 점수는 한 번만 오릅니다."
+          : undefined,
     });
   }
   const rank = (t: Todo) => (t.severity === "fail" ? 0 : 1);
@@ -1485,7 +1493,7 @@ function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
       ? `Claude 설정 파일(.claude/settings.json)${ids.has("settings/missing") ? "을 새로 만들어" : "에"} .env ${read && edit ? "읽기와 고치기를" : read ? "읽기를" : "고치기를"} 막는 규칙을 넣습니다. 다른 설정은 그대로입니다.`
       : null;
   const fixText = envFix ?? det?.fix ?? (t.kind === "manual" ? null : todoLine(t, d));
-  if (fixText || others.length > 0)
+  if (fixText || others.length > 0 || t.sharedNote)
     body.append(
       bodyRow(
         "고치면",
@@ -1498,6 +1506,7 @@ function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
               `지금 고치면 +${t.gain}점입니다. ${t.gainNote} (요약 카드의 2단계).`,
             )
           : null,
+        t.sharedNote ? h("p", { class: "also" }, `+${t.gain}점: ${t.sharedNote}`) : null,
       ),
     );
   if (det?.limit) body.append(bodyRow("못 막는 것", h("p", {}, det.limit)));
@@ -1593,8 +1602,7 @@ function renderRecent(): void {
       : state.recent.map((r) => {
           const name = folderName(r.path);
           const isCurrent = current?.path === r.path;
-          const unsent =
-            isCurrent && current?.usage === "team" && current.pushPending !== undefined;
+          const unsent = isCurrent && current !== null && pushLeft(current) !== undefined;
           const score = unsent ? "보내기 전" : r.score !== undefined ? `${r.score}점` : "";
           const b = keyed(
             h(
@@ -1766,7 +1774,9 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
     d.expectedScore !== undefined && d.expectedScore > d.score ? d.expectedScore : undefined;
   const commitTo = team ? d.committedScore : undefined;
   // 앱이 한 커밋이 아직 원격에 없으면 끝났다고 하지 않는다 (팀 저장소만)
-  const unpushed = team && d.pushPending !== undefined;
+  const unpushed = pushLeft(d) !== undefined;
+  const noRemote = pushLeft(d)?.noRemote === true;
+  const selfPush = team && selfPushPaths.has(d.path) && d.pushPending !== undefined;
   const { pending, cmd } = commitInfo(d);
   const rest = todos.length - todos.filter((t) => t.kind === "fix").length;
   const base = baseline.get(d.path); // 이번에 열었을 때 점수 (전후 비교)
@@ -1780,7 +1790,10 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
       ? `${n}개를 고치면 ${effect}`
       : `${n}개를 고치면 ${commitTo ?? fixTo ?? d.score}점이 됩니다`;
   else if (team && pending) headline = "고친 설정을 커밋하고 팀원에게 보내면 모두에게 적용됩니다";
-  else if (unpushed) headline = "팀원에게 보내면 같은 설정이 모두에게 적용됩니다";
+  else if (unpushed)
+    headline = noRemote
+      ? "원격 저장소를 연결해야 팀원에게 보낼 수 있습니다"
+      : "팀원에게 보내면 같은 설정이 모두에게 적용됩니다";
   else if (rest > 0)
     headline = ready
       ? `목표 ${READY_SCORE}점을 넘었습니다. 남은 할 일 ${rest}개로 더 올릴 수 있습니다`
@@ -1825,9 +1838,13 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
   commitBtn.className = `btn lg${n > 0 ? "" : " solid"}`;
   commitBtn.disabled = off;
   const pushBtn = $("hero-push") as HTMLButtonElement;
-  pushBtn.hidden = !unpushed || pending;
+  pushBtn.hidden = !unpushed || pending || noRemote;
   pushBtn.className = `btn lg${n > 0 ? "" : " solid"}`;
   pushBtn.disabled = off;
+  // 원격 저장소가 없으면 앱이 보낼 수 없으니, 직접 보내기로 하고 끝낼 수 있게 한다
+  const selfBtn = $("hero-self-push") as HTMLButtonElement;
+  selfBtn.hidden = !unpushed || pending || !noRemote;
+  selfBtn.disabled = off;
   // 모두 끝나면 결과를 남기는 리포트 저장이 주 버튼
   const reportBtn = $("hero-report") as HTMLButtonElement;
   reportBtn.hidden = !finished;
@@ -1841,11 +1858,15 @@ function renderHero(d: DiagnosisView, todos: Todo[]): void {
       : team && pending
         ? `앱이 만든 파일만 커밋합니다. 커밋하면 ${commitTo ?? d.score + d.weights.fail}점이 됩니다.`
         : unpushed
-          ? "보내기 전에 보낼 커밋을 한 번 더 보여 드립니다."
+          ? noRemote
+            ? "이 저장소에는 원격 저장소(remote)가 연결돼 있지 않습니다. 원격을 연결한 뒤 ‘다시 점검’을 누르면 여기서 보낼 수 있습니다. 직접 보낼 거라면 ‘보내기는 직접 할게요’를 누르세요."
+            : "보내기 전에 보낼 커밋을 한 번 더 보여 드립니다."
           : finished
             ? (team && pushedPaths.has(d.path)
                 ? "팀 저장소에 올렸습니다. 팀원이 최신 내용을 받으면(pull) 같은 설정이 적용됩니다. "
-                : "더 고칠 것이 없습니다. ") + "결과를 남겨 두려면 리포트를 저장하세요."
+                : selfPush
+                  ? "커밋은 끝났습니다. 팀원에게는 직접 보내 주세요. "
+                  : "더 고칠 것이 없습니다. ") + "결과를 남겨 두려면 리포트를 저장하세요."
             : "";
   $("hero-msg").hidden = msg === "";
   $("hero-msg-text").textContent = msg;
@@ -1866,14 +1887,21 @@ function commitInfo(d: DiagnosisView): { pending: boolean; cmd: string | null } 
 // 팀에 적용하기: 고치기 → 커밋 → 팀원에게 보내기를 요약 카드에 단계로 보여 준다 (git 저장소에서 커밋이 필요한 폴더만).
 // 실행은 단계에 맞는 주 버튼 하나가 맡고, 터미널 명령은 "자세히 (개발자용)" 안에 둔다
 const pushedPaths = new Set<string>(); // 이번 실행에서 앱이 보낸(push) 폴더
+const selfPushPaths = new Set<string>(); // 원격 저장소가 없어 보내기는 직접 하기로 한 폴더 (이번 실행)
+
+// 앱이 보내기를 맡을 커밋이 남았는가 (팀 저장소이고, 직접 보내기로 하지 않았을 때)
+function pushLeft(d: DiagnosisView): DiagnosisView["pushPending"] {
+  return d.usage === "team" && !selfPushPaths.has(d.path) ? d.pushPending : undefined;
+}
 
 function renderSteps(d: DiagnosisView): void {
   const { pending, cmd } = commitInfo(d);
-  const push = d.pushPending;
+  const push = pushLeft(d);
+  const self = selfPushPaths.has(d.path) && d.pushPending !== undefined;
   const n = d.fixes.length;
   const claudeLeft = buildTodos(d).filter((t) => t.kind === "claude").length;
   const committed = committedPaths.has(d.path);
-  const pushed = pushedPaths.has(d.path) && !push && !pending;
+  const pushed = (pushedPaths.has(d.path) || self) && !push && !pending;
   // 혼자 쓰는 저장소는 고치면 끝이라 단계를 보이지 않는다
   const show =
     d.usage === "team" &&
@@ -1932,7 +1960,13 @@ function renderSteps(d: DiagnosisView): void {
     step(
       3,
       "팀원에게 보내기",
-      pushState === "done" ? "팀 저장소에 올렸습니다" : "팀 저장소에 올려 팀원이 받게 합니다",
+      pushState === "done"
+        ? self
+          ? "직접 보내기로 했습니다"
+          : "팀 저장소에 올렸습니다"
+        : push?.noRemote
+          ? "원격 저장소를 먼저 연결해야 합니다"
+          : "팀 저장소에 올려 팀원이 받게 합니다",
       pushState,
     ),
   );
@@ -1940,7 +1974,13 @@ function renderSteps(d: DiagnosisView): void {
   const cmds: HTMLElement[] = [];
   if (pending && cmd)
     cmds.push(h("div", { class: "cmd-row" }, h("code", {}, cmd), copyButton(cmd)));
-  if (push && !pending) {
+  if (push?.noRemote && !pending) {
+    const p = `git remote add origin <저장소 주소> && git push -u origin ${push.branch}`;
+    cmds.push(
+      h("p", { class: "dev-line" }, "원격 저장소가 없습니다. 저장소 주소를 연결한 뒤 보내세요"),
+      h("div", { class: "cmd-row" }, h("code", {}, p), copyButton(p)),
+    );
+  } else if (push && !pending) {
     const p = push.target ? "git push" : `git push -u origin ${push.branch}`;
     cmds.push(
       h(
@@ -1977,7 +2017,7 @@ async function pushFlow(): Promise<void> {
   try {
     const r = await api.push(path, false);
     if (r.kind === "none") {
-      panel("보낼 것이 없습니다", r.reason);
+      panel(r.reason.startsWith("이미") ? "이미 보냈습니다" : "아직 보낼 수 없습니다", r.reason);
       closeOnly();
       current = await api.diagnose(path);
       return;
@@ -2068,7 +2108,7 @@ function renderResults(d: DiagnosisView): void {
       ? `할 일 ${total}개`
       : team && commitInfo(d).pending
         ? "남은 단계: 커밋"
-        : team && d.pushPending
+        : pushLeft(d)
           ? "남은 단계: 팀원에게 보내기"
           : "할 일이 없습니다";
   const failTodos = todos.filter((t) => t.severity === "fail").length;
@@ -2195,7 +2235,12 @@ function renderBundles(d: DiagnosisView): void {
     const todos = allTodos.filter((t) => t.items.some((x) => b.match(x.id)));
     const steps: string[] = [];
     if (b.teamOnly && pending) steps.push("설정 파일을 커밋해 팀원에게 보냅니다");
-    else if (b.teamOnly && d.pushPending) steps.push("커밋한 설정을 팀원에게 보냅니다");
+    else if (b.teamOnly && pushLeft(d))
+      steps.push(
+        pushLeft(d)?.noRemote
+          ? "원격 저장소를 연결한 뒤 커밋한 설정을 팀원에게 보냅니다"
+          : "커밋한 설정을 팀원에게 보냅니다",
+      );
     const okItems = findings.filter((f) => b.match(f.id) && f.severity === "ok");
     if (todos.length === 0 && steps.length === 0) {
       if (okItems.length > 0) done.push(b.title);
@@ -2226,7 +2271,7 @@ function renderBundles(d: DiagnosisView): void {
       acts.push(all);
     }
     // 팀 공유: 고칠 것이 없고 커밋·보내기만 남았으면 그 단계 버튼
-    if (b.teamOnly && nos.length === 0 && (pending || d.pushPending)) {
+    if (b.teamOnly && nos.length === 0 && (pending || (pushLeft(d) && !pushLeft(d)?.noRemote))) {
       const step = pending
         ? button("변경 커밋하기", () => void commitFlow(), cls(first))
         : button("팀원에게 보내기", () => void pushFlow(), cls(first));
@@ -2657,6 +2702,11 @@ $("fix-all").addEventListener("click", () => current && void fix(current.fixes.m
 $("panel-close").addEventListener("click", closePanel);
 $("hero-commit").addEventListener("click", () => void commitFlow());
 $("hero-push").addEventListener("click", () => void pushFlow());
+$("hero-self-push").addEventListener("click", () => {
+  if (!current) return;
+  selfPushPaths.add(current.path);
+  render();
+});
 // Esc로 패널 닫기 (Claude 실행 중에는 닫기 버튼이 없으므로 닫지 않는다)
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !help.open && !$("panel").hidden && !$("panel-close").hidden)

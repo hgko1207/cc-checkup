@@ -460,7 +460,11 @@ export function toView(
     usageGuess: diag.usageGuess.usage,
     counts,
     areas,
-    fixes: plan.candidates.map((c) => ({ no: c.no, title: c.title })),
+    fixes: plan.candidates.map((c) => ({
+      no: c.no,
+      title: c.title,
+      gain: expectedScore(diag, [c]) - diag.score,
+    })),
     weights: diag.ctx.standard.score,
     expectedScore: plan.candidates.length > 0 ? expectedScore(diag, plan.candidates) : undefined,
     committedScore: committedScore(diag, plan.candidates),
@@ -1001,7 +1005,9 @@ export class AppCore {
   }
 
   // 앱이 한 커밋이 아직 원격에 없는가 (push 전). 앱이 커밋한 폴더만 본다
-  private async pushState(path: string): Promise<{ branch: string; target: string | null } | null> {
+  private async pushState(
+    path: string,
+  ): Promise<{ branch: string; target: string | null; noRemote?: boolean } | null> {
     const key = this.key(path);
     if (!this.unpushed.has(key)) return null;
     const git = this.deps.runGit ?? runGit;
@@ -1009,7 +1015,11 @@ export class AppCore {
     const branch = (head.stdout ?? "").trim();
     if (head.code !== 0 || !branch) return null;
     const up = await git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], path);
-    if (up.code !== 0) return { branch, target: null };
+    if (up.code !== 0) {
+      const remotes = await git(["remote"], path);
+      const none = remotes.code === 0 && (remotes.stdout ?? "").trim() === "";
+      return none ? { branch, target: null, noRemote: true } : { branch, target: null };
+    }
     const ahead = await git(["rev-list", "--count", "@{u}..HEAD"], path);
     if (ahead.code === 0 && (ahead.stdout ?? "").trim() === "0") {
       this.unpushed.delete(key);
