@@ -160,7 +160,7 @@ test("폴더 열기 → 진단 → 바로 고치기 → 되돌리기", async () 
     "true",
   );
   await expect(page.locator("#crit-title")).toContainText("점검 항목");
-  await expect(page.locator("#criteria")).toContainText("팀 공용 설정 파일");
+  await expect(page.locator("#criteria")).toContainText("Claude 설정 파일");
   // 사용법·용어 창: 용어와 단축키 표, Esc로 닫으면 누른 버튼으로 돌아온다
   await page.getByRole("button", { name: "사용법·용어 보기" }).click();
   await expect(page.locator("#help")).toBeVisible();

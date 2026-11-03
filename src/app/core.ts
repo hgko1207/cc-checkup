@@ -247,7 +247,7 @@ export function criteriaFor(diag: Diagnosis): CriterionView[] {
     {
       id: "settings/missing",
       group: "보안",
-      title: "팀 공용 설정 파일",
+      title: "Claude 설정 파일",
       rule: ".claude/settings.json이 폴더에 있습니다",
       penalty: pen("fail"),
     },
@@ -298,8 +298,8 @@ export function criteriaFor(diag: Diagnosis): CriterionView[] {
     {
       id: "hooks/present",
       group: "보안",
-      title: "위험 명령 차단 훅",
-      rule: "강제 푸시·rm -rf를 실행 직전에 멈추는 훅이 등록돼 있습니다",
+      title: "위험 명령 검사(훅)",
+      rule: "강제 푸시·rm -rf를 실행 직전에 멈추는 검사(훅)가 등록돼 있습니다",
       penalty: pen("warn"),
     },
     notYet,
@@ -780,7 +780,7 @@ export class AppCore {
             isNew: c.before === null,
             added: diff.split("\n").filter((l) => l.startsWith("+ ")).length,
             note: c.path.startsWith(`${HOOK_DIR}/`)
-              ? "team-ai-kit 위험 명령 차단 훅 원본 그대로 복사"
+              ? "team-ai-kit 위험 명령 검사(훅) 원본 그대로 복사"
               : chosen.some((x) => x.createFile?.path === c.path)
                 ? "사내 기준 템플릿"
                 : undefined,

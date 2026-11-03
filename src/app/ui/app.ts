@@ -1446,7 +1446,7 @@ function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
         h("span", { class: "todo-title" }, title),
         h("span", { class: "todo-sub" }, `할 일: ${todoLine(t, d)}`),
       ),
-      h("span", { class: "sr-only" }, `, 고치면 +${t.gain}점`),
+      h("span", { class: "sr-only" }, ` (고치면 +${t.gain}점)`),
     ),
     id,
   );
@@ -1584,7 +1584,7 @@ function claudeStatusLine(): HTMLElement {
 
 function scoreTone(score: number | undefined): string {
   if (score === undefined) return "";
-  return score >= READY_SCORE ? " good" : score < 50 ? " bad" : "";
+  return score >= READY_SCORE ? " good" : " bad"; // DESIGN.md: 목표 80점 미만은 위험 색
 }
 
 // 폴더가 있는 위치 (목록에서 이름 아래 한 줄)
@@ -1684,7 +1684,7 @@ function renderHome(): void {
   if (!state) return;
   const si = state.standardInfo;
   $("home-standard").textContent =
-    `적용 기준: ${si.name} ${si.version}${si.file ? "" : " (기본 내장)"}`;
+    `적용 기준: ${stdName(si.name)} ${si.version}${si.file ? "" : " (기본 내장)"}`;
   $("home-recent-box").hidden = state.recent.length === 0;
   const blocked = busy || locked || state.running;
   $("home-recent").replaceChildren(
@@ -2293,7 +2293,8 @@ function renderBundles(d: DiagnosisView): void {
     // 남은 할 일 → 남은 단계(커밋·보내기) → 이미 된 것 순서
     const line = (badge: HTMLElement, text: string) => h("li", {}, badge, h("span", {}, text));
     const lines = [
-      ...todos.map((t) => line(sevBadge(t.severity, SEVERITY[t.severity]), todoLine(t, d))),
+      // 줄은 "무엇을 넣는가"라 배지는 위험도 이름 대신 상태(할 일 → 다음 → 됨)로, 색만 위험도를 따른다
+      ...todos.map((t) => line(sevBadge(t.severity, "할 일"), todoLine(t, d))),
       ...steps.map((s) => line(sevBadge("na", "다음"), s)),
       ...okItems.map((f) =>
         line(
@@ -2368,14 +2369,19 @@ function showCriterion(id: string): void {
   row.focus({ preventScroll: true });
 }
 
+// 내장 기준의 이름은 엔진·CLI에서 "기본 표준"이지만, 화면은 "기준" 한 단어로 쓴다
+function stdName(name: string): string {
+  return name.replace(/^기본 표준/, "기본 기준");
+}
+
 function renderCriteria(d: DiagnosisView): void {
   const si = state?.standardInfo;
-  $("standard").textContent = si ? `${si.name} ` : d.standardName;
+  $("standard").textContent = si ? `${stdName(si.name)} ` : stdName(d.standardName);
   $("standard").append(h("span", { class: "std-ver" }, si?.version ?? ""));
   $("std-desc").textContent =
     d.standardSource === "shared"
       ? "지금 이 기준으로 점검합니다. 앱의 기본 점검에 사내 기준 파일이 정한 항목을 더했습니다. 더한 항목에는 '사내' 표시가 있습니다."
-      : "지금 앱에 들어 있는 기본 기준으로 점검합니다. 팀 기준 파일(standard.json)을 고르면 필수 섹션·필수 파일·사내 플러그인을 더 볼 수 있습니다.";
+      : "지금 앱에 들어 있는 기본 기준으로 점검합니다. 사내 기준 파일(standard.json)을 고르면 필수 섹션·필수 파일·사내 플러그인을 더 볼 수 있습니다.";
   $("std-path").textContent = si?.path ?? "기본 내장";
   $("std-path").title = si?.path ?? "";
   $("reset-standard").hidden = !si?.file;
