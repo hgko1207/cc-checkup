@@ -344,13 +344,19 @@ async function commitFlow(): Promise<void> {
     locked = true;
     panel(
       "2단계: 커밋",
-      `앱이 만든 파일 ${r.files.length}개를 커밋합니다\n이 PC의 git 기록에 남기는 단계입니다. 다음 단계에서 팀원에게 보냅니다. 커밋한 뒤에는 앱의 되돌리기를 쓸 수 없습니다.`,
+      `앱이 만든 파일 ${r.files.length}개를 커밋합니다\n이 PC의 git 기록에 남기는 단계입니다. 다음 단계에서 팀원에게 보냅니다.`,
       "",
       true,
     );
     $("panel-message").classList.add("lead");
-    // 파일·메시지·되돌리는 법은 개발자용으로 접어 둔다
+    // 되돌릴 수 없는 단계라 경고와 커밋할 파일은 펼쳐 두고, 메시지·되돌리는 법만 개발자용으로 접는다
     $("diffs").replaceChildren(
+      h(
+        "p",
+        { class: "msg warn safe" },
+        "커밋한 뒤에는 앱의 되돌리기를 쓸 수 없습니다. 되돌리려면 git으로 직접 해야 합니다.",
+      ),
+      h("ul", { class: "outside" }, ...r.files.map((f) => h("li", {}, h("code", {}, f)))),
       ...[termsFold(`커밋 스테이징 ${$("panel-message").textContent ?? ""}`)].filter(
         (x) => x !== null,
       ),
@@ -358,7 +364,6 @@ async function commitFlow(): Promise<void> {
         "details",
         { class: "manual" },
         h("summary", {}, "자세히 (개발자용)"),
-        h("ul", { class: "outside" }, ...r.files.map((f) => h("li", {}, h("code", {}, f)))),
         h("p", { class: "dev-line" }, `커밋 메시지: ${r.message}`),
         h(
           "p",
@@ -395,7 +400,7 @@ async function commitFlow(): Promise<void> {
             }
           })();
         },
-        "btn primary",
+        "btn primary deliberate",
       ),
       button("취소", closePanel),
     );
@@ -1441,7 +1446,7 @@ function renderTodo(t: Todo, d: DiagnosisView): HTMLElement {
         h("span", { class: "todo-title" }, title),
         h("span", { class: "todo-sub" }, `할 일: ${todoLine(t, d)}`),
       ),
-      h("span", { class: "sr-only" }, `, 고치면 +${t.gain}점`),
+      h("span", { class: "sr-only" }, ` (고치면 +${t.gain}점)`),
     ),
     id,
   );
@@ -1579,7 +1584,7 @@ function claudeStatusLine(): HTMLElement {
 
 function scoreTone(score: number | undefined): string {
   if (score === undefined) return "";
-  return score >= READY_SCORE ? " good" : score < 50 ? " bad" : "";
+  return score >= READY_SCORE ? " good" : " bad"; // DESIGN.md: 목표 80점 미만은 위험 색
 }
 
 // 폴더가 있는 위치 (목록에서 이름 아래 한 줄)
@@ -1679,7 +1684,7 @@ function renderHome(): void {
   if (!state) return;
   const si = state.standardInfo;
   $("home-standard").textContent =
-    `적용 기준: ${si.name} ${si.version}${si.file ? "" : " (기본 내장)"}`;
+    `적용 기준: ${stdName(si.name)} ${si.version}${si.file ? "" : " (기본 내장)"}`;
   $("home-recent-box").hidden = state.recent.length === 0;
   const blocked = busy || locked || state.running;
   $("home-recent").replaceChildren(
@@ -2188,20 +2193,22 @@ const BUNDLES: {
   title: string;
   advice: string;
   teamOnly?: boolean;
-  match: (id: string) => boolean;
+  match: (id: string, team: boolean) => boolean;
 }[] = [
   {
     key: "protect",
     title: "기본 보호",
     advice:
       "Claude가 .env(API 키·비밀번호)를 읽거나 고치지 못하게 막고, 강제 푸시나 rm -rf 같은 명령은 실행 전에 멈추게 합니다. 어떤 저장소든 가장 먼저 넣기를 권합니다.",
-    match: (id) =>
+    // 혼자 쓰는 폴더는 팀 공유 묶음이 없으니 권한 우회 모드 막기도 기본 보호에 넣는다
+    match: (id, team) =>
       [
         "settings/missing",
         "settings/env-read-deny",
         "settings/env-edit-deny",
         "hooks/present",
-      ].includes(id),
+      ].includes(id) ||
+      (!team && id === "settings/bypass"),
   },
   {
     key: "work",
@@ -2229,10 +2236,14 @@ function renderBundles(d: DiagnosisView): void {
   const cards: HTMLElement[] = [];
   const done: string[] = [];
   let first = true; // 남은 묶음 중 맨 위만 주 버튼
+  const taken = new Set<string>(); // 할 일은 맞는 묶음 중 첫 묶음 하나에만 넣는다
   for (const b of BUNDLES) {
     if (b.teamOnly && !team) continue;
     // 남은 것은 점검 결과와 같은 "할 일" 단위로 센다 (같은 고치기로 풀리는 항목은 하나)
-    const todos = allTodos.filter((t) => t.items.some((x) => b.match(x.id)));
+    const todos = allTodos.filter(
+      (t) => !taken.has(t.key) && t.items.some((x) => b.match(x.id, team)),
+    );
+    for (const t of todos) taken.add(t.key);
     const steps: string[] = [];
     if (b.teamOnly && pending) steps.push("설정 파일을 커밋해 팀원에게 보냅니다");
     else if (b.teamOnly && pushLeft(d))
@@ -2241,7 +2252,7 @@ function renderBundles(d: DiagnosisView): void {
           ? "원격 저장소를 연결한 뒤 커밋한 설정을 팀원에게 보냅니다"
           : "커밋한 설정을 팀원에게 보냅니다",
       );
-    const okItems = findings.filter((f) => b.match(f.id) && f.severity === "ok");
+    const okItems = findings.filter((f) => b.match(f.id, team) && f.severity === "ok");
     if (todos.length === 0 && steps.length === 0) {
       if (okItems.length > 0) done.push(b.title);
       continue;
@@ -2282,9 +2293,18 @@ function renderBundles(d: DiagnosisView): void {
     // 남은 할 일 → 남은 단계(커밋·보내기) → 이미 된 것 순서
     const line = (badge: HTMLElement, text: string) => h("li", {}, badge, h("span", {}, text));
     const lines = [
-      ...todos.map((t) => line(sevBadge(t.severity, SEVERITY[t.severity]), todoLine(t, d))),
+      // 줄은 "무엇을 넣는가"라 배지는 위험도 이름 대신 상태(할 일 → 다음 → 됨)로, 색만 위험도를 따른다
+      ...todos.map((t) => line(sevBadge(t.severity, "할 일"), todoLine(t, d))),
       ...steps.map((s) => line(sevBadge("na", "다음"), s)),
-      ...okItems.map((f) => line(sevBadge("ok", "됨"), f.detail?.todo ?? head(f.message))),
+      ...okItems.map((f) =>
+        line(
+          sevBadge("ok", "됨"),
+          // 커밋 항목의 할 일 문장은 보내기까지 말하므로, 된 것은 커밋까지만 말한다
+          f.id === "settings/committed"
+            ? "설정 파일을 커밋했습니다"
+            : (f.detail?.todo ?? head(f.message)),
+        ),
+      ),
     ];
     const count = [
       todos.length > 0 ? `할 일 ${todos.length}개` : "",
@@ -2315,16 +2335,25 @@ function renderBundles(d: DiagnosisView): void {
         h("p", { class: "bundle-advice" }, `점검 결과: ${risky.message}`),
       ),
     );
-  if (cards.length === 0)
+  // 모두 들어 있으면 소개 문장과 "이미 들어 있는 묶음" 줄 대신 한 문장으로 말한다
+  const allDone = cards.length === 0;
+  if (allDone)
     cards.push(
       h(
         "section",
         { class: "card" },
-        h("p", { class: "bundle-advice" }, "추천할 세팅이 모두 들어 있습니다."),
+        h(
+          "p",
+          { class: "bundle-advice" },
+          done.length > 0
+            ? `추천하는 세팅이 모두 들어 있습니다: ${done.join(", ")}`
+            : "추천하는 세팅이 모두 들어 있습니다.",
+        ),
       ),
     );
   $("bundles").replaceChildren(...cards);
-  $("bundles-done").hidden = done.length === 0;
+  $("rec-intro").hidden = allDone;
+  $("bundles-done").hidden = allDone || done.length === 0;
   $("bundles-done").textContent = `이미 들어 있는 묶음: ${done.join(", ")}`;
 }
 
@@ -2340,14 +2369,19 @@ function showCriterion(id: string): void {
   row.focus({ preventScroll: true });
 }
 
+// 내장 기준의 이름은 엔진·CLI에서 "기본 표준"이지만, 화면은 "기준" 한 단어로 쓴다
+function stdName(name: string): string {
+  return name.replace(/^기본 표준/, "기본 기준");
+}
+
 function renderCriteria(d: DiagnosisView): void {
   const si = state?.standardInfo;
-  $("standard").textContent = si ? `${si.name} ` : d.standardName;
+  $("standard").textContent = si ? `${stdName(si.name)} ` : stdName(d.standardName);
   $("standard").append(h("span", { class: "std-ver" }, si?.version ?? ""));
   $("std-desc").textContent =
     d.standardSource === "shared"
       ? "지금 이 기준으로 점검합니다. 앱의 기본 점검에 사내 기준 파일이 정한 항목을 더했습니다. 더한 항목에는 '사내' 표시가 있습니다."
-      : "지금 앱에 들어 있는 기본 기준으로 점검합니다. 팀 기준 파일(standard.json)을 고르면 필수 섹션·필수 파일·사내 플러그인을 더 볼 수 있습니다.";
+      : "지금 앱에 들어 있는 기본 기준으로 점검합니다. 사내 기준 파일(standard.json)을 고르면 필수 섹션·필수 파일·사내 플러그인을 더 볼 수 있습니다.";
   $("std-path").textContent = si?.path ?? "기본 내장";
   $("std-path").title = si?.path ?? "";
   $("reset-standard").hidden = !si?.file;

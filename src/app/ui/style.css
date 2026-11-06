@@ -1954,3 +1954,30 @@ kbd {
 .notice-line.same {
   color: var(--fg-3);
 }
+
+/* Windows 고대비(강제 색): 바탕·그림자로만 보이던 선택 상태와 점수 막대를 테두리·시스템 색으로 */
+@media (forced-colors: active) {
+  .seg button[aria-pressed="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  .bar {
+    border: 1px solid CanvasText;
+  }
+  .bar-seg,
+  .bar-goal {
+    forced-color-adjust: none;
+  }
+  .bar-seg.now {
+    background: Highlight;
+  }
+  .bar-seg.fix {
+    background: GrayText;
+  }
+  .bar-seg.commit {
+    outline-color: GrayText;
+  }
+  .bar-goal {
+    background: CanvasText;
+  }
+}
