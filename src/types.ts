@@ -1,4 +1,5 @@
 import type { FolderKind, Standard } from "./standard.js";
+import type { Usage } from "./usage.js";
 
 // 진단 결과 한 건
 export type Severity = "ok" | "warn" | "fail";
@@ -65,13 +66,21 @@ export interface GitTracking {
   reason?: string;
 }
 
+// 저장소 밖에서 Claude에 적용되는 설정. 고치기는 쓰지 않고 판정에만 쓴다
+export interface OtherSettings {
+  local: SettingsRead; // 개인 설정 .claude/settings.local.json (git에 올리지 않음)
+  user: SettingsRead; // 내 PC 전체 설정 ~/.claude/settings.json
+}
+
 export interface CheckContext {
   repoDir: string;
-  settings: SettingsRead;
+  settings: SettingsRead; // 저장소 설정 .claude/settings.json (고치기가 쓰는 파일)
+  other: OtherSettings;
   scan: EnvScan;
   git: GitTracking;
   standard: Standard; // 폴더 종류에 맞춘 기준 (standardFor)
   kind: FolderKind;
+  usage: Usage;
 }
 
 // 진단 하나: 공유 입력을 받아 결과 목록을 돌려준다

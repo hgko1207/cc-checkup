@@ -37,9 +37,11 @@ export async function ctxFor(
   return {
     repoDir,
     settings: await readSettings(repoDir),
+    other: { local: { state: "missing" }, user: { state: "missing" } },
     scan: await scanRepo(repoDir),
     git,
     standard,
     kind: "dev",
+    usage: "team",
   };
 }

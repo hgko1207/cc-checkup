@@ -118,7 +118,7 @@ describe("진단 화면 데이터", () => {
     picks.push(EXAMPLE);
     await core.pickFolder();
     await core.pickStandard();
-    const v = await core.diagnose(repo, "dev");
+    const v = await core.diagnose(repo, "dev", "team");
     expect(v.standard).toContain("사내 Claude 표준");
     const all = v.areas.flatMap((a) => a.findings.map((f) => ({ ...f, area: a.area })));
     const byId = (id: string) => all.find((f) => f.id === id);
@@ -299,6 +299,80 @@ describe("폴더 종류 선택", () => {
   });
 });
 
+describe("사용 방식 (혼자 / 팀)", () => {
+  it("자동 추천 → 직접 고르면 기억 → 자동으로 되돌리기", async () => {
+    // setup의 fakeGit: settings.json 추적 안 됨, git log 실패(커밋 없음) → 혼자
+    const { core, deps, repo } = await setup();
+    await core.pickFolder();
+    const auto = await core.diagnose(repo, "dev");
+    expect(auto).toMatchObject({ usage: "solo", usageAuto: true, usageGuess: "solo" });
+    expect(auto.usageReason).toContain("혼자");
+
+    const team = await core.diagnose(repo, undefined, "team");
+    expect(team).toMatchObject({ usage: "team", usageAuto: false, kind: "dev" });
+    const again = new AppCore(deps);
+    await again.init();
+    expect((await again.getState()).recent[0]?.usage).toBe("team");
+    expect((await again.diagnose(repo)).usage).toBe("team");
+
+    expect(await again.diagnose(repo, undefined, "auto")).toMatchObject({
+      usage: "solo",
+      usageAuto: true,
+    });
+    await expect(again.diagnose(repo, undefined, "group")).rejects.toThrow("사용 방식");
+  });
+
+  it("혼자: 커밋 감점·커밋 뒤 점수·사내 플러그인이 없고, 고쳐도 커밋 위험이 생기지 않는다", async () => {
+    const s = await setup();
+    await s.core.pickFolder();
+    s.picks.push(EXAMPLE);
+    await s.core.pickStandard();
+    const team = await s.core.diagnose(s.repo, "dev", "team");
+    const solo = await s.core.diagnose(s.repo, undefined, "solo");
+    const ids = (v: typeof solo) => v.areas.flatMap((a) => a.findings.map((f) => f.id));
+    expect(ids(team)).toContain("plugins/required");
+    expect(ids(solo)).not.toContain("plugins/required");
+    expect(solo.committedScore).toBeUndefined();
+
+    const nos = solo.fixes.map((f) => f.no);
+    const preview = await s.core.fix(s.repo, nos, false);
+    if (preview.kind !== "preview") throw new Error(preview.kind);
+    await s.core.fix(s.repo, nos, true);
+    const after = await s.core.diagnose(s.repo);
+    expect(after.score).toBe(preview.expectedScore);
+    expect(ids(after)).not.toContain("settings/committed");
+  });
+
+  it("마지막으로 본 사용 방식을 최근 폴더에 남기고, 할 일 설명은 사용 방식에 맞춘다", async () => {
+    const { core, repo } = await setup();
+    await core.pickFolder();
+    const solo = await core.diagnose(repo, "dev");
+    expect((await core.getState()).recent[0]).toMatchObject({ seen: "solo" });
+    expect((await core.getState()).recent[0]?.usage).toBeUndefined(); // 자동 추천은 고른 값이 아니다
+    const bypass = (v: typeof solo) =>
+      v.areas.flatMap((a) => a.findings).find((f) => f.id === "settings/bypass");
+    expect(bypass(solo)?.detail?.todo).toContain("일부러 쓰고 있다면");
+    const team = await core.diagnose(repo, undefined, "team");
+    expect((await core.getState()).recent[0]).toMatchObject({ seen: "team", usage: "team" });
+    expect(bypass(team)?.detail?.todo).toContain("팀원");
+  });
+});
+
+describe("최근 폴더 빼기", () => {
+  it("목록에서만 빼고 다시 시작해도 돌아오지 않는다 (파일은 그대로)", async () => {
+    const { core, deps, repo } = await setup();
+    await core.pickFolder();
+    expect((await core.getState()).recent.map((r) => r.path)).toEqual([repo]);
+    const state = await core.forgetFolder(repo);
+    expect(state.recent).toEqual([]);
+    expect(await exists(repo)).toBe(true);
+    const again = new AppCore(deps);
+    await again.init();
+    expect((await again.getState()).recent).toEqual([]);
+    await expect(core.forgetFolder("C:\\Windows")).rejects.toThrow("허용되지 않은 폴더");
+  });
+});
+
 describe("자세히·예시", () => {
   it("문제 항목에는 설명과 예시가 붙고 통과 항목에는 예시가 없다", async () => {
     const { core, repo } = await setup({ "CLAUDE.md": "# 앱\n" });
@@ -421,7 +495,7 @@ describe("예상 점수", () => {
     // setup의 fakeGit은 "pathspec did not match"(git 저장소인데 추적 안 됨)를 돌려준다
     const { core, repo } = await setup();
     await core.pickFolder();
-    const before = await core.diagnose(repo, "dev");
+    const before = await core.diagnose(repo, "dev", "team");
     const nos = before.fixes.map((f) => f.no);
     const preview = await core.fix(repo, nos, false);
     if (preview.kind !== "preview") throw new Error("preview");
@@ -435,10 +509,24 @@ describe("예상 점수", () => {
     ).toBe("fail");
   });
 
+  it("고치기마다 오르는 점수(gain)는 그 고치기 하나만 미리 볼 때와 같다", async () => {
+    const { core, repo } = await setup();
+    await core.pickFolder();
+    for (const usage of ["solo", "team"] as const) {
+      const d = await core.diagnose(repo, "dev", usage);
+      expect(d.fixes.length).toBeGreaterThan(0);
+      for (const f of d.fixes) {
+        const p = await core.fix(repo, [f.no], false);
+        if (p.kind !== "preview") throw new Error("preview");
+        expect(f.gain).toBe(p.expectedScore - d.score);
+      }
+    }
+  });
+
   it("커밋 뒤 점수: 고친 뒤 settings.json을 커밋하면 실제로 그 점수가 된다", async () => {
     const { core, deps, repo } = await setup();
     await core.pickFolder();
-    const before = await core.diagnose(repo, "dev");
+    const before = await core.diagnose(repo, "dev", "team");
     const commitTo = before.committedScore;
     expect(commitTo).toBeGreaterThan(before.expectedScore ?? 0);
     const nos = before.fixes.map((f) => f.no);
@@ -469,7 +557,8 @@ describe("점검 기준 화면", () => {
   it("기본 표준: 보는 항목 전체와 이 폴더 결과, 사내 항목 없음", async () => {
     const { core, repo } = await setup();
     await core.pickFolder();
-    const v = await core.diagnose(repo, "dev");
+    // 커밋 여부를 보는 팀 기준 (혼자면 해당 없음, 아래에서 확인)
+    const v = await core.diagnose(repo, "dev", "team");
     const ids = v.criteria.map((c) => c.id);
     expect(ids).toEqual([
       "settings/missing",
@@ -486,6 +575,12 @@ describe("점검 기준 화면", () => {
     expect(by("settings/missing")).toMatchObject({ status: "fail", penalty: "위험 −15" });
     // settings.json이 없으면 커밋 여부는 아직 보지 않는다
     expect(by("settings/committed")).toMatchObject({ status: "pending" });
+    const solo = await core.diagnose(repo, undefined, "solo");
+    expect(solo.criteria.find((c) => c.id === "settings/committed")).toMatchObject({
+      status: "na",
+      note: "혼자 쓰는 폴더라 보지 않습니다",
+    });
+    await core.diagnose(repo, undefined, "team");
     expect(by("claude-md/verify")?.status).toBe("ok");
     expect(v.criteria.some((c) => c.company)).toBe(false);
     expect(v.standardSource).toBe("default");
@@ -496,7 +591,7 @@ describe("점검 기준 화면", () => {
     await s.core.pickFolder();
     s.picks.push(EXAMPLE);
     await s.core.pickStandard();
-    const v = await s.core.diagnose(s.repo, "dev");
+    const v = await s.core.diagnose(s.repo, "dev", "team");
     const company = v.criteria.filter((c) => c.company).map((c) => c.id);
     expect(company).toEqual(["claude-md/sections", "file/plan", "file/design", "plugins/required"]);
     expect(v.criteria.find((c) => c.id === "claude-md/sections")?.rule).toBe(
@@ -535,7 +630,7 @@ describe("앱에서 커밋하기", () => {
     const core = new AppCore({ ...s.deps, runGit: undefined });
     await core.init();
     await core.pickFolder();
-    const before = await core.diagnose(s.repo, "dev");
+    const before = await core.diagnose(s.repo, "dev", "team");
     const nos = before.fixes.map((f) => f.no);
     await core.fix(s.repo, nos, false);
     await core.fix(s.repo, nos, true);
@@ -554,7 +649,8 @@ describe("앱에서 커밋하기", () => {
     expect((await core.commit(s.repo, false)).kind).toBe("none");
     // 커밋한 뒤에는 되돌리기를 숨기고(커밋된 파일을 지우는 새 변경만 남으므로), push 전으로 표시한다
     expect(after.canUndo).toBe(false);
-    expect(after.pushPending).toEqual({ branch: expect.any(String), target: null });
+    // 원격 저장소가 없으면 화면이 "원격 연결 필요"를 보이도록 알려 준다
+    expect(after.pushPending).toEqual({ branch: expect.any(String), target: null, noRemote: true });
 
     // 원격이 없으면 push하지 않고 이유를 알려 준다
     expect(await core.push(s.repo, false)).toMatchObject({ kind: "none" });
@@ -562,6 +658,10 @@ describe("앱에서 커밋하기", () => {
     const remote = await mkdtemp(join(tmpdir(), "cc-remote-"));
     execFileSync("git", ["init", "-q", "--bare", remote]);
     git("remote", "add", "origin", remote);
+    expect((await core.diagnose(s.repo)).pushPending).toEqual({
+      branch: after.pushPending?.branch,
+      target: null,
+    });
     const pv = await core.push(s.repo, false);
     if (pv.kind !== "preview") throw new Error(pv.kind);
     expect(pv.newBranch).toBe(true);

@@ -66,9 +66,11 @@ function protectiveRules(data: Record<string, unknown> | undefined): string[] {
     : deny;
 }
 
-// 진단 3: 팀 설정이 커밋돼 있는가, 보호 규칙이 개인 설정에만 있지 않은가
-export const checkGit: Check = async ({ repoDir, settings, git, kind }) => {
+// 진단 3: 팀 설정이 커밋돼 있는가, 보호 규칙이 개인 설정에만 있지 않은가.
+// 혼자 쓰는 저장소는 팀원에게 적용할 일이 없어 보지 않는다
+export const checkGit: Check = async ({ repoDir, settings, git, kind, usage }) => {
   const findings: Finding[] = [];
+  if (usage === "solo") return findings;
   if (settings.state !== "missing") {
     if (git.tracked === true) {
       findings.push({

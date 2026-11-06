@@ -163,7 +163,7 @@ async function start(): Promise<void> {
   );
   ipcMain.handle(
     CHANNELS.diagnose,
-    wrap((p: unknown, kind?: unknown) => core.diagnose(p, kind)),
+    wrap((p: unknown, kind?: unknown, usage?: unknown) => core.diagnose(p, kind, usage)),
   );
   ipcMain.handle(
     CHANNELS.fix,
@@ -200,6 +200,10 @@ async function start(): Promise<void> {
   ipcMain.handle(
     CHANNELS.showFolder,
     wrap((p: unknown) => core.showFolder(p)),
+  );
+  ipcMain.handle(
+    CHANNELS.forgetFolder,
+    wrap((p: unknown) => core.forgetFolder(p)),
   );
 
   win = new BrowserWindow({

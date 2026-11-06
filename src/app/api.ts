@@ -4,6 +4,7 @@
 export type Severity = "ok" | "warn" | "fail";
 export type Area = "security" | "team" | "docs" | "plugins";
 export type Kind = "dev" | "docs"; // 개발 저장소 / 문서·기획 폴더
+export type Usage = "solo" | "team"; // 혼자 쓰는 저장소 / 팀 저장소
 
 export interface ClaudeStatus {
   ok: boolean; // 설치돼 있고 실행됨
@@ -19,6 +20,8 @@ export interface RecentFolder {
   score?: number;
   at: string;
   kind?: Kind; // 사용자가 고른 폴더 종류 (없으면 자동 판별)
+  usage?: Usage; // 사용자가 고른 사용 방식 (없으면 자동 추천)
+  seen?: Usage; // 마지막으로 점검한 사용 방식 (목록에 혼자·팀 표시)
 }
 
 export interface AppState {
@@ -36,7 +39,8 @@ export interface FindingView {
   severity: Severity;
   message: string;
   judgment?: string;
-  detail?: { why: string; fix?: string; limit?: string }; // [자세히]
+  // 할 일 카드: 제목(위험), "할 일:" 한 줄, 왜 위험한가요 / 고치면 / 못 막는 것
+  detail?: { risk?: string; todo?: string; why: string; fix?: string; limit?: string };
   example?: string; // [예시 보기]
   fixNo?: number; // 바로 고치기 후보 번호
   fixLabel?: string; // 바로 고치기 | 바로 만들기 | 플러그인 설정 추가
@@ -81,12 +85,16 @@ export interface DiagnosisView {
   kindAuto: boolean; // 자동 판별 결과를 쓰는 중
   kindReason: string; // 자동 판별 이유
   kindGuess: Kind; // 자동 판별 결과 (직접 고른 종류와 다를 수 있음)
+  usage: Usage;
+  usageAuto: boolean; // 자동 추천 결과를 쓰는 중
+  usageReason: string; // 자동 추천 이유
+  usageGuess: Usage; // 자동 추천 결과 (직접 고른 방식과 다를 수 있음)
   counts: Record<Severity, number>;
   areas: AreaView[];
-  fixes: { no: number; title: string }[];
+  fixes: { no: number; title: string; gain: number }[]; // gain: 이 고치기 하나만 적용했을 때 오르는 점수
   blocked?: string; // settings.json을 쓸 수 없어 설정 고치기를 막은 이유
   canUndo: boolean; // 되돌릴 반영이 있고 아직 커밋되지 않음
-  pushPending?: { branch: string; target: string | null }; // 앱이 한 커밋이 아직 원격에 없음
+  pushPending?: { branch: string; target: string | null; noRemote?: boolean }; // 앱이 한 커밋이 아직 원격에 없음 (noRemote: 원격 저장소가 없음)
 }
 
 // 팀원에게 보내기(git push): 미리 보기 → push
@@ -178,7 +186,8 @@ export interface CcCheckupApi {
   getState(refresh?: boolean): Promise<AppState>; // refresh면 Claude 설치·로그인을 다시 확인
   pickFolder(recent?: string): Promise<string | null>;
   pickStandard(reset?: boolean): Promise<AppState>;
-  diagnose(path: string, kind?: Kind | "auto"): Promise<DiagnosisView>; // kind를 주면 그 폴더에 기억
+  // kind·usage를 주면 그 폴더에 기억 ("auto"는 자동 판별로 되돌림)
+  diagnose(path: string, kind?: Kind | "auto", usage?: Usage | "auto"): Promise<DiagnosisView>;
   fix(path: string, nos: number[], apply: boolean): Promise<FixView>;
   claude(action: ClaudeAction): Promise<ClaudeView>;
   undo(path: string, apply: boolean): Promise<UndoView>;
@@ -188,5 +197,6 @@ export interface CcCheckupApi {
   openUpdate(): Promise<void>; // 사내 표준 파일이 알려 준 새 설치 파일 위치 열기
   openGuide(): Promise<void>; // 사내 표준 파일의 guideUrl 열기
   showFolder(path: string): Promise<void>; // 점검 중인 폴더를 탐색기로 열기
+  forgetFolder(path: string): Promise<AppState>; // 최근 폴더 목록에서 빼기 (파일은 그대로)
   onEvent(cb: (e: AppEvent) => void): () => void;
 }

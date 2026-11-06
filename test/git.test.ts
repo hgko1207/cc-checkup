@@ -68,6 +68,15 @@ describe("진단 3 settings/committed", () => {
     expect(unknown?.message).toContain("git 저장소가 아닙니다");
   });
 
+  it("혼자 쓰는 저장소는 커밋 여부·개인 설정을 보지 않는다", async () => {
+    const dir = await repoWith({
+      ".claude/settings.json": settings,
+      ".claude/settings.local.json": settingsJson({ deny: ["Read(**/secrets/**)"] }),
+    });
+    const ctx = { ...(await ctxFor(dir, { tracked: false })), usage: "solo" as const };
+    expect(await checkGit(ctx)).toEqual([]);
+  });
+
   it("보호 규칙이 settings.local.json에만 있으면 fail + 판단 필요", async () => {
     const dir = await repoWith({
       ".claude/settings.json": settings,

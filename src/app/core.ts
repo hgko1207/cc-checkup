@@ -48,6 +48,7 @@ import {
   type LoadedStandard,
 } from "../standard.js";
 import type { Finding } from "../types.js";
+import type { Usage } from "../usage.js";
 import type {
   AppEvent,
   AppState,
@@ -155,7 +156,7 @@ async function readJson<T>(path: string, fallback: T): Promise<T> {
 
 const AREA_TITLES: Record<Area, string> = {
   security: "보안",
-  team: "팀 표준 (CLAUDE.md)",
+  team: "작업 지침 (CLAUDE.md)",
   docs: "문서·구조",
   plugins: "스킬·플러그인",
 };
@@ -191,7 +192,7 @@ export function expectedScore(diag: Diagnosis, chosen: FixCandidate[]): number {
   const createsSettings =
     diag.ctx.settings.state === "missing" &&
     chosen.some((c) => c.denyRules.length > 0 || c.bypass || c.plugins || c.hook);
-  if (createsSettings) {
+  if (createsSettings && diag.usage === "team") {
     const { tracked, reason } = diag.ctx.git;
     const skip = diag.kind === "docs" && reason === "git 저장소가 아닙니다";
     if (tracked === false)
@@ -204,7 +205,7 @@ export function expectedScore(diag: Diagnosis, chosen: FixCandidate[]): number {
 
 // 고친 뒤 settings.json까지 커밋했을 때의 점수. 커밋으로 풀리는 항목이 있거나 생길 때만 (git 저장소)
 export function committedScore(diag: Diagnosis, chosen: FixCandidate[]): number | undefined {
-  if (diag.ctx.git.tracked !== false) return undefined;
+  if (diag.usage === "solo" || diag.ctx.git.tracked !== false) return undefined;
   const findings: Finding[] = diag.findings.map((f) =>
     f.needsCommit || fixFor(f, chosen) ? { ...f, severity: "ok" } : f,
   );
@@ -312,7 +313,9 @@ export function criteriaFor(diag: Diagnosis): CriterionView[] {
       penalty: pen("fail"),
       penaltyNote: `커밋 여부를 확인할 수 없으면 ${pen("warn")}`,
     },
-    { status: "pending", note: "설정 파일이 생기면 확인합니다" },
+    diag.usage === "solo"
+      ? { status: "na", note: "혼자 쓰는 폴더라 보지 않습니다" }
+      : { status: "pending", note: "설정 파일이 생기면 확인합니다" },
   );
   add(
     {
@@ -356,7 +359,7 @@ export function criteriaFor(diag: Diagnosis): CriterionView[] {
         id: `file/${file.id}`,
         group: "필수 파일",
         title: file.path,
-        rule: file.when === "hasUI" ? `${file.title} · 화면이 있는 프로젝트만 봅니다` : file.title,
+        rule: file.when === "hasUI" ? `${file.title} (화면이 있는 프로젝트만 봅니다)` : file.title,
         penalty: pen(file.severity),
         company: shared,
       },
@@ -384,6 +387,7 @@ export function toView(
   plan: FixPlan,
   canUndo: boolean,
   kindAuto = true,
+  usageAuto = true,
 ): DiagnosisView {
   const counts = { ok: 0, warn: 0, fail: 0 };
   const byArea = new Map<Area, FindingView[]>();
@@ -396,7 +400,11 @@ export function toView(
       severity: f.severity,
       message: f.message,
       judgment: f.judgment,
-      detail: detailFor(f.id),
+      detail: detailFor(f.id, {
+        usage: diag.usage,
+        envFiles: diag.ctx.scan.envFiles.length,
+        severity: f.severity,
+      }),
       notApplicable: f.notApplicable,
       needsCommit: f.needsCommit,
       example: f.severity === "ok" ? undefined : f.example || undefined,
@@ -446,9 +454,17 @@ export function toView(
     kindAuto,
     kindReason: diag.kindGuess.reason,
     kindGuess: diag.kindGuess.kind,
+    usage: diag.usage,
+    usageAuto,
+    usageReason: diag.usageGuess.reason,
+    usageGuess: diag.usageGuess.usage,
     counts,
     areas,
-    fixes: plan.candidates.map((c) => ({ no: c.no, title: c.title })),
+    fixes: plan.candidates.map((c) => ({
+      no: c.no,
+      title: c.title,
+      gain: expectedScore(diag, [c]) - diag.score,
+    })),
     weights: diag.ctx.standard.score,
     expectedScore: plan.candidates.length > 0 ? expectedScore(diag, plan.candidates) : undefined,
     committedScore: committedScore(diag, plan.candidates),
@@ -540,7 +556,9 @@ export class AppCore {
       for (const r of recent as RecentFolder[]) {
         if (typeof r?.path !== "string" || !isAbsolute(r.path)) continue;
         const kind = r.kind === "dev" || r.kind === "docs" ? r.kind : undefined;
-        this.recent.push({ path: r.path, score: r.score, at: String(r.at), kind });
+        const usage = r.usage === "solo" || r.usage === "team" ? r.usage : undefined;
+        const seen = r.seen === "solo" || r.seen === "team" ? r.seen : undefined;
+        this.recent.push({ path: r.path, score: r.score, at: String(r.at), kind, usage, seen });
         this.allowed.set(this.key(r.path), r.path);
       }
     }
@@ -576,13 +594,23 @@ export class AppCore {
     return this.recent.find((r) => this.key(r.path) === k);
   }
 
-  // kind: undefined면 기존 선택 유지, null이면 자동 판별로 되돌림
-  private async remember(path: string, score?: number, kind?: FolderKind | null): Promise<void> {
+  // kind·usage: undefined면 기존 선택 유지, null이면 자동 판별로 되돌림
+  private async remember(
+    path: string,
+    score?: number,
+    kind?: FolderKind | null,
+    usage?: Usage | null,
+    seen?: Usage,
+  ): Promise<void> {
     const k = this.key(path);
     const prev = this.entry(path);
     const next: RecentFolder = { path, score: score ?? prev?.score, at: new Date().toISOString() };
+    const seenUsage = seen ?? prev?.seen;
+    if (seenUsage) next.seen = seenUsage;
     const chosen = kind === undefined ? prev?.kind : (kind ?? undefined);
     if (chosen) next.kind = chosen;
+    const chosenUsage = usage === undefined ? prev?.usage : (usage ?? undefined);
+    if (chosenUsage) next.usage = chosenUsage;
     this.recent = [next, ...this.recent.filter((r) => this.key(r.path) !== k)].slice(0, RECENT_MAX);
     this.allowed.set(k, path);
     await this.saveRecent();
@@ -621,7 +649,7 @@ export class AppCore {
   // 새 버전 위치 열기: http(s)는 브라우저로, 파일·공유 폴더 경로는 탐색기에서 보여 준다 (실행하지 않음)
   async openUpdate(): Promise<void> {
     const url = (await this.getState()).update?.downloadUrl;
-    if (!url) throw new InputError("사내 표준 파일에 새 버전 위치(app.downloadUrl)가 없습니다");
+    if (!url) throw new InputError("사내 기준 파일에 새 버전 위치(app.downloadUrl)가 없습니다");
     if (/^https?:\/\//i.test(url)) await this.deps.openExternal?.(url);
     else if (isAbsolute(url) || url.startsWith("\\\\")) this.deps.showItem?.(url);
     else throw new InputError(`열 수 없는 위치입니다: ${url}`);
@@ -633,7 +661,7 @@ export class AppCore {
 
   async openGuide(): Promise<void> {
     const url = (await this.standard()).standard.guideUrl;
-    if (!url) throw new InputError("사내 표준 파일에 가이드 주소(guideUrl)가 없습니다");
+    if (!url) throw new InputError("사내 기준 파일에 가이드 주소(guideUrl)가 없습니다");
     await this.deps.openExternal?.(url);
   }
 
@@ -646,6 +674,14 @@ export class AppCore {
     if (!s?.isDirectory()) throw new InputError(`폴더가 아닙니다: ${path}`);
     await this.remember(path);
     return path;
+  }
+
+  // 최근 폴더 목록에서만 뺀다 (폴더·백업은 그대로, 이번 실행에서 연 폴더는 계속 쓸 수 있다)
+  async forgetFolder(v: unknown): Promise<AppState> {
+    const k = this.key(this.folder(v));
+    this.recent = this.recent.filter((r) => this.key(r.path) !== k);
+    await this.saveRecent();
+    return this.getState();
   }
 
   async pickStandard(reset?: unknown): Promise<AppState> {
@@ -663,34 +699,50 @@ export class AppCore {
     return this.getState();
   }
 
-  // 폴더 종류는 사용자가 고른 값, 없으면 자동 판별
+  // 폴더 종류·사용 방식은 사용자가 고른 값, 없으면 자동 판별
   private async run(path: string): Promise<{ diag: Diagnosis; plan: FixPlan }> {
     const diag = await diagnose(path, {
       runGit: this.deps.runGit,
       standard: await this.standard(),
       kind: this.entry(path)?.kind ?? "auto",
+      usage: this.entry(path)?.usage ?? "auto",
+      home: this.deps.backup?.home, // 테스트·E2E는 임시 홈을 쓴다
     });
     return { diag, plan: planFixes(diag) };
   }
 
-  async diagnose(v: unknown, kindIn?: unknown): Promise<DiagnosisView> {
+  async diagnose(v: unknown, kindIn?: unknown, usageIn?: unknown): Promise<DiagnosisView> {
     const path = this.folder(v);
     if (kindIn !== undefined) {
       if (kindIn !== "auto" && kindIn !== "dev" && kindIn !== "docs")
         throw new InputError("폴더 종류 값이 잘못됐습니다");
       await this.remember(path, undefined, kindIn === "auto" ? null : kindIn);
     }
+    if (usageIn !== undefined) {
+      if (usageIn !== "auto" && usageIn !== "solo" && usageIn !== "team")
+        throw new InputError("사용 방식 값이 잘못됐습니다");
+      await this.remember(path, undefined, undefined, usageIn === "auto" ? null : usageIn);
+    }
     const { diag, plan } = await this.run(path);
-    // 직접 고른 종류가 자동 판별과 같으면 직접 지정을 풀고 자동으로 둔다
+    // 직접 고른 값이 자동 판별과 같으면 직접 지정을 풀고 자동으로 둔다
     const chosen = this.entry(path)?.kind;
+    const chosenUsage = this.entry(path)?.usage;
     await this.remember(
       path,
       diag.score,
       chosen && chosen === diag.kindGuess.kind ? null : undefined,
+      chosenUsage && chosenUsage === diag.usageGuess.usage ? null : undefined,
+      diag.usage,
     );
     const target = await findUndoTarget(path, this.deps.backup);
     const canUndo = target !== null && !(await this.undoCommitted(path, target));
-    const view = toView(diag, plan, canUndo, this.entry(path)?.kind === undefined);
+    const view = toView(
+      diag,
+      plan,
+      canUndo,
+      this.entry(path)?.kind === undefined,
+      this.entry(path)?.usage === undefined,
+    );
     const pushPending = await this.pushState(path);
     if (pushPending) view.pushPending = pushPending;
     return view;
@@ -730,7 +782,7 @@ export class AppCore {
             note: c.path.startsWith(`${HOOK_DIR}/`)
               ? "team-ai-kit 위험 명령 차단 훅 원본 그대로 복사"
               : chosen.some((x) => x.createFile?.path === c.path)
-                ? "사내 표준 템플릿"
+                ? "사내 기준 템플릿"
                 : undefined,
           };
         }),
@@ -953,7 +1005,9 @@ export class AppCore {
   }
 
   // 앱이 한 커밋이 아직 원격에 없는가 (push 전). 앱이 커밋한 폴더만 본다
-  private async pushState(path: string): Promise<{ branch: string; target: string | null } | null> {
+  private async pushState(
+    path: string,
+  ): Promise<{ branch: string; target: string | null; noRemote?: boolean } | null> {
     const key = this.key(path);
     if (!this.unpushed.has(key)) return null;
     const git = this.deps.runGit ?? runGit;
@@ -961,7 +1015,11 @@ export class AppCore {
     const branch = (head.stdout ?? "").trim();
     if (head.code !== 0 || !branch) return null;
     const up = await git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], path);
-    if (up.code !== 0) return { branch, target: null };
+    if (up.code !== 0) {
+      const remotes = await git(["remote"], path);
+      const none = remotes.code === 0 && (remotes.stdout ?? "").trim() === "";
+      return none ? { branch, target: null, noRemote: true } : { branch, target: null };
+    }
     const ahead = await git(["rev-list", "--count", "@{u}..HEAD"], path);
     if (ahead.code === 0 && (ahead.stdout ?? "").trim() === "0") {
       this.unpushed.delete(key);
