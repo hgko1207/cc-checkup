@@ -1,4 +1,4 @@
-// team-ai-kit 0.2.5 plugins/team-ai/hooks/block-dangerous-bash.js 복사본 (cc-checkup이 저장소에 넣는 위험 명령 차단 훅).
+// team-ai-kit plugins/team-ai/hooks/block-dangerous-bash.js 복사본 (cc-checkup이 저장소에 넣는 위험 명령 차단 훅).
 // 바꾼 것: require("./lib") → require("./lib.cjs"). 원본을 고치면 이 파일도 맞춘다.
 // PreToolUse(Bash|PowerShell): 되돌리기 어려운 명령 차단
 // 명령을 셸 문법(따옴표·이스케이프·구간·명령 치환)에 맞춰 나눠 해석한다.

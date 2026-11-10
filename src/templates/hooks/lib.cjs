@@ -1,4 +1,4 @@
-// team-ai-kit 0.2.5 plugins/team-ai/hooks/lib.js 복사본 (cc-checkup 위험 명령 차단 훅용). 원본을 고치면 이 파일도 맞춘다.
+// team-ai-kit plugins/team-ai/hooks/lib.js 복사본 (cc-checkup 위험 명령 차단 훅용). 원본을 고치면 이 파일도 맞춘다.
 // 훅 공통 유틸: stdin JSON 읽기, 프로젝트 설정(.claude/team-ai.json) 읽기, 경로 정규화
 const fs = require("fs");
 const path = require("path");
