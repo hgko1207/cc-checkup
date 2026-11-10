@@ -1,5 +1,5 @@
 // 위험 명령 차단 훅 "바로 고치기": team-ai-kit의 차단 훅(templates/hooks)을 저장소에 넣고
-// settings.json PreToolUse에 등록한다. team-ai-kit 저장소가 비공개라 플러그인 대신 파일로 넣는다.
+// settings.json PreToolUse에 등록한다. 플러그인을 설치하지 않은 저장소에도 바로 쓰도록 파일로 넣는다.
 import { readFileSync } from "node:fs";
 
 export const HOOK_DIR = ".claude/hooks/cc-guard";

@@ -37,7 +37,7 @@
 - **새 버전 알림**: 사내 표준 파일의 `app.latestVersion`이 지금 버전보다 높으면 맨 위에 알리고, [설치 파일 위치 열기]로 `app.downloadUrl`(공유 폴더 경로나 사내 주소)을 연다. 설치 파일을 직접 실행하지는 않는다.
 - **리포트 저장**: 결과를 마크다운으로 저장한다(TF가 팀별 결과를 모을 때).
 
-**위험 명령 차단 훅**: "바로 고치기"는 team-ai-kit의 차단 훅(강제 푸시·`rm -rf /` 같은 되돌리기 어려운 명령 차단)을 `.claude/hooks/cc-guard/`에 복사하고 `.claude/settings.json`의 PreToolUse에 등록한다. team-ai-kit 저장소가 비공개라 플러그인 대신 파일로 넣는다. 실행하려면 그 PC에 Node.js가 있어야 한다. 실제 Claude Code(2.1.83, Windows)에서 `git push --force origin main`을 막는 것을 확인했다.
+**위험 명령 차단 훅**: "바로 고치기"는 team-ai-kit의 차단 훅(강제 푸시·`rm -rf /` 같은 되돌리기 어려운 명령 차단)을 `.claude/hooks/cc-guard/`에 복사하고 `.claude/settings.json`의 PreToolUse에 등록한다. 플러그인 없이도 쓰도록 파일로 넣는다. 계획·검증 흐름까지 원하면 [team-ai-kit](https://github.com/hgko1207/team-ai-kit) 플러그인을 설치한다(`claude plugin marketplace add hgko1207/team-ai-kit` → `claude plugin install team-ai@team-ai-kit`). 실행하려면 그 PC에 Node.js가 있어야 한다. 실제 Claude Code(2.1.83, Windows)에서 `git push --force origin main`을 막는 것을 확인했다.
 
 ## CLI로 쓰기 (개발자·CI용)
 
