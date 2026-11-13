@@ -164,3 +164,15 @@ describe("점수 (T3)", () => {
     expect(d.score).toBeLessThan(100);
   });
 });
+
+describe("CLAUDE.md 필수 섹션: @import", () => {
+  it("@AGENTS.md로 가져온 섹션도 CLAUDE.md에 직접 쓴 것과 똑같이 본다", async () => {
+    const direct = byId(await run({ "CLAUDE.md": "# 앱\n## 코딩 규칙\n" }), "claude-md/sections");
+    const imported = byId(
+      await run({ "CLAUDE.md": "# 앱\n@AGENTS.md\n", "AGENTS.md": "## 코딩 규칙\n" }),
+      "claude-md/sections",
+    );
+    expect(imported?.message).toBe(direct?.message);
+    expect(imported?.severity).toBe(direct?.severity);
+  });
+});

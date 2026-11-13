@@ -53,7 +53,7 @@ async function sectionFindings(repoDir: string, standard: Standard): Promise<Fin
   if (sections.length === 0) return [];
   const found = await readClaudeMd(repoDir);
   if (found.length === 0) return []; // CLAUDE.md 없음은 claude-md 진단이 위험으로 알린다
-  const text = found.map((f) => f.text).join("\n");
+  const text = found.map((f) => f.expanded).join("\n"); // @AGENTS.md 등 가져온 파일 포함
   const missing = sections.filter((s) => !hasSection(text, s.aliases));
   if (missing.length === 0) {
     return [
