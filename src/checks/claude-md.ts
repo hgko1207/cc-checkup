@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { guideSuffix } from "../standard.js";
 import type { Check, Finding } from "../types.js";
 
@@ -29,15 +29,70 @@ export function hasVerifyCommand(text: string): boolean {
   return VERIFY_HEADING.test(text) || VERIFY_COMMANDS.some((re) => re.test(text));
 }
 
-// 있는 CLAUDE.md 파일들 (두 위치)
-export async function readClaudeMd(repoDir: string): Promise<{ name: string; text: string }[]> {
-  const found: { name: string; text: string }[] = [];
-  for (const name of LOCATIONS) {
-    try {
-      found.push({ name, text: await readFile(join(repoDir, name), "utf8") });
-    } catch {
-      // 없는 위치는 건너뛴다
+// Claude Code의 @경로 import: 가져온 파일을 따라가는 최대 단계 수 (공식 문서 기준 4)
+const MAX_IMPORT_DEPTH = 4;
+
+// 코드 펜스·인라인 코드 밖의 @경로 목록. 따옴표로 감싼 경로는 Claude Code도 가져오지 않는다.
+export function importPaths(text: string): string[] {
+  const paths: string[] = [];
+  let fence = false;
+  for (const line of text.split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fence = !fence;
+      continue;
     }
+    if (fence) continue;
+    const plain = line.replace(/`[^`]*`/g, "");
+    for (const m of plain.matchAll(/(?:^|\s)@([^\s`"']+)/g)) {
+      if (m[1]) paths.push(m[1]);
+    }
+  }
+  return paths;
+}
+
+// text 뒤에 그 안의 @import 파일 내용을 덧붙인다. 저장소 밖 경로, 없는 파일, 이미 읽은 파일은 건너뛴다.
+async function expandImports(
+  repoDir: string,
+  file: string,
+  text: string,
+  depth: number,
+  seen: Set<string>,
+): Promise<string> {
+  if (depth >= MAX_IMPORT_DEPTH) return text;
+  const parts = [text];
+  for (const p of importPaths(text)) {
+    const target = resolve(dirname(file), p);
+    const rel = relative(repoDir, target);
+    if (rel === "" || rel.startsWith("..") || isAbsolute(rel) || seen.has(target)) continue;
+    let body: string;
+    try {
+      body = await readFile(target, "utf8");
+    } catch {
+      continue; // @멘션 등 파일이 아닌 것
+    }
+    seen.add(target);
+    parts.push(await expandImports(repoDir, target, body, depth + 1, seen));
+  }
+  return parts.join("\n");
+}
+
+// 있는 CLAUDE.md 파일들 (두 위치).
+// text는 파일 자체 내용(길이 검사용), expanded는 @import한 파일(예: @AGENTS.md)까지 펼친 내용(섹션·검증 명령 검사용)
+export async function readClaudeMd(
+  repoDir: string,
+): Promise<{ name: string; text: string; expanded: string }[]> {
+  const found: { name: string; text: string; expanded: string }[] = [];
+  const root = resolve(repoDir);
+  for (const name of LOCATIONS) {
+    const file = join(root, name);
+    let text: string;
+    try {
+      text = await readFile(file, "utf8");
+    } catch {
+      continue; // 없는 위치는 건너뛴다
+    }
+    const expanded = await expandImports(root, file, text, 0, new Set([file]));
+    found.push({ name, text, expanded });
   }
   return found;
 }
@@ -84,7 +139,7 @@ export const checkClaudeMd: Check = async ({ repoDir, standard }) => {
 
   // 표준에 "verify" 섹션이 있을 때만 검증 명령을 본다 (기본 표준에는 있음)
   if (!standard.claudeMd.requiredSections.some((s) => s.id === "verify")) return findings;
-  if (hasVerifyCommand(found.map((f) => f.text).join("\n"))) {
+  if (hasVerifyCommand(found.map((f) => f.expanded).join("\n"))) {
     findings.push({
       id: "claude-md/verify",
       severity: "ok",
