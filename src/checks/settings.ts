@@ -199,11 +199,16 @@ export function matcherHitsBash(matcher: unknown): boolean {
   }
 }
 
-// Bash 명령 전에 실행되는 훅 또는 team-ai 플러그인이 있는가
+// cc-ready 플러그인 이름 (0.5.0까지는 team-ai@team-ai-kit)
+const KIT_PLUGINS = ["cc-ready@", "team-ai@"];
+
+// Bash 명령 전에 실행되는 훅 또는 cc-ready 플러그인이 있는가
 function guardOf(settings: SettingsRead): "hook" | "kit" | null {
   const data = settings.state === "ok" ? settings.data : {};
   const plugins = isObject(data.enabledPlugins) ? data.enabledPlugins : {};
-  if (Object.entries(plugins).some(([k, v]) => k.startsWith("team-ai@") && v === true))
+  if (
+    Object.entries(plugins).some(([k, v]) => KIT_PLUGINS.some((p) => k.startsWith(p)) && v === true)
+  )
     return "kit";
   const hooks = isObject(data.hooks) ? data.hooks : {};
   const pre = Array.isArray(hooks.PreToolUse) ? hooks.PreToolUse : [];
@@ -219,7 +224,7 @@ function hooksFinding(settings: SettingsRead, kind: CheckContext["kind"]): Findi
       id: "hooks/present",
       severity: "ok",
       message: hasKit
-        ? "team-ai 플러그인이 켜져 있습니다 (훅 내용은 확인하지 않음)"
+        ? "cc-ready 플러그인이 켜져 있습니다 (훅 내용은 확인하지 않음)"
         : "Bash 명령 전에 실행되는 훅이 있습니다 (내용은 확인하지 않음)",
     };
   }

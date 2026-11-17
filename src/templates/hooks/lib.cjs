@@ -1,5 +1,5 @@
-// team-ai-kit plugins/team-ai/hooks/lib.js 복사본 (cc-checkup 위험 명령 차단 훅용). 원본을 고치면 이 파일도 맞춘다.
-// 훅 공통 유틸: stdin JSON 읽기, 프로젝트 설정(.claude/team-ai.json) 읽기, 경로 정규화
+// cc-ready plugins/cc-ready/hooks/lib.js 복사본 (cc-checkup 위험 명령 차단 훅용). 원본을 고치면 이 파일도 맞춘다.
+// 훅 공통 유틸: stdin JSON 읽기, 프로젝트 설정(.claude/cc-ready.json) 읽기, 경로 정규화
 const fs = require("fs");
 const path = require("path");
 
@@ -17,7 +17,9 @@ function projectDir(input) {
   return process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
 }
 
-const CONFIG_FILE = path.join(".claude", "team-ai.json");
+const CONFIG_FILE = path.join(".claude", "cc-ready.json");
+// 0.5.0까지의 설정 파일 이름. 새 이름이 없으면 이것을 읽는다
+const LEGACY_CONFIG_FILE = path.join(".claude", "team-ai.json");
 
 // 기본 보호 목록. 팀 설정의 allowPaths로 풀 수 없다.
 const DEFAULT_PROTECTED = [
@@ -36,7 +38,7 @@ const DEFAULT_PROTECTED = [
 // 기본 보호 목록 중 예외로 허용하는 파일 (값이 없는 예시 파일)
 const DEFAULT_ALLOWED = ["**/.env.example", "**/.env.sample", "**/.env.template"];
 // 이미 있으면 수정할 수 없는 팀 설정 파일 (새로 만드는 것은 허용)
-const CONFIG_FILES = ["**/.claude/team-ai.json", "**/.claude/settings.json", "**/.claude/settings.local.json"];
+const CONFIG_FILES = ["**/.claude/cc-ready.json", "**/.claude/team-ai.json", "**/.claude/settings.json", "**/.claude/settings.local.json"];
 const DEFAULT_BRANCHES = ["main", "master", "develop", "production", "prod", "release/*", "release-*"];
 
 const DEFAULTS = {
@@ -73,31 +75,29 @@ function validPattern(k, v) {
 
 // 설정을 읽는다. 문제가 있으면 기본값을 쓰고 error에 이유를 담는다 (훅이 이를 보고 막는다).
 function loadConfig(input) {
-  const file = path.join(projectDir(input), CONFIG_FILE);
-  let raw;
-  try {
-    raw = fs.readFileSync(file, "utf8");
-  } catch {
-    return { ...DEFAULTS, error: null };
+  let raw, name = CONFIG_FILE;
+  for (const n of [CONFIG_FILE, LEGACY_CONFIG_FILE]) {
+    try { raw = fs.readFileSync(path.join(projectDir(input), n), "utf8"); name = n; break; } catch { /* 다음 이름 */ }
   }
+  if (raw === undefined) return { ...DEFAULTS, error: null };
   let user;
   try {
     user = JSON.parse(raw.replace(/^﻿/, ""));
   } catch (e) {
-    return { ...DEFAULTS, error: `${CONFIG_FILE} JSON 문법 오류: ${e.message}` };
+    return { ...DEFAULTS, error: `${name} JSON 문법 오류: ${e.message}` };
   }
   const out = { ...DEFAULTS, error: null };
-  if (!user || typeof user !== "object" || Array.isArray(user)) return { ...out, error: `${CONFIG_FILE}는 객체여야 합니다` };
+  if (!user || typeof user !== "object" || Array.isArray(user)) return { ...out, error: `${name}는 객체여야 합니다` };
   for (const [k, v] of Object.entries(user)) {
     if (ARRAY_KEYS.includes(k)) {
-      if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) { out.error = `${CONFIG_FILE}의 ${k}는 문자열 배열이어야 합니다`; continue; }
+      if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) { out.error = `${name}의 ${k}는 문자열 배열이어야 합니다`; continue; }
       const bad = v.map((x) => validPattern(k, x)).find(Boolean);
       if (bad) { out.error = bad; continue; }
       out[k] = k === "protectedBranches" ? Array.from(new Set([...DEFAULT_BRANCHES, ...v])) : v;
       if (k === "formatExtensions") out[k] = v.map((x) => (x.startsWith(".") ? x : "." + x).toLowerCase());
     } else if (k === "formatCommand") {
       const ok = (typeof v === "string") || (Array.isArray(v) && v.every((x) => typeof x === "string"));
-      if (!ok) { out.error = `${CONFIG_FILE}의 formatCommand는 문자열 또는 문자열 배열이어야 합니다`; continue; }
+      if (!ok) { out.error = `${name}의 formatCommand는 문자열 또는 문자열 배열이어야 합니다`; continue; }
       out[k] = v;
     } else {
       out[k] = v;

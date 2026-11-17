@@ -8,8 +8,8 @@
 2. 저장소를 열고 `claude`를 실행합니다. VS Code를 쓰면 권장 확장 설치 안내를 따릅니다.
 3. 팀 플러그인 설치 안내가 뜨면 승인합니다. 안 뜨면:
    ```
-   /plugin marketplace add {{org}}/team-ai-kit
-   /plugin install team-ai@team-ai-kit
+   /plugin marketplace add {{org}}/cc-ready
+   /plugin install cc-ready@cc-ready
    ```
 4. "검증해줘"를 한 번 입력해 검증 명령이 도는지 확인합니다.
 
@@ -21,8 +21,8 @@
 | 검토 | 계획을 직접 읽고 엣지 케이스·컨벤션 보태기 | 사람 |
 | 구현 | `plan.md` 다음 작업을 위에서부터 | "plan.md 다음 작업 구현해줘" |
 | 검증 | 타입체크·린트·테스트를 실제로 실행 | "검증해줘" (verify) |
-| 리뷰 | PR 전 자가 리뷰 | `/team-ai:review-pr` |
-| 커밋 | 팀 규칙대로 나눠서 커밋 | `/team-ai:commit` |
+| 리뷰 | PR 전 자가 리뷰 | `/cc-ready:review-pr` |
+| 커밋 | 팀 규칙대로 나눠서 커밋 | `/cc-ready:commit` |
 
 작은 수정(오타, 한 파일 몇 줄)은 계획을 건너뛰어도 됩니다.
 
@@ -48,14 +48,14 @@
 - 강제 푸시, DB 삭제, 인프라 변경 같은 명령은 차단됩니다. 꼭 필요하면 직접 실행합니다.
 - 파일 수정 후 팀 포맷터가 실행됩니다.
 - 대화가 길어져 압축되면 plan.md의 남은 작업이 다시 들어갑니다. (CLAUDE.md는 Claude Code가 자동으로 다시 읽습니다.)
-- 규칙은 `.claude/team-ai.json`, `.claude/settings.json`에 있습니다. 바꾸려면 PR로 제안합니다.
+- 규칙은 `.claude/cc-ready.json`, `.claude/settings.json`에 있습니다. 바꾸려면 PR로 제안합니다.
 
 ## 선택 기능
 
 필요해지면 팀과 상의해 켭니다.
 
 ```
-/plugin install team-ai-extras@team-ai-kit
+/plugin install cc-ready-extras@cc-ready
 ```
 
 - `fix-issue`: 근본 원인부터 찾는 버그 수정 절차

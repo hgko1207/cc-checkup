@@ -26,7 +26,7 @@ const GROUPS: { severity: Severity; title: string }[] = [
 
 // 차단 규칙이 실제로 막는 범위 (공식 문서 2026-10-12 기준, eng review R13)
 const SHELL_SCOPE =
-  "차단 규칙은 Claude의 파일 도구와 cat·head·tail·sed·tee, >·< 리다이렉트에 적용되지만 grep -r처럼 파일 이름 없이 읽는 명령과 Python·Node 스크립트는 막지 못합니다(Claude Code 최신 버전 기준). 훅(team-ai-kit)이나 샌드박스가 필요합니다";
+  "차단 규칙은 Claude의 파일 도구와 cat·head·tail·sed·tee, >·< 리다이렉트에 적용되지만 grep -r처럼 파일 이름 없이 읽는 명령과 Python·Node 스크립트는 막지 못합니다(Claude Code 최신 버전 기준). 훅(cc-ready)이나 샌드박스가 필요합니다";
 
 export function remainingRisks({ ctx }: Diagnosis): string[] {
   const notes = [SHELL_SCOPE];

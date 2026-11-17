@@ -101,26 +101,20 @@ describe("필수 플러그인 (R4)", () => {
   it("설정이 없으면 마켓플레이스·플러그인 추가 후보", async () => {
     const f = byId(await run({}), "plugins/required");
     expect(f?.severity).toBe("warn");
-    expect(f?.pluginFix?.enable).toEqual(["team-ai@team-ai-kit"]);
-    expect(Object.keys(f?.pluginFix?.marketplaces ?? {})).toEqual(["team-ai-kit"]);
+    expect(f?.pluginFix?.enable).toEqual(["cc-ready@cc-ready"]);
+    expect(Object.keys(f?.pluginFix?.marketplaces ?? {})).toEqual(["cc-ready"]);
   });
 
   it("이미 켜져 있으면 ok", async () => {
     const files = {
-      ".claude/settings.json": settingsJson(
-        {},
-        { enabledPlugins: { "team-ai@team-ai-kit": true } },
-      ),
+      ".claude/settings.json": settingsJson({}, { enabledPlugins: { "cc-ready@cc-ready": true } }),
     };
     expect(byId(await run(files), "plugins/required")?.severity).toBe("ok");
   });
 
   it("false로 꺼 둔 플러그인은 판단 필요 (기존 값 변경)", async () => {
     const files = {
-      ".claude/settings.json": settingsJson(
-        {},
-        { enabledPlugins: { "team-ai@team-ai-kit": false } },
-      ),
+      ".claude/settings.json": settingsJson({}, { enabledPlugins: { "cc-ready@cc-ready": false } }),
     };
     const f = byId(await run(files), "plugins/required");
     expect(f?.pluginFix).toBeUndefined();
@@ -132,7 +126,7 @@ describe("필수 플러그인 (R4)", () => {
       ".claude/settings.json": settingsJson(
         {},
         {
-          extraKnownMarketplaces: { "team-ai-kit": { source: { source: "directory", path: "x" } } },
+          extraKnownMarketplaces: { "cc-ready": { source: { source: "directory", path: "x" } } },
         },
       ),
     };
@@ -140,7 +134,7 @@ describe("필수 플러그인 (R4)", () => {
   });
 
   it("enabledPlugins 형식이 틀리면 판단 필요", async () => {
-    const files = { ".claude/settings.json": settingsJson({}, { enabledPlugins: ["team-ai"] }) };
+    const files = { ".claude/settings.json": settingsJson({}, { enabledPlugins: ["cc-ready"] }) };
     expect(byId(await run(files), "plugins/required")?.judgment).toContain("형식");
   });
 });

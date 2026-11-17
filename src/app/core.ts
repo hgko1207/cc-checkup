@@ -780,7 +780,7 @@ export class AppCore {
             isNew: c.before === null,
             added: diff.split("\n").filter((l) => l.startsWith("+ ")).length,
             note: c.path.startsWith(`${HOOK_DIR}/`)
-              ? "team-ai-kit 위험 명령 검사(훅) 원본 그대로 복사"
+              ? "cc-ready 위험 명령 검사(훅) 원본 그대로 복사"
               : chosen.some((x) => x.createFile?.path === c.path)
                 ? "사내 기준 템플릿"
                 : undefined,

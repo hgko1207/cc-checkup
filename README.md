@@ -37,7 +37,7 @@
 - **새 버전 알림**: 사내 표준 파일의 `app.latestVersion`이 지금 버전보다 높으면 맨 위에 알리고, [설치 파일 위치 열기]로 `app.downloadUrl`(공유 폴더 경로나 사내 주소)을 연다. 설치 파일을 직접 실행하지는 않는다.
 - **리포트 저장**: 결과를 마크다운으로 저장한다(TF가 팀별 결과를 모을 때).
 
-**위험 명령 차단 훅**: "바로 고치기"는 team-ai-kit의 차단 훅(강제 푸시·`rm -rf /` 같은 되돌리기 어려운 명령 차단)을 `.claude/hooks/cc-guard/`에 복사하고 `.claude/settings.json`의 PreToolUse에 등록한다. 플러그인 없이도 쓰도록 파일로 넣는다. 계획·검증 흐름까지 원하면 [team-ai-kit](https://github.com/hgko1207/team-ai-kit) 플러그인을 설치한다(`claude plugin marketplace add hgko1207/team-ai-kit` → `claude plugin install team-ai@team-ai-kit`). 실행하려면 그 PC에 Node.js가 있어야 한다. 실제 Claude Code(2.1.83, Windows)에서 `git push --force origin main`을 막는 것을 확인했다.
+**위험 명령 차단 훅**: "바로 고치기"는 cc-ready의 차단 훅(강제 푸시·`rm -rf /` 같은 되돌리기 어려운 명령 차단)을 `.claude/hooks/cc-guard/`에 복사하고 `.claude/settings.json`의 PreToolUse에 등록한다. 플러그인 없이도 쓰도록 파일로 넣는다. 계획·검증 흐름까지 원하면 [cc-ready](https://github.com/hgko1207/cc-ready) 플러그인을 설치한다(`claude plugin marketplace add hgko1207/cc-ready` → `claude plugin install cc-ready@cc-ready`). 실행하려면 그 PC에 Node.js가 있어야 한다. 실제 Claude Code(2.1.83, Windows)에서 `git push --force origin main`을 막는 것을 확인했다.
 
 ## CLI로 쓰기 (개발자·CI용)
 
@@ -144,7 +144,7 @@ node dist/cli.js --help
 
 - 앱은 왼쪽 [표준 파일 선택], CLI는 `--standard <파일>`로 사내 표준 파일을 지정한다. 그 값이 우선이고, 적지 않은 항목은 기본값을 쓴다.
 - 파일이 없거나 형식이 틀리면 경고하고 기본 표준으로 진단한다. 화면·리포트 맨 위에 어떤 표준으로 진단했는지 표시된다.
-- 예시: [standard/example-company.json](standard/example-company.json) — CLAUDE.md 필수 섹션(검증 명령·코딩 규칙·하지 말 것), plan.md 템플릿, 화면 있는 프로젝트의 DESIGN.md, 사내 플러그인(team-ai).
+- 예시: [standard/example-company.json](standard/example-company.json) — CLAUDE.md 필수 섹션(검증 명령·코딩 규칙·하지 말 것), plan.md 템플릿, 화면 있는 프로젝트의 DESIGN.md, 사내 플러그인(cc-ready).
 - 표준 파일로 정할 수 있는 것: `.env` 차단 대상, CLAUDE.md 길이·필수 섹션(제목 별칭·예시), 필수 파일(템플릿 또는 Claude 작업·예시), 필수 플러그인과 마켓플레이스, 화면 판정 규칙, 점수 가중치, Claude 작업 지시문, 문서·기획 폴더 기준(`docs`), 안내 문구에 붙일 사내 가이드 주소(`guideUrl`), 새 버전 알림(`app`).
 - 고치기 후보에 "사내 표준 플러그인 설정 추가"(저장소 settings.json에 더하기만)와 "plan.md 만들기"(템플릿)가 더해진다.
 - 폴더 종류: CLI는 기본이 개발 저장소(예전과 같음)이고 `--kind docs`·`--kind auto`(자동 판별)로 바꾼다. 앱은 자동 판별한다.
@@ -185,7 +185,7 @@ node dist/cli.js --help
 | `settings/env-read-deny`, `settings/env-edit-deny` | 기본 `.env` 대상 6개와 실제 `.env*` 파일이 deny 규칙에 덮이는가                   |
 | `settings/risky-allow`                             | `Bash`, `git push`, `rm -rf` 같은 위험 명령이 묻지 않고 허용되는가                |
 | `settings/bypass`                                  | 권한 우회 모드가 막혀 있는가                                                      |
-| `hooks/present`                                    | Bash 명령 전에 실행되는 훅이나 team-ai 플러그인이 있는가                          |
+| `hooks/present`                                    | Bash 명령 전에 실행되는 훅이나 cc-ready 플러그인이 있는가                         |
 | `claude-md/sections`                               | 사내 표준이 정한 CLAUDE.md 필수 섹션이 있는가 (표준에 있을 때만)                  |
 | `file/<id>`                                        | 사내 표준이 정한 필수 파일(예: plan.md, 화면 있는 프로젝트의 DESIGN.md)이 있는가  |
 | `plugins/required`                                 | 사내 표준 플러그인이 저장소 설정(enabledPlugins)에 켜져 있는가                    |

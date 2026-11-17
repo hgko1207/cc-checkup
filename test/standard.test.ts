@@ -69,7 +69,7 @@ describe("loadStandard (R3)", () => {
     const l = await loadStandard(join("standard", "example-company.json"));
     expect(l.error).toBeUndefined();
     expect(l.standard.requiredFiles.map((f) => f.id)).toEqual(["plan", "design"]);
-    expect(l.standard.plugins.required).toEqual(["team-ai@team-ai-kit"]);
+    expect(l.standard.plugins.required).toEqual(["cc-ready@cc-ready"]);
   });
 
   it("예시 파일을 덮어쓴 표준도 다시 읽힌다", async () => {

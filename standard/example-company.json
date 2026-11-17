@@ -44,14 +44,14 @@
   ],
   "plugins": {
     "marketplaces": {
-      "team-ai-kit": {
+      "cc-ready": {
         "source": {
           "source": "github",
-          "repo": "your-org/team-ai-kit"
+          "repo": "your-org/cc-ready"
         }
       }
     },
-    "required": ["team-ai@team-ai-kit"]
+    "required": ["cc-ready@cc-ready"]
   },
   "score": {
     "fail": 15,

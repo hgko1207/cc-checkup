@@ -11,7 +11,7 @@ export const DEFAULT_STANDARD: Standard = {
   name: "기본 표준",
   version: "1.0.0",
   env: {
-    // 고치기 1이 넣는 기본 대상 6개 (team-ai-kit 템플릿과 같은 목록)
+    // 고치기 1이 넣는 기본 대상 6개 (cc-ready 템플릿과 같은 목록)
     targets: [
       ".env",
       ".env.local",

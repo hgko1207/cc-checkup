@@ -230,21 +230,36 @@ describe("진단 8 위험 명령 차단 훅 (R9)", () => {
     expect(f?.message).toContain("확인하지 않음");
   });
 
-  it("team-ai 플러그인이 켜져 있으면 ok, 꺼져 있으면 warn", async () => {
+  it("cc-ready 플러그인이 켜져 있으면 ok, 꺼져 있으면 warn", async () => {
     const on = await run({
+      ".claude/settings.json": settingsJson({}, { enabledPlugins: { "cc-ready@cc-ready": true } }),
+    });
+    const off = await run({
+      ".claude/settings.json": settingsJson({}, { enabledPlugins: { "cc-ready@cc-ready": false } }),
+    });
+    expect(byId(on, "hooks/present")?.severity).toBe("ok");
+    expect(byId(on, "hooks/present")?.message).toContain("cc-ready 플러그인");
+    expect(byId(off, "hooks/present")?.severity).toBe("warn");
+  });
+
+  it("예전 이름 team-ai 플러그인도 인정한다 (0.5.0까지)", async () => {
+    const old = await run({
       ".claude/settings.json": settingsJson(
         {},
         { enabledPlugins: { "team-ai@team-ai-kit": true } },
       ),
     });
-    const off = await run({
+    expect(byId(old, "hooks/present")?.severity).toBe("ok");
+  });
+
+  it("cc-ready-extras만 켜져 있으면 인정하지 않는다 (훅은 기본 플러그인에 있음)", async () => {
+    const extras = await run({
       ".claude/settings.json": settingsJson(
         {},
-        { enabledPlugins: { "team-ai@team-ai-kit": false } },
+        { enabledPlugins: { "cc-ready-extras@cc-ready": true } },
       ),
     });
-    expect(byId(on, "hooks/present")?.severity).toBe("ok");
-    expect(byId(off, "hooks/present")?.severity).toBe("warn");
+    expect(byId(extras, "hooks/present")?.severity).toBe("warn");
   });
 });
 

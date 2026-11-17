@@ -1,4 +1,4 @@
-// team-ai-kit plugins/team-ai/hooks/block-dangerous-bash.js 복사본 (cc-checkup이 저장소에 넣는 위험 명령 차단 훅).
+// cc-ready plugins/cc-ready/hooks/block-dangerous-bash.js 복사본 (cc-checkup이 저장소에 넣는 위험 명령 차단 훅).
 // 바꾼 것: require("./lib") → require("./lib.cjs"). 원본을 고치면 이 파일도 맞춘다.
 // PreToolUse(Bash|PowerShell): 되돌리기 어려운 명령 차단
 // 명령을 셸 문법(따옴표·이스케이프·구간·명령 치환)에 맞춰 나눠 해석한다.
@@ -24,7 +24,7 @@ function block(why) {
 }
 
 const config = loadConfig(input);
-if (config.error) block(`팀 설정을 읽을 수 없어 모든 명령을 막았습니다 (${config.error}). 사람이 .claude/team-ai.json을 직접 고쳐야 합니다`);
+if (config.error) block(`팀 설정을 읽을 수 없어 모든 명령을 막았습니다 (${config.error}). 사람이 .claude/cc-ready.json을 직접 고쳐야 합니다`);
 if (command.length > MAX_LEN) block("명령이 너무 길어 검사할 수 없습니다");
 
 // ---------- 파싱 ----------

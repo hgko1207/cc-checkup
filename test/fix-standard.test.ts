@@ -11,8 +11,8 @@ import { fakeGit, repoWith, settingsJson } from "./helpers.js";
 
 const EXAMPLE = join(process.cwd(), "standard", "example-company.json");
 const plugins = {
-  marketplaces: { "team-ai-kit": { source: { source: "github", repo: "org/team-ai-kit" } } },
-  enable: ["team-ai@team-ai-kit"],
+  marketplaces: { "cc-ready": { source: { source: "github", repo: "org/cc-ready" } } },
+  enable: ["cc-ready@cc-ready"],
 };
 const pluginFix: FixCandidate = { no: 1, title: "", denyRules: [], bypass: false, plugins };
 
@@ -28,7 +28,7 @@ describe("설치하기: 플러그인 설정 더하기만 (R4)", () => {
     const change = applyFixes(await readSettings(await repoWith({})), [pluginFix]);
     expect(JSON.parse(change.after)).toEqual({
       extraKnownMarketplaces: plugins.marketplaces,
-      enabledPlugins: { "team-ai@team-ai-kit": true },
+      enabledPlugins: { "cc-ready@cc-ready": true },
     });
   });
 
@@ -45,8 +45,8 @@ describe("설치하기: 플러그인 설정 더하기만 (R4)", () => {
       [pluginFix],
     );
     const after = JSON.parse(change.after);
-    expect(after.enabledPlugins).toEqual({ "other@m": true, "team-ai@team-ai-kit": true });
-    expect(Object.keys(after.extraKnownMarketplaces)).toEqual(["m", "team-ai-kit"]);
+    expect(after.enabledPlugins).toEqual({ "other@m": true, "cc-ready@cc-ready": true });
+    expect(Object.keys(after.extraKnownMarketplaces)).toEqual(["m", "cc-ready"]);
     expect(after.permissions).toEqual({ deny: ["Read(x)"] });
     // 기존 줄은 그대로 남는다
     for (const line of before.trimEnd().split("\n").slice(0, 4))
@@ -124,7 +124,7 @@ describe("CLI --standard", () => {
     expect(
       JSON.parse(await readFile(join(repo, ".claude/settings.json"), "utf8")).enabledPlugins,
     ).toEqual({
-      "team-ai@team-ai-kit": true,
+      "cc-ready@cc-ready": true,
     });
     expect(await exists(join(repo, "plan.md"))).toBe(true);
 
