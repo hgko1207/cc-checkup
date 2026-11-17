@@ -74,7 +74,7 @@ export function planFixes({ ctx, findings }: Diagnosis): FixPlan {
       if (hook) {
         candidates.push({
           no: candidates.length + 1,
-          title: "위험 명령 차단 훅 넣기 (.claude/hooks/cc-guard, team-ai-kit 훅)",
+          title: "위험 명령 차단 훅 넣기 (.claude/hooks/cc-guard, cc-ready 훅)",
           denyRules: [],
           bypass: false,
           // 이미 있는 훅 파일은 덮어쓰지 않는다

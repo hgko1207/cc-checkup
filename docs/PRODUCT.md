@@ -4,7 +4,7 @@
 
 - **영업 도구**: "AI 코딩 팀 세팅" 서비스 상담 전에 고객 저장소 상태를 숫자와 목록으로 본다. 견적의 근거가 되고, 세팅 후 다시 돌려 전후를 비교한다.
 - **블로그 무료 도구**: 개인 개발자가 자가 진단에 쓰고, 팀 도입 문의로 이어지는 입구가 된다.
-- **기준의 출처**: 진단 기준은 team-ai-kit(팀 표준 세팅 키트)의 규칙과 블로그 hgko-dev.tistory.com의 Claude Code 글을 따른다.
+- **기준의 출처**: 진단 기준은 cc-ready(Claude Code 세팅 키트, 예전 이름 team-ai-kit)의 규칙과 블로그 hgko-dev.tistory.com의 Claude Code 글을 따른다.
 
 ## 2. 비슷한 도구와의 차이
 
@@ -27,7 +27,7 @@
 | `settings/env-edit-deny` | .env 쓰기 차단     | 같은 파일을 Edit로 막는다                                              | 주의                           | 항상                       |
 | `settings/risky-allow`   | 위험한 자동 허용   | allow에 강제 푸시·rm -rf·Bash 전체 같은 명령이 없다                    | 주의 (자동으로 고치지 않음)    | 항상                       |
 | `settings/bypass`        | 권한 우회 모드     | `permissions.disableBypassPermissionsMode: "disable"`                  | 주의                           | 항상                       |
-| `hooks/present`          | 위험 명령 검사(훅) | Bash 앞에 도는 PreToolUse 훅 또는 team-ai 플러그인                     | 주의                           | 개발 저장소                |
+| `hooks/present`          | 위험 명령 검사(훅) | Bash 앞에 도는 PreToolUse 훅 또는 cc-ready 플러그인                    | 주의                           | 개발 저장소                |
 | `settings/committed`     | 설정 커밋          | settings.json이 git에 커밋돼 있고, 보호 규칙이 개인 설정에만 있지 않다 | 위험 (확인할 수 없으면 주의)   | 팀 저장소                  |
 | `claude-md`              | CLAUDE.md          | CLAUDE.md 또는 .claude/CLAUDE.md가 있고 기준 줄 수 이하                | 없으면 위험, 길면 주의         | 항상                       |
 | `claude-md/verify`       | 검증 명령          | 검증 섹션이나 테스트·린트·타입체크 명령이 적혀 있다                    | 주의                           | 개발 저장소                |

@@ -115,7 +115,7 @@ export interface FilePreview {
   diff: string;
   isNew: boolean;
   added: number; // 더해지는 줄 수
-  note?: string; // 출처 (예: team-ai-kit 차단 훅 원본 그대로)
+  note?: string; // 출처 (예: cc-ready 차단 훅 원본 그대로)
 }
 
 export type FixView =

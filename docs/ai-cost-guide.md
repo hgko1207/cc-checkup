@@ -17,7 +17,7 @@
 
 - 세션 비용: Claude Code에서 `/cost`
 - 사용량 내역: `/usage`
-- 플러그인·스킬이 차지하는 토큰: 터미널에서 `claude plugin details team-ai`
+- 플러그인·스킬이 차지하는 토큰: 터미널에서 `claude plugin details cc-ready`
 - 관리자 대시보드: {{조직 콘솔 주소 또는 담당자}}
 
 ## 3. 비용을 줄이는 습관
